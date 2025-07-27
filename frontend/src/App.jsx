@@ -1,15 +1,10 @@
-import { useState } from 'react'
+import Layout from "./pages/Layout"
 
-
-function App() {
-  const [count, setCount] = useState(0)
-
+const App = () => {
   return (
-    <>
-      <h1 class="text-3xl font-bold underline">
-          Hello world!
-      </h1>
-    </>
+    <div>
+      <Layout />
+    </div>
   )
 }
 
