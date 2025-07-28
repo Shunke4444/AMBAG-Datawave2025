@@ -3,8 +3,9 @@
   @theme {
       --color-primary: #830000; /*Red*/
       --color-secondary: #FBFAF9; /*White*/
-      --color-text: #1B1C1E; /*Black*/
+      --color-textcolor: #1B1C1E; /*Black*/
       --color-accent: #DDB440; /*Yellow*/
+      --color-shadow: #690000; /*Red Shadow*/
     }
 
   @theme {
