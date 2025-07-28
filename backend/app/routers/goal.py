@@ -57,27 +57,6 @@ class pendingGoalResponse(BaseModel):
     status: str
     pending_goal: pendingGoal 
 
-class aiPaymentRequest(BaseModel):
-    goal_id: str
-    manager_name:str
-
-class aiPaymentResponse(BaseModel):
-    message: str
-    goal_id: str
-    goal_title: str
-    total_amount: float
-    payment_status: str
-    processed_by: str
-    processed_at: datetime
-
-class aiSuggestion(BaseModel):
-    goal_id: str
-    goal_title: str
-    total_amount: float
-    message: str
-    goal_finished_at: datetime
-    can_pay: bool
-
 
 @router.post("/", response_model=Union[goal, pendingGoalResponse])
 def create_goal(goal_data: goalCreate):
@@ -286,6 +265,8 @@ def delete_goal(goal_id: str):
     
     return {"message": f"Goal '{deleted_goal.title}' deleted successfully"}
 
+
+#add ai to ping manager for payment
 @router.post("/{goal_id}/payout")
 def payout_goal(goal_id: str, manager_approval: bool):
     goal_item = goals.get(goal_id)
