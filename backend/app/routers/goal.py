@@ -9,9 +9,9 @@ router = APIRouter(
     tags=["goal"]
 )
 
-goals = []
-pool_status = {}
-pending_goals = []  
+goals: Dict[str, "goal"] = {}
+pool_status: Dict[str, Dict] = {}
+pending_goals: Dict[str, "pendingGoal"] = {}
 
 class goalCreate(BaseModel):
     title: str
@@ -31,7 +31,7 @@ class goal(BaseModel):
     creator_name: str
     target_date: date 
     is_paid: bool = False
-    status: str = "active"  # active, completed, cancelled
+    status: str = "active"  # active, completed, cancelled, awaiting_payment
     created_at: str
     approved_at: Optional[str] = None
 
@@ -57,6 +57,27 @@ class pendingGoalResponse(BaseModel):
     status: str
     pending_goal: pendingGoal 
 
+class aiPaymentRequest(BaseModel):
+    goal_id: str
+    manager_name:str
+
+class aiPaymentResponse(BaseModel):
+    message: str
+    goal_id: str
+    goal_title: str
+    total_amount: float
+    payment_status: str
+    processed_by: str
+    processed_at: datetime
+
+class aiSuggestion(BaseModel):
+    goal_id: str
+    goal_title: str
+    total_amount: float
+    message: str
+    goal_finished_at: datetime
+    can_pay: bool
+
 
 @router.post("/", response_model=Union[goal, pendingGoalResponse])
 def create_goal(goal_data: goalCreate):
@@ -66,7 +87,7 @@ def create_goal(goal_data: goalCreate):
     goal_id = str(uuid.uuid4())
     current_time = datetime.now().isoformat()
     
-    if len(goals) == 0 or goal_data.creator_role == "manager":
+    if not goals or goal_data.creator_role == "manager":
         new_goal = goal(
             id=goal_id,
             title=goal_data.title,
@@ -78,7 +99,7 @@ def create_goal(goal_data: goalCreate):
             created_at=current_time,
             approved_at=current_time if goal_data.creator_role == "manager" else None
         )
-        goals.append(new_goal)
+        goals[goal_id] = new_goal
         pool_status[goal_id] = {
             "current_amount": 0.0, 
             "is_paid": False, 
@@ -98,7 +119,7 @@ def create_goal(goal_data: goalCreate):
             target_date=goal_data.target_date,
             created_at=current_time
         )
-        pending_goals.append(pending_goal)
+        pending_goals[goal_id] = pending_goal
         
         return pendingGoalResponse(
             message=f"Goal '{goal_data.title}' created and sent for manager approval",
@@ -109,27 +130,19 @@ def create_goal(goal_data: goalCreate):
 
 @router.get("/pending", response_model=List[pendingGoal])
 def get_pending_goals():
-    return [goal for goal in pending_goals if goal.status == "pending"]
+    return [goal for goal in pending_goals.values() if goal.status == "pending"]
 
 @router.post("/pending/{goal_id}/approve")
 def approve_or_reject_goal(goal_id: str, approval: goalApproval):
     if approval.action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
     
-    pending_goal = None
-    pending_goal_index = None
-    
-    for i, goal_item in enumerate(pending_goals):
-        if goal_item.id == goal_id and goal_item.status == "pending":
-            pending_goal = goal_item
-            pending_goal_index = i
-            break
+    pending_goal = pending_goals.get(goal_id)
 
-    if not pending_goal or pending_goal_index is None:
+    if not pending_goal or pending_goal.status != "pending":
         raise HTTPException(status_code=404, detail="Pending goal not found or already processed")
     
     current_time = datetime.now().isoformat()
-    
     try:
         if approval.action == "approve":
             new_goal = goal(
@@ -144,7 +157,7 @@ def approve_or_reject_goal(goal_id: str, approval: goalApproval):
                 approved_at=current_time
             )
             
-            goals.append(new_goal)
+            goals[goal_id] = new_goal
             
             pool_status[goal_id] = {
                 "current_amount": 0.0, 
@@ -153,7 +166,7 @@ def approve_or_reject_goal(goal_id: str, approval: goalApproval):
                 "contributors": []
             }
             
-            pending_goals[pending_goal_index].status = "approved"
+            pending_goal.status = "approved"
             
             return {
                 "message": f"Goal '{pending_goal.title}' approved by {approval.manager_name}",
@@ -162,7 +175,7 @@ def approve_or_reject_goal(goal_id: str, approval: goalApproval):
             }
         
         elif approval.action == "reject":
-            pending_goals[pending_goal_index].status = "rejected"
+            pending_goal.status = "rejected"
             
             return {
                 "message": f"Goal '{pending_goal.title}' rejected by {approval.manager_name}",
@@ -179,17 +192,17 @@ def approve_or_reject_goal(goal_id: str, approval: goalApproval):
 
 @router.get("/", response_model=List[goal])
 def get_all_goals():
-    return goals
+    return list(goals.values())
 
 @router.get("/{goal_id}", response_model=goal)
 def get_goal(goal_id: str):
-    for goal_item in goals:
-        if goal_item.id == goal_id:
-            if goal_id in pool_status:
-                goal_item.current_amount = pool_status[goal_id]["current_amount"]
-                goal_item.is_paid = pool_status[goal_id]["is_paid"]
-                goal_item.status = pool_status[goal_id]["status"]
-            return goal_item
+    goal_item = goals.get(goal_id)
+    if goal_item:
+        if goal_id in pool_status:
+            goal_item.current_amount = pool_status[goal_id]["current_amount"]
+            goal_item.is_paid = pool_status[goal_id]["is_paid"]
+            goal_item.status = pool_status[goal_id]["status"]
+        return goal_item
     raise HTTPException(status_code=404, detail="Goal not found")
 
 class contributionData(BaseModel):
@@ -206,11 +219,7 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
     if contribution.amount <= 0:
         raise HTTPException(status_code=400, detail="Contribution amount must be positive")
     
-    goal_item = None
-    for g in goals:
-        if g.id == goal_id:
-            goal_item = g
-            break
+    goal_item = goals.get(goal_id)
     
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -225,8 +234,7 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
     })
     
     if pool_status[goal_id]["current_amount"] >= goal_item.goal_amount:
-        pool_status[goal_id]["is_paid"] = True
-        pool_status[goal_id]["status"] = "completed"
+        pool_status[goal_id]["status"] = "awaiting_payment"
     
     goal_item.current_amount = pool_status[goal_id]["current_amount"]
     goal_item.is_paid = pool_status[goal_id]["is_paid"]
@@ -250,3 +258,50 @@ def get_goal_contributors(goal_id: str):
         "total_contributors": len(pool_status[goal_id]["contributors"]),
         "total_amount": pool_status[goal_id]["current_amount"]
     } 
+
+@router.put("/{goal_id}/status")
+def update_goal_status(goal_id: str, status: str):
+    if status not in ["active", "completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    goal_item = goals.get(goal_id)
+    
+    if not goal_item:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    pool_status[goal_id]["status"] = status
+    goal_item.status = status
+    
+    return {"message": f"Goal '{goal_item.title}' status updated to {status}"}
+
+@router.delete("/{goal_id}")
+def delete_goal(goal_id: str):
+    if goal_id not in goals:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    deleted_goal = goals.pop(goal_id)
+    
+    if goal_id in pool_status:
+        del pool_status[goal_id]
+    
+    return {"message": f"Goal '{deleted_goal.title}' deleted successfully"}
+
+@router.post("/{goal_id}/payout")
+def payout_goal(goal_id: str, manager_approval: bool):
+    goal_item = goals.get(goal_id)
+    if not goal_item:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    if goal_item.status != "awaiting_payment":
+        raise HTTPException(status_code=400, detail="Goal is not awaiting payment.")
+
+    if manager_approval:
+        goal_item.status = "completed"
+        goal_item.is_paid = True
+        pool_status[goal_id]["status"] = "completed"
+        pool_status[goal_id]["is_paid"] = True
+        return {"message": f"Goal '{goal_item.title}' has been paid out."}
+    else:
+        goal_item.status = "active"
+        pool_status[goal_id]["status"] = "active"
+        return {"message": f"Payment for goal '{goal_item.title}' has been rejected by the manager."}
