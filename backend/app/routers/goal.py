@@ -211,7 +211,7 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
         "reference_number": contribution.reference_number,
         "timestamp": datetime.now().isoformat()
     })
-    
+    #add ai comment when its awaiting payment 
     if pool_status[goal_id]["current_amount"] >= goal_item.goal_amount:
         pool_status[goal_id]["status"] = "awaiting_payment"
     
