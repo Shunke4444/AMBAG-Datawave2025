@@ -6,6 +6,7 @@
       --color-textcolor: #1B1C1E; /*Black*/
       --color-accent: #DDB440; /*Yellow*/
       --color-shadow: #690000; /*Red Shadow*/
+      --color-green: #34A751; /*Green*/
     }
 
   @theme {
