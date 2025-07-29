@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+  @theme {
+      --color-primary: #830000; /*Red*/
+      --color-secondary: #FBFAF9; /*White*/
+      --color-textcolor: #1B1C1E; /*Black*/
+      --color-accent: #DDB440; /*Yellow*/
+      --color-shadow: #690000; /*Red Shadow*/
+    }
+
+  @theme {
+      --text-xl: 2rem; /*32px*/
+      --text-lg: 1.75rem; /*28px*/
+      --text-md: 1.5rem; /*24px*/
+      --text-sm: 1.125rem; /*18x*/
+      --text-xs: 1rem; /*16px*/
+      --text-xxs: 0.875rem; /*14px*/
+    }    
