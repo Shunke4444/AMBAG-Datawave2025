@@ -1,0 +1,6 @@
+- [/] Set up FastAPI
+- [/] Initialize venv
+- [] Create a mockdata base for testing API with frontend Implemention
+- [] Create Core Endpoints
+  - []
+- [] When DB is finished add in users.py or keep it in main.py
