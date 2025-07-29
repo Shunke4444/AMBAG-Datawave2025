@@ -1,7 +1,6 @@
 import { 
   Card, 
   CardContent, 
-  Typography, 
   LinearProgress, 
   Box } from '@mui/material';
 

@@ -45,15 +45,11 @@ const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose})
 
   return (
     <>
-<<<<<<< HEAD
-    <aside className={`bg-primary  h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-10 ${isCollapsed ? "w-24" : "w-64"}`}>
-=======
     <aside className={`
       bg-primary h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50 
       ${isCollapsed ? "w-24" : "w-64"}
       ${isMobile ? 'lg:relative lg:top-auto' : ''}
     `}>
->>>>>>> upstream/main
 
       {/** profile and menu btn */}
       <div className="flex justify-between items-center py-5 ml-5">
