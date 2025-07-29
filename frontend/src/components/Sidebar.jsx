@@ -14,7 +14,7 @@ import { ExpandLess, ExpandMore } from '@mui/icons-material';
 
 import { Waves } from '../assets/images';
 
-const Sidebar = ({isCollapsed, setIsCollapsed}) => {
+const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose}) => {
   
   const [openTransactionMenu, setOpenTransactionMenu] = useState(false); 
 
@@ -22,23 +22,32 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
     setOpenTransactionMenu(!openTransactionMenu);
   }
 
-
-
   const handleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+  }
+
+  // Handle mobile link clicks
+  const handleMobileLinkClick = () => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
   }
 
   const navItems = [
     {to:'/dashboard', label:'Dashboard' , icon:<DashboardIcon/>},
     {to:'/goals', label:'Goals' , icon:<GoalsIcon/>},
-    {to:'/assistantBot' , label:'AI Assistant' , icon:<AssistantIcon/> },
+    {to:'/ai-assistant' , label:'AI Assistant' , icon:<AssistantIcon/> },
     {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> }
   ]
   
 
   return (
     <>
-    <aside className={`bg-primary  h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50 ${isCollapsed ? "w-24" : "w-64"}`}>
+    <aside className={`
+      bg-primary h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50 
+      ${isCollapsed ? "w-24" : "w-64"}
+      ${isMobile ? 'lg:relative lg:top-auto' : ''}
+    `}>
 
       {/** profile and menu btn */}
       <div className="flex justify-between items-center py-5 ml-5">
@@ -65,6 +74,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
           <NavLink
             key={to}
             to={to}
+            onClick={handleMobileLinkClick}
             className={({isActive}) => `
               flex items-center gap-3 rounded-xl p-3 font-bold text-sm transition-colors
               ${isActive ? 'bg-shadow text-secondary' : 'text-secondary hover:bg-shadow/30'}
@@ -114,6 +124,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
                   key={to}
                   component={NavLink}
                   to={to}
+                  onClick={handleMobileLinkClick}
                   className={`pl-14 py-2 text-secondary hover:bg-shadow/30 transition-all duration-200 text-sm font-bold ${
                     isCollapsed ? 'hidden' : ''
                   }`}
