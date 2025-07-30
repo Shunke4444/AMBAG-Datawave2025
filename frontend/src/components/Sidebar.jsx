@@ -11,10 +11,7 @@ import {
 } from '@mui/icons-material';
 import { IconButton, Tooltip, List, ListSubheader, ListItemIcon, ListItemText, Collapse, ListItemButton} from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import Typography from '@mui/material/Typography';
-
-
-import { Waves } from '../assets/images';
+  
 
 const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose}) => {
   
@@ -94,7 +91,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose})
         
       {/* Transactions Dropdown */}
 
-        <List component="NavLink" disablePadding>
+        <List disablePadding>
           <ListItemButton
             onClick={handle_Transaction_Dropdown}
             className={`
@@ -129,7 +126,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose})
                 { to: '/transactions/withdrawal', label: 'Withdrawal' },
                 { to: '/transactions/deposit', label: 'Deposit' },
                 { to: '/transactions/history', label: 'Transaction History' },
-                { to: '/transactions/audit-logs', label: 'Audit Logs' },
+                { to: '/transactions/audit', label: 'Audit Logs' },
               ].map(({ to, label }) => (
                 <ListItemButton
                   key={to}
