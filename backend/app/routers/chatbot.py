@@ -1,4 +1,3 @@
-# chatbot.py
 from fastapi import APIRouter, HTTPException, Request, Depends
 from .ai_client import get_ai_client
 from pydantic import BaseModel
