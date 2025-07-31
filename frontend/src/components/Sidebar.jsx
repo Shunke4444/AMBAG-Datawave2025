@@ -39,7 +39,8 @@ const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose})
     {to:'/dashboard', label:'Dashboard' , icon:<DashboardIcon/>},
     {to:'/goals', label:'Goals' , icon:<GoalsIcon/>},
     {to:'/ai-assistant' , label:'AI Assistant' , icon:<AssistantIcon/> },
-    {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> }
+    {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> },
+    {to: '/transaction-history', label: 'Transaction History', icon: <TransactionIcon />},
   ]
   
 
