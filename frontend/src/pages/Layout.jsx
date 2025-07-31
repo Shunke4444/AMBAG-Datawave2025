@@ -24,8 +24,8 @@ const Layout = () => {
       {/* Main Content */}
       <main
         className={`
-          flex-1 transition-all duration-300 
-          ${isFullScreenPage ? '' : 'p-6'}
+          flex-1 transition-all duration-300 overflow-hidden
+          ${isFullScreenPage ? '' : 'px-0 lg:px-6'}
           ${isCollapsed ? 'lg:ml-24' : 'lg:ml-64'}
           ml-0
         `}

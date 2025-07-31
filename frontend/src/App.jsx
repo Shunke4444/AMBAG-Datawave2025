@@ -7,6 +7,7 @@ import Goals from './pages/Goals';
 import Settings from './pages/Settings';
 import AIAssistant from './pages/AIAssitant';
 import WhatIf from './pages/WhatIf'
+import TransactionHistory from './pages/TransactionHistory';
 
 const router = createBrowserRouter([
   { path: '/' , 
@@ -17,7 +18,8 @@ const router = createBrowserRouter([
       {path: 'goals', element: <Goals />},
       {path: 'ai-assistant', element: <AIAssistant/>},
       {path: 'what-if', element: <WhatIf/>},
-      {path: 'settings', element: <Settings /> }
+      {path: 'settings', element: <Settings /> },
+      {path: 'transaction-history', element: <TransactionHistory />},
     ],
   },
 ])
