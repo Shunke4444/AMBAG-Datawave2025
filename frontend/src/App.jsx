@@ -31,6 +31,8 @@ const router = createBrowserRouter([
       {path: 'transactions/withdrawalProcess', element: <WithdrawProcess /> },
       {path: 'transactions/depositProcess', element: <DepositProcess /> },  
       
+      {path: 'settings', element: <Settings /> },
+      {path: 'transaction-history', element: <TransactionHistory />},
     ],
   },
 ])
