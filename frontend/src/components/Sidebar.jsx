@@ -9,7 +9,7 @@ import {
   CreditScoreRounded as LoanIcon,
   MenuRounded as MenuIcon,
 } from '@mui/icons-material';
-import { IconButton, Tooltip, List, ListSubheader, ListItemIcon, ListItemText, Collapse, ListItemButton} from '@mui/material';
+import { IconButton, Tooltip, List, ListItemIcon, ListItemText, Collapse, ListItemButton} from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
   
 
@@ -37,7 +37,6 @@ const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose})
     {to:'/goals', label:'Goals' , icon:<GoalsIcon/>},
     {to:'/ai-assistant' , label:'AI Assistant' , icon:<AssistantIcon/> },
     {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> },
-    {to: '/transaction-history', label: 'Transaction History', icon: <TransactionIcon />},
   ]
   
 

@@ -19,16 +19,15 @@ const Deposit = () => {
   ];
 
   return (
-    <main className="flex flex-col w-full h-full min-h-screen mx-12">
-      <h1 className="text-xl font-bold text-textcolor px-20 py-16">Deposit</h1>
+    <main className="flex flex-col w-full h-full min-h-screen   justify-center">
 
-      <div className="w-372 h-176 bg-primary mx-20 rounded-4xl p-8">
+      <div className="w-372 h-176 bg-primary mx-16 rounded-4xl p-8">
         {/* Saved Methods */}
           <h1 className="text-xl text-secondary font-light">Saved Deposit Methods</h1>
           <div className="flex justify-evenly p-8">
           {savedMethods.map((saved, index) => (
             <Card key={index} className="rounded-2xl shadow-md p-8 w-2xl">
-              <CardActionArea onClick={() => navigate('/transactions/withdrawalProcess')}>
+              <CardActionArea onClick={() => navigate('/transactions/depositProcess')}>
                 <CardContent>
                   <div className="flex justify-between">
                     <h3 className="text-sm font-bold text-textcolor">{saved.name}</h3>
@@ -48,7 +47,7 @@ const Deposit = () => {
         <div className="flex flex-wrap justify-evenly p-8 gap-4">
           {otherMethods.map((method, index) => (
             <Card key={index} className="rounded-2xl shadow-md w-2xl">
-              <CardActionArea onClick={() => navigate('/transactions/withdrawalProcess')}>
+              <CardActionArea onClick={() => navigate('/transactions/depositProcess')}>
                 <CardContent>
                   <div className="flex justify-between">
                     <h3 className="text-sm font-bold text-textcolor">{method.name}</h3>

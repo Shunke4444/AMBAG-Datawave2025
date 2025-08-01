@@ -18,10 +18,9 @@ const Withdrawal = () => {
   ];
 
   return (
-    <main className="flex flex-col w-full h-full min-h-screen mx-12">
-      <h1 className="text-xl font-bold text-textcolor px-20 py-16">Withdrawal</h1>
+    <main className="flex flex-col w-full h-full min-h-screen justify-center">
 
-      <div className="w-372 h-176 bg-primary mx-20 rounded-4xl p-8">
+      <div className="w-372 h-176 bg-primary mx-16 rounded-4xl p-8">
         {/* Saved Methods */}
           <h1 className="text-xl text-secondary font-light">Saved Withdrawal Methods</h1>
           <div className="flex justify-evenly p-8">

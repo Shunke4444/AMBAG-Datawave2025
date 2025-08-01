@@ -1,29 +1,17 @@
+import { NavLink } from "react-router-dom";
 import ConsistencyStat from "../components/ConsistencyStat"
 import ContributionDiv from "../components/ContributionDiv"
 import DashboardBtns from "../components/DashboardBtns"
 import GoalCards from "../components/GoalCards"
 
-import {
-  Notifications as NotifyIcon,
-  Settings as SettingIcon,
-  ContactSupport as SupportIcon,
-} from '@mui/icons-material';
+
 
 
 const Dashboard = () => {
 
   return (
-    <main className="flex flex-col w-full h-full min-h-screen mx-12">
-        <div>
-          <h1 className="text-xl font-bold text-textcolor px-20 py-16">
-            Dashboard
-          </h1>
-          {/* notif, settings , help supp  */}
+    <main className="flex flex-col w-full h-full min-h-screen  justify-center">
 
-            
-
-        </div>
-        
         {/* Grid */}
         <div className="w-372  h-176 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4 ">
 
