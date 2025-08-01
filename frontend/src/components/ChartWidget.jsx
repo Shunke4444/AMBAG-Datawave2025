@@ -13,18 +13,18 @@ const ChartWidget = ({
 
   return (
     <div 
-      className={`w-full h-full flex flex-col ${className}`}
+      className={`w-full h-full flex flex-col p-2 ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Header */}
-      <div className="flex-shrink-0 mb-3">
+      <div className="mb-2">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-textcolor truncate">{title}</h3>
           
           {/* Legend */}
           {legendItems.length > 0 && (
-            <div className="flex items-center space-x-3 flex-shrink-0">
+            <div className="flex items-center space-x-1 flex-shrink-0">
               {legendItems.map((item, index) => (
                 <div key={index} className="flex items-center space-x-1">
                   <div 
@@ -41,7 +41,7 @@ const ChartWidget = ({
 
       {/* Chart Container */}
       <div className="flex-1 min-h-0 relative">
-        <div className="w-full h-full">
+        <div className="w-full h-full p-1">
           <Line 
             data={chartData} 
             options={{
@@ -71,14 +71,6 @@ const ChartWidget = ({
         )}
       </div>
 
-      {/* Footer Info */}
-      <div className="flex-shrink-0 mt-2">
-        <div className="text-xs text-textcolor/50 text-center">
-          {chartData.datasets && chartData.datasets.length > 0 && (
-            <span>{chartData.datasets.length} dataset{chartData.datasets.length > 1 ? 's' : ''}</span>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

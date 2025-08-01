@@ -11,11 +11,10 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { ArrowBack, Send, ExpandLess, ExpandMore, Settings } from '@mui/icons-material';
+import { ArrowBack, Send, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import GridLayoutManager from '../components/GridLayoutManager';
 import ChartWidget from '../components/ChartWidget';
-import LayoutControlPanel from '../components/LayoutControlPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -45,9 +44,8 @@ export default function WhatIf() {
   const [inputValue, setInputValue] = useState('');
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [gridCols, setGridCols] = useState(12);
-  const [gridRows, setGridRows] = useState(8);
+  const [gridRows, setGridRows] = useState(6);
   const [layoutHistory, setLayoutHistory] = useState([]);
-  const [isLayoutControlsOpen, setIsLayoutControlsOpen] = useState(false);
   const [currentLayout, setCurrentLayout] = useState({
     mainChart: { x: 0, y: 0, width: 6, height: 3 },
     trendsChart: { x: 6, y: 0, width: 6, height: 3 },
@@ -106,51 +104,83 @@ export default function WhatIf() {
     }));
   };
 
-  const handleGridSizeChange = (newCols, newRows) => {
-    setGridCols(newCols);
-    setGridRows(newRows);
-    // Optionally adjust layout to fit new grid
-    setCurrentLayout(prev => {
-      const adjusted = {};
-      Object.keys(prev).forEach(key => {
-        const item = prev[key];
-        adjusted[key] = {
-          ...item,
-          x: Math.min(item.x, newCols - item.width),
-          y: Math.min(item.y, newRows - item.height),
-          width: Math.min(item.width, newCols),
-          height: Math.min(item.height, newRows)
-        };
-      });
-      return adjusted;
-    });
-  };
-
-  const handleResetLayout = () => {
-    setLayoutHistory(prev => [...prev, currentLayout]);
-    setCurrentLayout({
-      mainChart: { x: 0, y: 0, width: 6, height: 3 },
-      trendsChart: { x: 6, y: 0, width: 6, height: 3 },
-      performanceChart: { x: 0, y: 3, width: 12, height: 3 }
-    });
-  };
-
-  const handleUndoLayout = () => {
-    if (layoutHistory.length > 0) {
-      const previousLayout = layoutHistory[layoutHistory.length - 1];
-      setCurrentLayout(previousLayout);
-      setLayoutHistory(prev => prev.slice(0, -1));
+  // Enhanced layout change with drag-to-swap detection
+  const handleEnhancedLayoutChange = (itemId, newLayout, isDragging = false) => {
+    if (isDragging) {
+      // Check for swap opportunities when dragging
+      const draggedChart = currentLayout[itemId];
+      const otherCharts = Object.entries(currentLayout).filter(([id]) => id !== itemId);
+      
+      for (const [otherId, otherChart] of otherCharts) {
+        // Check if dragged chart overlaps significantly with another chart
+        const overlapX = Math.max(0, Math.min(newLayout.x + newLayout.width, otherChart.x + otherChart.width) - Math.max(newLayout.x, otherChart.x));
+        const overlapY = Math.max(0, Math.min(newLayout.y + newLayout.height, otherChart.y + otherChart.height) - Math.max(newLayout.y, otherChart.y));
+        const overlapArea = overlapX * overlapY;
+        const draggedArea = newLayout.width * newLayout.height;
+        const otherArea = otherChart.width * otherChart.height;
+        
+        // If overlap is significant (more than 30% of either chart), trigger swap
+        if (overlapArea > Math.min(draggedArea, otherArea) * 0.3) {
+          setLayoutHistory(prev => [...prev, currentLayout]);
+          setCurrentLayout(prev => ({
+            ...prev,
+            [itemId]: { ...draggedChart, x: otherChart.x, y: otherChart.y },
+            [otherId]: { ...otherChart, x: draggedChart.x, y: draggedChart.y }
+          }));
+          return; // Exit early, swap completed
+        }
+      }
     }
+    
+    // Normal layout change if no swap detected
+    handleLayoutChange(itemId, newLayout);
   };
 
-  const handleSaveLayout = () => {
-    localStorage.setItem('whatif-layout', JSON.stringify({
-      layout: currentLayout,
-      gridCols,
-      gridRows
+  // Smart resize with mouse direction detection
+  const handleSmartResize = (itemId, newWidth, newHeight, resizeType = 'both') => {
+    const chart = currentLayout[itemId];
+    if (!chart) return;
+
+    let finalWidth = newWidth;
+    let finalHeight = newHeight;
+
+    switch (resizeType) {
+      case 'width-only':
+        finalHeight = chart.height; // Keep height unchanged
+        break;
+      case 'height-only':
+        finalWidth = chart.width; // Keep width unchanged
+        break;
+      case 'proportional':
+        // Maintain aspect ratio
+        const aspectRatio = chart.width / chart.height;
+        if (Math.abs(newWidth - chart.width) > Math.abs(newHeight - chart.height)) {
+          finalHeight = Math.round(newWidth / aspectRatio);
+        } else {
+          finalWidth = Math.round(newHeight * aspectRatio);
+        }
+        break;
+      default:
+        // 'both' - free resize
+        break;
+    }
+
+    // Constrain to grid bounds and minimum sizes
+    finalWidth = Math.max(3, Math.min(finalWidth, gridCols - chart.x));
+    finalHeight = Math.max(2, Math.min(finalHeight, gridRows - chart.y));
+
+    setLayoutHistory(prev => [...prev, currentLayout]);
+    setCurrentLayout(prev => ({
+      ...prev,
+      [itemId]: {
+        ...chart,
+        width: finalWidth,
+        height: finalHeight
+      }
     }));
-    // Show success message or toast
   };
+
+  // Message handling functions
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -312,9 +342,9 @@ export default function WhatIf() {
   };
 
   return (
-    <div className="h-screen bg-primary flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-primary flex flex-col overflow-hidden px-6">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 text-secondary flex-shrink-0 border-b border-shadow">
+      <header className="flex items-center justify-between py-4 text-secondary flex-shrink-0 border-b border-shadow">
         <div className="flex items-center">
           <button 
             onClick={() => navigate(-1)}
@@ -322,7 +352,7 @@ export default function WhatIf() {
           >
             <ArrowBack className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-medium">SandBox Mode - Grid Layout</h1>
+          <h1 className="text-lg font-medium">What-If Scenarios</h1>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -342,28 +372,19 @@ export default function WhatIf() {
               </button>
             ))}
           </div>
-
-          {/* Layout Settings Button */}
-          <button
-            onClick={() => setIsLayoutControlsOpen(true)}
-            className="p-2 bg-secondary hover:bg-secondary/80 rounded-full transition-colors border border-primary/20"
-            title="Layout Settings"
-          >
-            <Settings className="w-5 h-5 text-primary" />
-          </button>
         </div>
       </header>
 
       {/* Main Content Area with Grid */}
-      <div className={`flex-1 p-4 transition-all duration-300 ${
-        isChatExpanded ? 'pb-[60vh]' : 'pb-32'
-      }`} style={{ height: 'calc(100vh - 200px)' }}>
-        <GridLayoutManager
-          gridCols={gridCols}
-          gridRows={gridRows}
-          onLayoutChange={handleLayoutChange}
-          className="h-full"
-        >
+      <div className="h-[75vh] py-4 pb-24">
+        <div className="w-[70vw] mx-auto h-full">
+          <GridLayoutManager
+            gridCols={gridCols}
+            gridRows={gridRows}
+            onLayoutChange={handleEnhancedLayoutChange}
+            onResize={handleSmartResize}
+            className="h-full w-full"
+          >
           {/* Main Payment Analysis Chart */}
           <ChartWidget
             id="mainChart"
@@ -482,37 +503,13 @@ export default function WhatIf() {
             ]}
           />
         </GridLayoutManager>
+        </div>
       </div>
 
-      {/* Layout Controls Modal */}
-      <LayoutControlPanel
-        gridCols={gridCols}
-        gridRows={gridRows}
-        onGridSizeChange={handleGridSizeChange}
-        onResetLayout={handleResetLayout}
-        onSaveLayout={handleSaveLayout}
-        onUndoLayout={handleUndoLayout}
-        isOpen={isLayoutControlsOpen}
-        onClose={() => setIsLayoutControlsOpen(false)}
-      />
-
-      {/* Floating Action Button (Alternative access) */}
-      {!isLayoutControlsOpen && !isChatExpanded && (
-        <button
-          onClick={() => setIsLayoutControlsOpen(true)}
-          className="fixed bottom-4 right-4 p-3 bg-primary hover:bg-shadow text-secondary rounded-full shadow-lg transition-all duration-200 hover:scale-110 z-40"
-          title="Layout Settings"
-        >
-          <Settings className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Chat Interface - Fixed at bottom */}
-      <div className={`fixed bottom-0 left-0 right-0 transition-all duration-300 flex flex-col ${
-        isChatExpanded ? 'h-[60vh]' : 'h-auto'
-      }`}>
+      {/* Chat Interface - Fixed at bottom but respects layout */}
+      <div className="fixed bottom-0 bg-secondary border-t border-primary/20 z-50 left-6 lg:left-70 right-6">
         {/* Chat Header with Toggle */}
-        <div className="bg-secondary rounded-t-3xl px-4 py-3 border-b border-primary/20 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <span className="text-secondary text-sm font-medium">$</span>
@@ -538,8 +535,8 @@ export default function WhatIf() {
 
         {/* Chat Messages Container - Only show when expanded */}
         {isChatExpanded && (
-          <div className="bg-secondary px-4 pt-4 flex-1 min-h-0">
-            <div className="h-full overflow-y-auto space-y-4 pb-4">
+          <div className="px-4 border-t border-primary/20" style={{ height: '50vh' }}>
+            <div className="h-full overflow-y-auto space-y-4 py-4">
               {messages.map((message) => (
               <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {message.sender === 'bot' && (
@@ -620,21 +617,14 @@ export default function WhatIf() {
         )}
 
         {/* Input Area - Always visible */}
-        <div className="bg-secondary p-4 border-t border-primary/20 flex-shrink-0">
+        <div className="p-4 border-t border-primary/20">
           <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-            <button
-              type="button"
-              className="p-2 text-textcolor/60 hover:text-textcolor transition-colors"
-            >
-              +
-            </button>
-            
             <div className="flex-1 relative">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Type your message..."
+                placeholder="Ask about scenarios..."
                 className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60"
               />
             </div>
