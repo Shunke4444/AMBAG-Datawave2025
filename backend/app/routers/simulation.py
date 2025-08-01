@@ -46,12 +46,10 @@ class DeadlineChangeScenario(BaseModel):
     new_deadline: str
     reason: Optional[str] = None
 
-# Simulation Database
+
 simulation_results_db = []
 
-# Helper Functions
 def get_goal_baseline(goal_id: str) -> Optional[Dict]:
-    """Get current goal state as baseline for simulations"""
     goal = goals.get(goal_id)
     if not goal:
         return None
@@ -168,69 +166,6 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
     
     return impact
 
-async def generate_ai_explanation(impacts: List[Dict], baseline: Dict) -> Dict:
-    """Generate AI explanations for scenario outcomes"""
-    try:
-        client = get_ai_client()
-        if not client:
-            return {"error": "AI client not available"}
-        
-        # Prepare context for AI
-        scenarios_summary = []
-        for impact in impacts:
-            scenarios_summary.append({
-                "type": impact["scenario_type"],
-                "description": impact["description"],
-                "key_changes": impact["changes"],
-                "risks": impact["risks"],
-                "opportunities": impact["opportunities"]
-            })
-        
-        ai_prompt = f"""
-        AMBAG Financial Simulation Analysis
-        
-        Goal: {baseline['title']}
-        Current Amount: ₱{baseline['current_amount']:,.2f}
-        Goal Amount: ₱{baseline['current_goal_amount']:,.2f}
-        Days Remaining: {baseline['days_remaining']}
-        Contributors: {len(baseline['contributors'])}
-        
-        Scenarios Analyzed:
-        {chr(10).join([f"• {s['type']}: {s['description']}" for s in scenarios_summary])}
-        
-        For each scenario, provide:
-        1. Plain language explanation of impact
-        2. Financial implications in Filipino context
-        3. Risk assessment (low/medium/high)
-        4. Recommendations for the group
-        
-        Use Filipino-English mix (Taglish) and be practical about Filipino financial habits.
-        Format as JSON with explanations, recommendations, and risk_levels for each scenario.
-        """
-        
-        response = await client.chat.completions.create(
-            model="deepseek/deepseek-chat",
-            messages=[{"role": "user", "content": ai_prompt}],
-            max_tokens=2000,
-            temperature=0.7
-        )
-        
-        ai_response = response.choices[0].message.content
-        
-        # Try to parse JSON response
-        try:
-            import json
-            if ai_response:
-                return json.loads(ai_response)
-            else:
-                return {"error": "Empty AI response"}
-        except:
-            # Fallback to text response
-            return {"explanation": ai_response or "No explanation available", "type": "text"}
-            
-    except Exception as e:
-        logger.error(f"AI explanation error: {str(e)}")
-        return {"error": f"Failed to generate explanation: {str(e)}"}
 
 async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) -> Dict:
     """Generate AI advisor recommendations based on historical data and patterns"""
@@ -270,6 +205,7 @@ async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) 
         Use Filipino-English mix (Taglish) and be practical about Filipino financial habits.
         Be practical, culturally aware, and focus on group harmony and financial success.
         Format as JSON with recommendations, probabilities, and action_steps.
+        The maximum response should be 5 sentences.
         """
         
         response = await client.chat.completions.create(
@@ -294,7 +230,6 @@ async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) 
         logger.error(f"AI advisor error: {str(e)}")
         return {"error": f"Failed to generate advisor recommendations: {str(e)}"}
 
-# API Endpoints
 
 @router.post("/what-if-analysis")
 async def what_if_analysis(request: SimulationRequest):
@@ -313,31 +248,22 @@ async def what_if_analysis(request: SimulationRequest):
             impact = calculate_scenario_impact(baseline, scenario)
             scenario_impacts.append(impact)
         
-        # Generate AI explanations if requested
-        ai_explanations = {}
-        if request.explain_outcomes:
-            ai_explanations = await generate_ai_explanation(scenario_impacts, baseline)
-        
-        # Generate advisor recommendations if requested
         advisor_recommendations = {}
         if request.advisor_mode:
             advisor_recommendations = await generate_advisor_recommendations(baseline, scenario_impacts)
         
-        # Store simulation results
         simulation_result = {
             "id": f"sim_{request.goal_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             "goal_id": request.goal_id,
             "baseline": baseline,
             "scenarios": request.scenarios,
             "impacts": scenario_impacts,
-            "ai_explanations": ai_explanations,
             "advisor_recommendations": advisor_recommendations,
             "timestamp": datetime.now().isoformat()
         }
         
         simulation_results_db.append(simulation_result)
         
-        # Prepare response
         response = {
             "simulation_id": simulation_result["id"],
             "goal_id": request.goal_id,
@@ -350,9 +276,6 @@ async def what_if_analysis(request: SimulationRequest):
             }
         }
         
-        if request.explain_outcomes:
-            response["ai_explanations"] = ai_explanations
-        
         if request.advisor_mode:
             response["advisor_recommendations"] = advisor_recommendations
         
@@ -363,43 +286,6 @@ async def what_if_analysis(request: SimulationRequest):
     except Exception as e:
         logger.error(f"What-if analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-@router.post("/quick-scenario")
-async def quick_scenario(
-    goal_id: str,
-    scenario_type: str,
-    parameters: Dict,
-    description: Optional[str] = None
-):
-    """
-    Quick single scenario analysis for immediate feedback
-    """
-    try:
-        baseline = get_goal_baseline(goal_id)
-        if not baseline:
-            raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
-        
-        scenario = WhatIfScenario(
-            scenario_type=scenario_type,
-            description=description or f"Quick {scenario_type} scenario",
-            parameters=parameters
-        )
-        
-        impact = calculate_scenario_impact(baseline, scenario)
-        
-        # Generate quick AI explanation
-        ai_explanation = await generate_ai_explanation([impact], baseline)
-        
-        return {
-            "scenario": scenario,
-            "impact": impact,
-            "explanation": ai_explanation,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Quick scenario error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Scenario analysis failed: {str(e)}")
 
 @router.get("/scenarios/{goal_id}")
 async def get_goal_scenarios(goal_id: str):
@@ -413,115 +299,57 @@ async def get_goal_scenarios(goal_id: str):
         "count": len(goal_simulations)
     }
 
-@router.get("/templates")
-async def get_scenario_templates():
-    """Get predefined scenario templates for common what-if questions"""
+
+@router.post("/create-test-goal")
+async def create_test_goal():
+    """Create a test goal with sample data for simulation testing"""
     
-    templates = {
-        "goal_amount_increase": {
-            "scenario_type": "goal_amount",
-            "description": "What if we increase the goal amount?",
-            "parameters": {
-                "new_goal_amount": "REPLACE_WITH_NEW_AMOUNT"
-            }
-        },
-        "member_reduced_contribution": {
-            "scenario_type": "member_contribution", 
-            "description": "What if a member can only pay less?",
-            "parameters": {
-                "member_name": "REPLACE_WITH_MEMBER_NAME",
-                "new_amount": "REPLACE_WITH_NEW_AMOUNT"
-            }
-        },
-        "add_new_member": {
-            "scenario_type": "add_member",
-            "description": "What if we add a new contributor?",
-            "parameters": {
-                "member_name": "REPLACE_WITH_NEW_MEMBER_NAME",
-                "expected_contribution": "REPLACE_WITH_EXPECTED_AMOUNT"
-            }
-        },
-        "deadline_extension": {
-            "scenario_type": "deadline_change",
-            "description": "What if we extend the deadline?",
-            "parameters": {
-                "new_deadline": "REPLACE_WITH_NEW_DATE"
-            }
-        }
+    test_goal_id = "test_goal_123"
+    
+    test_goal_data = {
+        "id": test_goal_id,
+        "title": "Family Vacation Fund",
+        "goal_amount": 50000.0,
+        "current_amount": 15000.0,
+        "target_date": (datetime.now() + timedelta(days=90)).date(),
+        "creator_name": "Juan Dela Cruz",
+        "description": "Save for Boracay family trip",
+        "creator_role": "manager",
+        "status": "active",
+        "created_at": datetime.now().isoformat(),
+        "is_paid": False
+    }
+    
+    from .goal import goal
+    test_goal = goal(**test_goal_data)
+    
+    goals[test_goal_id] = test_goal
+    
+    pool_status[test_goal_id] = {
+        "current_amount": 15000.0,
+        "contributors": [
+            {"name": "Juan Dela Cruz", "amount": 5000.0, "date": "2025-07-15"},
+            {"name": "Maria Santos", "amount": 4000.0, "date": "2025-07-20"},
+            {"name": "Pedro Garcia", "amount": 3000.0, "date": "2025-07-25"},
+            {"name": "Ana Reyes", "amount": 3000.0, "date": "2025-07-30"}
+        ],
+        "last_updated": datetime.now().isoformat()
     }
     
     return {
-        "templates": templates,
-        "usage": "Replace REPLACE_WITH_* placeholders with actual values"
+        "message": "Test goal created successfully",
+        "goal_id": test_goal_id,
+        "goal_details": {
+            "title": test_goal.title,
+            "goal_amount": test_goal.goal_amount,
+            "current_amount": 15000.0,
+            "target_date": test_goal.target_date.isoformat(),
+            "days_remaining": (test_goal.target_date - datetime.now().date()).days,
+            "contributors": 4,
+            "remaining_amount": 35000.0
+        },
+        "ready_for_simulation": True
     }
-
-@router.post("/batch-analysis")
-async def batch_analysis(goal_id: str):
-    """
-    Run common scenario analysis automatically for comprehensive planning
-    """
-    try:
-        baseline = get_goal_baseline(goal_id)
-        if not baseline:
-            raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
-        
-        # Generate common scenarios automatically
-        common_scenarios = []
-        
-        # Scenario 1: 20% goal increase
-        common_scenarios.append(WhatIfScenario(
-            scenario_type="goal_amount",
-            description="20% goal increase scenario",
-            parameters={"new_goal_amount": baseline["current_goal_amount"] * 1.2}
-        ))
-        
-        # Scenario 2: 20% goal decrease
-        common_scenarios.append(WhatIfScenario(
-            scenario_type="goal_amount", 
-            description="20% goal decrease scenario",
-            parameters={"new_goal_amount": baseline["current_goal_amount"] * 0.8}
-        ))
-        
-        # Scenario 3: Add new member
-        common_scenarios.append(WhatIfScenario(
-            scenario_type="add_member",
-            description="Add new member scenario",
-            parameters={
-                "member_name": "New Member",
-                "expected_contribution": baseline["current_goal_amount"] / (len(baseline["contributors"]) + 1)
-            }
-        ))
-        
-        # Scenario 4: Deadline extension
-        new_deadline = (datetime.now() + timedelta(days=baseline["days_remaining"] + 14)).date()
-        common_scenarios.append(WhatIfScenario(
-            scenario_type="deadline_change",
-            description="2-week deadline extension",
-            parameters={"new_deadline": new_deadline.isoformat()}
-        ))
-        
-        # Run full analysis
-        request = SimulationRequest(
-            goal_id=goal_id,
-            scenarios=common_scenarios,
-            explain_outcomes=True,
-            advisor_mode=True
-        )
-        
-        return await what_if_analysis(request)
-        
-    except Exception as e:
-        logger.error(f"Batch analysis error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Batch analysis failed: {str(e)}")
-
-@router.delete("/scenarios/{simulation_id}")
-async def delete_simulation(simulation_id: str):
-    """Delete a specific simulation result"""
-    
-    global simulation_results_db
-    simulation_results_db = [s for s in simulation_results_db if s["id"] != simulation_id]
-    
-    return {"message": f"Simulation {simulation_id} deleted successfully"}
 
 @router.get("/dashboard")
 async def simulation_dashboard():
