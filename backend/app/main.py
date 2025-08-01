@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from routers import groups, goal, chatbot, ai_tools  # Add ai_tools
+from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation  # Add simulation
 from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
@@ -18,8 +18,9 @@ app.add_middleware(
 app.include_router(groups.router)
 app.include_router(goal.router)
 app.include_router(chatbot.router)
-app.include_router(ai_tools.router) # for Agentic  # still on the process of implementing
-
+app.include_router(scheduler_api.router) 
+app.include_router(ai_tools_clean.router) 
+app.include_router(simulation.router)  # Add simulation router 
 
 group_balances = {}
 transactions = []
