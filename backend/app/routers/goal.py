@@ -3,6 +3,11 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional, Union
 from datetime import datetime, date
 import uuid
+import logging
+
+# Configure logging for production
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/goal",
@@ -163,7 +168,6 @@ def approve_or_reject_goal(goal_id: str, approval: goalApproval):
             }
             
     except Exception as e:
-        # Log the error for debugging
         print(f"Error in approve_or_reject_goal: {str(e)}")
         print(f"Goal ID: {goal_id}")
         print(f"Approval data: {approval}")
@@ -191,7 +195,7 @@ class contributionData(BaseModel):
     reference_number: Optional[str] = None
 
 @router.post("/{goal_id}/contribute")
-def contribute_to_goal(goal_id: str, contribution: contributionData):
+async def contribute_to_goal(goal_id: str, contribution: contributionData):
     if goal_id not in pool_status:
         raise HTTPException(status_code=404, detail="Goal not found")
     
@@ -203,6 +207,9 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
     
+    # Production: Log all contribution events
+    logger.info(f"Contribution received: {contribution.amount} from {contribution.contributor_name} for goal {goal_id}")
+    
     pool_status[goal_id]["current_amount"] += contribution.amount
     pool_status[goal_id]["contributors"].append({
         "name": contribution.contributor_name,
@@ -211,9 +218,15 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
         "reference_number": contribution.reference_number,
         "timestamp": datetime.now().isoformat()
     })
-    #add ai comment when its awaiting payment 
+    
+    # Update goal completion status
+    progress_percentage = (pool_status[goal_id]["current_amount"] / goal_item.goal_amount) * 100
+    
+    # Check if goal is completed
     if pool_status[goal_id]["current_amount"] >= goal_item.goal_amount:
         pool_status[goal_id]["status"] = "awaiting_payment"
+        goal_item.status = "awaiting_payment"
+        logger.info(f"Goal {goal_id} reached target amount - status updated to awaiting_payment")
     
     goal_item.current_amount = pool_status[goal_id]["current_amount"]
     goal_item.is_paid = pool_status[goal_id]["is_paid"]
@@ -223,7 +236,7 @@ def contribute_to_goal(goal_id: str, contribution: contributionData):
         "message": f"₱{contribution.amount} contributed by {contribution.contributor_name}",
         "goal": goal_item,
         "remaining_amount": max(0, goal_item.goal_amount - goal_item.current_amount),
-        "progress_percentage": min(100, (goal_item.current_amount / goal_item.goal_amount) * 100)
+        "progress_percentage": min(100, progress_percentage)
     }
 
 @router.get("/{goal_id}/contributors")
