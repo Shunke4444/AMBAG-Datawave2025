@@ -14,7 +14,6 @@ from .ai_client import get_ai_client
 from .goal import goals, pool_status
 from .groups import group_db
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -37,8 +36,13 @@ def find_group_for_goal(goal_id: str):
     for group_id, group in group_db.items():
         # Check if the goal creator is the group manager or if there's a naming pattern
         goal = goals.get(goal_id)
-        if goal and hasattr(group, 'members') and goal.creator_name in group.members:
-            return group
+        if goal and hasattr(group, 'members'):
+            # Extract member names from GroupMember objects
+            member_names = [member.user_id for member in group.members] if isinstance(group.members, list) else []
+            # Check if goal creator matches any member or manager
+            creator_user_id = f"user_{goal.creator_name.replace(' ', '_').lower()}"
+            if creator_user_id in member_names or goal.creator_name == group.manager_id:
+                return group
     return None
 
 def convert_goal_to_group_format(goal_id: str):
@@ -54,8 +58,18 @@ def convert_goal_to_group_format(goal_id: str):
     associated_group = find_group_for_goal(goal_id)
     
     if associated_group:
-        # Use group members if group exists
-        all_members = associated_group.members if hasattr(associated_group, 'members') else [goal.creator_name]
+        # Use group members if group exists - extract names from GroupMember objects
+        if hasattr(associated_group, 'members') and isinstance(associated_group.members, list):
+            all_members = []
+            for member in associated_group.members:
+                if hasattr(member, 'user_id'):
+                    # Convert user_id back to readable name (this is a simplified conversion)
+                    readable_name = member.user_id.replace('user_', '').replace('_', ' ').title()
+                    all_members.append(readable_name)
+                else:
+                    all_members.append(str(member))
+        else:
+            all_members = [goal.creator_name]
         group_description = getattr(associated_group, 'description', '') if hasattr(associated_group, 'description') else ''
     else:
         # Fallback: Create realistic member list based on goal data and contributions
@@ -199,7 +213,7 @@ def create_fallback_actions(group_data: dict, analytics: dict):
 def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
     """Create a test goal with associated group for comprehensive testing"""
     from .goal import goal  # Fixed: Use proper relative import
-    from .groups import Group  # Fixed: Use proper relative import
+    from .groups import Group, GroupMember  # Fixed: Import GroupMember too
     
     # Create goal
     goal_id = str(uuid4())
@@ -217,20 +231,40 @@ def create_test_goal_with_group(title: str, goal_amount: float, creator_name: st
         id=goal_id,
         title=title,
         goal_amount=goal_amount,
+        current_amount=0.0,  # Add required field
         creator_name=creator_name,
         creator_role="manager",
         description=f"Test goal for {title}",
         target_date=(datetime.now() + timedelta(days=20)).date(),
-        created_at=datetime.now().isoformat()
+        created_at=datetime.now().isoformat(),
+        is_paid=False,  # Add required field
+        status="active"  # Add required field
     )
     goals[goal_id] = new_goal
     
-    # Create associated group in group_db
+    # Create GroupMember objects for the new group structure
+    group_members = []
+    for i, member_name in enumerate(member_names):
+        member = GroupMember(
+            user_id=f"user_{member_name.replace(' ', '_').lower()}_{i}",  # Generate user ID
+            role="manager" if member_name == creator_name else "contributor",
+            joined_at=datetime.now().isoformat(),
+            contribution_total=0.0,
+            is_active=True
+        )
+        group_members.append(member)
+    
+    # Create associated group in group_db with updated structure
     group = Group(
         id=goal_id,  # Use same ID to link goal and group
         name=f"Group for {title}",
         description=f"Financial group for {title}",
-        members=member_names
+        manager_id=f"user_{creator_name.replace(' ', '_').lower()}_0",  # Manager's user ID
+        members=group_members,
+        created_at=datetime.now().isoformat(),
+        is_active=True,
+        total_goals=1,
+        total_contributions=0.0
     )
     group_db[goal_id] = group
     
@@ -390,8 +424,8 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         
         Quick actions:
         • Pay via BPI: [Manager's Account]
-        • Request payment plan: Reply 'PLAN'
-        • Check group progress: [App Link]
+        • Request payment plan: Go to Request page
+        • Check group progress
         
         Your group is counting on you! 💪
         """
@@ -558,7 +592,7 @@ async def send_fund_transfer_alert(group_id: str, action_data: Dict):
             "recipient": contributor,
             "group_id": group_id,
             "message": completion_message,
-            "channel": "sms",
+            "channel": "push",
             "status": "sent",
             "timestamp": datetime.now().isoformat(),
             "auto_generated": True
@@ -1094,14 +1128,14 @@ async def create_test_scenario_with_group():
             "goal_id": goal_id,
             "group_id": goal_id,
             "scenario": "Electric Bill Test Scenario",
-            "members": group.members,
+            "members": [member.user_id for member in group.members] if hasattr(group, 'members') else [],
             "goal_amount": 5000.0,
             "current_amount": analytics.get("current_amount", 0),
             "progress_percentage": analytics.get("progress_percentage", 0),
             "pending_members": [
-                member for member in group.members 
-                if member not in [c["name"] for c in pool_status[goal_id]["contributors"]]
-            ],
+                member.user_id for member in group.members 
+                if member.user_id not in [c["name"] for c in pool_status[goal_id]["contributors"]]
+            ] if hasattr(group, 'members') else [],
             "message": "Test scenario created successfully! Use this goal_id for testing agentic features.",
             "next_steps": [
                 f"Run comprehensive analysis: POST /ai-tools/comprehensive-analysis with goal_id: {goal_id}",
