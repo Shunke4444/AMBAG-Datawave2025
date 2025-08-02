@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation  # Add simulation
+from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation, users  # Add users
 from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
@@ -15,6 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(users.router)  # Add users router first for auth
 app.include_router(groups.router)
 app.include_router(goal.router)
 app.include_router(chatbot.router)
