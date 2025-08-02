@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Sidebar from "../components/sidebar";
+import Sidebar from "../components/Sidebar";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Notifications as NotifyIcon,
@@ -25,7 +25,7 @@ const Layout = () => {
     if (path.includes("deposit")) return "Deposit";
     if (path.includes("transactions")) return "Transactions";
     if (path.includes("ai-assistant")) return "AI Assistant";
-    return "Welcome";
+    return "Dashboard";
   };
 
   return (

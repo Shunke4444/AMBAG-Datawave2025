@@ -12,6 +12,11 @@ import TransactionHistory from './pages/TransactionHistory';
 import AuditLogs from './pages/AuditLogs';
 import WithdrawForm from './pages/WithdrawForm';
 import DepositForm from './pages/DepositForm';
+import ProfileTab from './components/ProfileTab';
+import AccountSecurityTab from './components/AccountSecurityTab';
+import PreferencesTab from './components/PreferencesTab';
+import PrivacyLegalTab from './components/PrivacyLegalTab';
+import NotificationsTab from './components/NotificationsTab';
 
 const router = createBrowserRouter([
   { path: '/' , 
@@ -33,8 +38,9 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
           { path: "account-security", element: <AccountSecurityTab /> },
+          { path: "notifications", element: <NotificationsTab /> },
           { path: "preferences", element: <PreferencesTab /> },
-          { path: "privacy-legal", element: <PrivacyLegal /> },
+          { path: "privacy-legal", element: <PrivacyLegalTab /> },
         ]
       },
     ],

@@ -4,6 +4,13 @@ import AccountSecurityTab from '../components/AccountSecurityTab';
 import PreferencesTab from '../components/PreferencesTab';
 import PrivacyLegal from '../components/PrivacyLegalTab';
 
+import {
+  InputLabel,
+  MenuItem,
+  FormControl,
+  Select,
+
+} from '@mui/material';
 
 const TABS = [
   'Profile',
@@ -14,23 +21,67 @@ const TABS = [
 
 const Settings = () => {
   return (
-    <main className="flex flex-col w-full h-full min-h-screen justify-center">
+    <main className="flex flex-col w-full h-full min-h-screen">
       
       {/* Settings Tabs */}
-      <div>
-        <NavLink>
+      <nav className='flex w-fit mx-auto my-8 p-4 rounded-3xl shadow-md gap-8 bg-primary/10'> 
+          <NavLink
+          to=''
+          end
+          className={({isActive}) => 
+          isActive 
+          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
+          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
+          }
+          >
+            Profile
+          </NavLink>
 
-        </NavLink>
-        <NavLink>
+          <NavLink
+          to='account-security'
+          className={({isActive}) => 
+          isActive 
+          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
+          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
+          }
+          >
+            Account & Security
+          </NavLink>
 
-        </NavLink>
-        <NavLink>
+          <NavLink
+          to='notifications'
+          className={({isActive}) => 
+          isActive 
+          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
+          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
+          }
+          >
+            Notifications
+          </NavLink>
+
+          <NavLink
+          to='preferences'
+          className={({isActive}) => 
+          isActive 
+          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
+          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
+          }
+          >
+            Preferences
+          </NavLink>
           
-        </NavLink>
-        <NavLink>
+          <NavLink
+          to='privacy-legal'
+          className={({isActive}) => 
+          isActive 
+          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
+          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
+          }
+          >
+            Privacy & Legal
+          </NavLink>
+      </nav>
 
-        </NavLink>
-      </div>
       <Outlet/>
     </main>
   )
