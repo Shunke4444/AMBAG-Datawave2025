@@ -143,7 +143,6 @@ const GridLayoutManager = ({
   const handleMouseDown = (e, itemId, action) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Mouse down:', { itemId, action });
     const item = gridItems.find(i => i.id === itemId);
     if (!item) return;
 
@@ -191,12 +190,9 @@ const GridLayoutManager = ({
       }
     }
     
-    console.log('Setting up drag:', { startPos, itemId, action, resizeMode });
-
     const handleMouseMove = (moveEvent) => {
       moveEvent.preventDefault();
       const currentPos = getGridPosition(moveEvent.clientX, moveEvent.clientY);
-      console.log('Mouse move:', { action, currentPos, itemId });
       
       if (action === 'move') {
         const newX = Math.max(0, Math.min(gridCols - item.width, currentPos.x));
@@ -249,8 +245,6 @@ const GridLayoutManager = ({
           // No swap, just check regular collision
           isValidMove = !checkCollision(proposedPosition, itemId);
         }
-        
-        console.log('Setting shadow preview:', { newX, newY, width: item.width, height: item.height, swapInfo, isValidMove });
         
         const preview = {
           id: itemId,
@@ -325,15 +319,12 @@ const GridLayoutManager = ({
 
     const handleMouseUp = () => {
       const currentPreview = shadowPreviewRef.current;
-      console.log('Mouse up - dragging finished:', { shadowPreview, currentPreview });
       
       if (currentPreview && currentPreview.isValid) {
-        console.log('Applying position change:', currentPreview);
         
         if (currentPreview.swapInfo && action === 'move') {
           // Handle swap
           const { targetId, targetOriginalPos } = currentPreview.swapInfo;
-          console.log('Performing swap:', { draggedId: itemId, targetId, draggedNewPos: { x: currentPreview.x, y: currentPreview.y }, targetNewPos: targetOriginalPos });
           
           setGridItems(prev => prev.map(item => {
             if (item.id === itemId) {
@@ -387,7 +378,6 @@ const GridLayoutManager = ({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    console.log('Event listeners added for:', action);
   };
 
   const cellSize = getGridCellSize();
@@ -510,22 +500,6 @@ const GridLayoutManager = ({
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Grid Information */}
-      <div className="absolute bottom-2 left-2 text-xs text-textcolor/60 bg-secondary/80 px-2 py-1 rounded">
-        {gridCols} × {gridRows} Grid
-        {(isDragging || isResizing) && shadowPreview && (
-          <span className="ml-2">
-            Position: ({shadowPreview.x}, {shadowPreview.y}) Size: {shadowPreview.width}×{shadowPreview.height}
-            {shadowPreview.resizeMode && ` (${shadowPreview.resizeMode})`}
-          </span>
-        )}
-        {!isDragging && !isResizing && (
-          <div className="text-xs opacity-75 mt-1">
-            Drag cards to swap • Resize handles: corner zones for different modes
-          </div>
-        )}
       </div>
     </div>
   );

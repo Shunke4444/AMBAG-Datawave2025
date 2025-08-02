@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,17 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import GridLayoutManager from '../components/GridLayoutManager';
 import ChartWidget from '../components/ChartWidget';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
-
+// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -40,28 +29,34 @@ ChartJS.register(
 
 export default function WhatIf() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Month');
-  const [inputValue, setInputValue] = useState('');
+  
+  // UI State
+  const [activeTimePeriod, setActiveTimePeriod] = useState('Month');
+  const [chatInput, setChatInput] = useState('');
   const [isChatExpanded, setIsChatExpanded] = useState(false);
-  const [gridCols, setGridCols] = useState(12);
-  const [gridRows, setGridRows] = useState(6);
+  const [isAssistantTyping, setIsAssistantTyping] = useState(false);
+  
+  // Grid Layout State
+  const [gridDimensions] = useState({ cols: 12, rows: 6 });
   const [layoutHistory, setLayoutHistory] = useState([]);
-  const [currentLayout, setCurrentLayout] = useState({
+  const [chartLayout, setChartLayout] = useState({
     mainChart: { x: 0, y: 0, width: 6, height: 3 },
     trendsChart: { x: 6, y: 0, width: 6, height: 3 },
     performanceChart: { x: 0, y: 3, width: 12, height: 3 }
   });
-  const [messages, setMessages] = useState([
+  
+  // Chat State
+  const [conversationMessages, setConversationMessages] = useState([
     {
       id: 1,
-      text: "What if I can't pay the ₱4,000 on time?",
+      content: "What if I can't pay the ₱4,000 on time?",
       sender: 'user',
       timestamp: new Date().toLocaleTimeString(),
     },
     {
       id: 2,
-      text: "Okay, let's walk through what could happen if you miss the ₱4,000 payment deadline:",
-      sender: 'bot',
+      content: "Okay, let's walk through what could happen if you miss the ₱4,000 payment deadline:",
+      sender: 'assistant',
       timestamp: new Date().toLocaleTimeString(),
       details: [
         {
@@ -87,15 +82,15 @@ export default function WhatIf() {
       ]
     }
   ]);
-  const [isTyping, setIsTyping] = useState(false);
+  
   const messagesEndRef = useRef(null);
 
   // Layout Management Functions
-  const handleLayoutChange = (itemId, newLayout) => {
-    setLayoutHistory(prev => [...prev, currentLayout]);
-    setCurrentLayout(prev => ({
+  const updateChartLayout = (chartId, newLayout) => {
+    setLayoutHistory(prev => [...prev, chartLayout]);
+    setChartLayout(prev => ({
       ...prev,
-      [itemId]: {
+      [chartId]: {
         x: newLayout.x,
         y: newLayout.y,
         width: newLayout.width,
@@ -104,55 +99,51 @@ export default function WhatIf() {
     }));
   };
 
-  // Enhanced layout change with drag-to-swap detection
-  const handleEnhancedLayoutChange = (itemId, newLayout, isDragging = false) => {
+  const handleChartLayoutChange = (chartId, newLayout, isDragging = false) => {
     if (isDragging) {
-      // Check for swap opportunities when dragging
-      const draggedChart = currentLayout[itemId];
-      const otherCharts = Object.entries(currentLayout).filter(([id]) => id !== itemId);
+      const draggedChart = chartLayout[chartId];
+      const otherCharts = Object.entries(chartLayout).filter(([id]) => id !== chartId);
       
+      // Check for swap opportunities during drag
       for (const [otherId, otherChart] of otherCharts) {
-        // Check if dragged chart overlaps significantly with another chart
         const overlapX = Math.max(0, Math.min(newLayout.x + newLayout.width, otherChart.x + otherChart.width) - Math.max(newLayout.x, otherChart.x));
         const overlapY = Math.max(0, Math.min(newLayout.y + newLayout.height, otherChart.y + otherChart.height) - Math.max(newLayout.y, otherChart.y));
         const overlapArea = overlapX * overlapY;
         const draggedArea = newLayout.width * newLayout.height;
         const otherArea = otherChart.width * otherChart.height;
         
-        // If overlap is significant (more than 30% of either chart), trigger swap
+        // Trigger swap if overlap exceeds 30% of either chart
         if (overlapArea > Math.min(draggedArea, otherArea) * 0.3) {
-          setLayoutHistory(prev => [...prev, currentLayout]);
-          setCurrentLayout(prev => ({
+          setLayoutHistory(prev => [...prev, chartLayout]);
+          setChartLayout(prev => ({
             ...prev,
-            [itemId]: { ...draggedChart, x: otherChart.x, y: otherChart.y },
+            [chartId]: { ...draggedChart, x: otherChart.x, y: otherChart.y },
             [otherId]: { ...otherChart, x: draggedChart.x, y: draggedChart.y }
           }));
-          return; // Exit early, swap completed
+          return;
         }
       }
     }
     
-    // Normal layout change if no swap detected
-    handleLayoutChange(itemId, newLayout);
+    updateChartLayout(chartId, newLayout);
   };
 
-  // Smart resize with mouse direction detection
-  const handleSmartResize = (itemId, newWidth, newHeight, resizeType = 'both') => {
-    const chart = currentLayout[itemId];
+  const handleChartResize = (chartId, newWidth, newHeight, resizeType = 'both') => {
+    const chart = chartLayout[chartId];
     if (!chart) return;
 
     let finalWidth = newWidth;
     let finalHeight = newHeight;
 
+    // Apply resize constraints based on type
     switch (resizeType) {
       case 'width-only':
-        finalHeight = chart.height; // Keep height unchanged
+        finalHeight = chart.height;
         break;
       case 'height-only':
-        finalWidth = chart.width; // Keep width unchanged
+        finalWidth = chart.width;
         break;
       case 'proportional':
-        // Maintain aspect ratio
         const aspectRatio = chart.width / chart.height;
         if (Math.abs(newWidth - chart.width) > Math.abs(newHeight - chart.height)) {
           finalHeight = Math.round(newWidth / aspectRatio);
@@ -161,18 +152,18 @@ export default function WhatIf() {
         }
         break;
       default:
-        // 'both' - free resize
+        // Free resize - no additional constraints
         break;
     }
 
     // Constrain to grid bounds and minimum sizes
-    finalWidth = Math.max(3, Math.min(finalWidth, gridCols - chart.x));
-    finalHeight = Math.max(2, Math.min(finalHeight, gridRows - chart.y));
+    finalWidth = Math.max(3, Math.min(finalWidth, gridDimensions.cols - chart.x));
+    finalHeight = Math.max(2, Math.min(finalHeight, gridDimensions.rows - chart.y));
 
-    setLayoutHistory(prev => [...prev, currentLayout]);
-    setCurrentLayout(prev => ({
+    setLayoutHistory(prev => [...prev, chartLayout]);
+    setChartLayout(prev => ({
       ...prev,
-      [itemId]: {
+      [chartId]: {
         ...chart,
         width: finalWidth,
         height: finalHeight
@@ -180,39 +171,88 @@ export default function WhatIf() {
     }));
   };
 
-  // Message handling functions
-
-  const scrollToBottom = () => {
+  // Chat Functions
+  const scrollToLatestMessage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
+  const generateAssistantResponse = (userInput) => {
+    const input = userInput.toLowerCase();
 
-  // Load saved layout on component mount
+    if (input.includes('visual') || input.includes('simulation') || input.includes('yes') || input.includes('oo')) {
+      return "Great! I'll generate a visual simulation. Based on your payment patterns, here's what I can show you:\n\n📈 If you delay the ₱4,000 payment by 1 week, your next 3 contributions will need to increase by ₱500 each to stay on track.\n\n📊 Alternative: You could extend the timeline by 2 weeks and keep the same contribution amounts.\n\nWhich option would you prefer to explore further?";
+    } 
+    
+    if (input.includes('extend') || input.includes('timeline')) {
+      return "Timeline extension is a good strategy! Here are your options:\n\n⏰ Option 1: Extend by 2 weeks - keep same amounts\n⏰ Option 2: Extend by 1 month - reduce future contributions by ₱300 each\n⏰ Option 3: Flexible schedule - pay when you can, goal completion by December\n\nWhich timeline works best for your current situation?";
+    } 
+    
+    if (input.includes('increase') || input.includes('more')) {
+      return "I understand you're considering increasing contributions. Let me analyze this:\n\n💰 If you increase by ₱500/month: Goal completed 6 weeks earlier\n💰 If you increase by ₱1000/month: Goal completed 3 months earlier\n\n⚠️ But consider your cash flow - sustainable amounts are better than aggressive targets that might cause stress.\n\nWhat's your comfortable maximum monthly contribution?";
+    } 
+    
+    if (input.includes('help') || input.includes('advice')) {
+      return "Here's my personalized advice based on your financial profile:\n\n✅ Priority: Build a ₱2,000 emergency buffer first\n✅ Strategy: Set up automatic transfers on your payday\n✅ Backup: Have 2-3 alternative payment dates ready\n\nRemember, consistency beats perfection. Better to contribute steadily than to stress about perfect timing!";
+    }
+
+    return "I can help you explore different scenarios for your group payments. Try asking about:\n\n• Visual simulations of payment impacts\n• Timeline extensions or adjustments\n• Increasing or decreasing contribution amounts\n• Emergency backup plans\n\nWhat would you like to analyze first?";
+  };
+
+  const handleMessageSubmit = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      content: chatInput,
+      sender: 'user',
+      timestamp: new Date().toLocaleTimeString(),
+    };
+
+    setConversationMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsAssistantTyping(true);
+
+    // Simulate assistant response delay
+    setTimeout(() => {
+      const assistantResponse = generateAssistantResponse(chatInput);
+      const assistantMessage = {
+        id: Date.now() + 1,
+        content: assistantResponse,
+        sender: 'assistant',
+        timestamp: new Date().toLocaleTimeString(),
+      };
+
+      setConversationMessages(prev => [...prev, assistantMessage]);
+      setIsAssistantTyping(false);
+    }, 1500);
+  };
+
+  // Effects
+  useEffect(() => {
+    scrollToLatestMessage();
+  }, [conversationMessages, isAssistantTyping]);
+
   useEffect(() => {
     const savedLayoutData = localStorage.getItem('whatif-layout');
     if (savedLayoutData) {
       try {
-        const { layout, gridCols: savedCols, gridRows: savedRows } = JSON.parse(savedLayoutData);
-        setCurrentLayout(layout);
-        setGridCols(savedCols);
-        setGridRows(savedRows);
+        const { layout } = JSON.parse(savedLayoutData);
+        setChartLayout(layout);
       } catch (error) {
-        console.error('Error loading saved layout:', error);
+        // Silently fail and use default layout
       }
     }
   }, []);
 
-  // Chart data
-  const chartData = {
+  // Chart Configuration
+  const mainChartData = {
     labels: ['1 Oct', '3 Oct', '5 Oct', '7 Oct', '9 Oct', '10 Oct'],
     datasets: [
       {
         label: 'Payment if not sent',
         data: [2, 3, 4, 2, 1, 4],
-        borderColor: '#830000', // Primary red
+        borderColor: '#830000',
         backgroundColor: 'rgba(131, 0, 0, 0.1)',
         tension: 0.4,
         pointBackgroundColor: '#830000',
@@ -223,7 +263,7 @@ export default function WhatIf() {
       {
         label: 'Actual Payment',
         data: [1, 2, 2, 3, 2, 3],
-        borderColor: '#DDB440', // Accent yellow
+        borderColor: '#DDB440',
         backgroundColor: 'rgba(221, 180, 64, 0.1)',
         tension: 0.4,
         pointBackgroundColor: '#DDB440',
@@ -242,10 +282,10 @@ export default function WhatIf() {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#FBFAF9', // Secondary color
-        titleColor: '#1B1C1E', // Text color
+        backgroundColor: '#FBFAF9',
+        titleColor: '#1B1C1E',
         bodyColor: '#1B1C1E',
-        borderColor: '#830000', // Primary color
+        borderColor: '#830000',
         borderWidth: 1,
         cornerRadius: 8,
         titleFont: {
@@ -266,7 +306,7 @@ export default function WhatIf() {
           display: false,
         },
         ticks: {
-          color: '#1B1C1E', // Text color
+          color: '#1B1C1E',
           font: {
             size: 12,
             weight: '500'
@@ -275,13 +315,13 @@ export default function WhatIf() {
       },
       y: {
         grid: {
-          color: 'rgba(131, 0, 0, 0.1)', // Light primary color
+          color: 'rgba(131, 0, 0, 0.1)',
         },
         border: {
           display: false,
         },
         ticks: {
-          color: '#1B1C1E', // Text color
+          color: '#1B1C1E',
           font: {
             size: 12,
             weight: '500'
@@ -294,58 +334,11 @@ export default function WhatIf() {
     },
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (inputValue.trim()) {
-      // Add user message
-      const userMessage = {
-        id: Date.now(),
-        text: inputValue,
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString(),
-      };
-
-      setMessages(prev => [...prev, userMessage]);
-      setInputValue('');
-      setIsTyping(true);
-
-      // Simulate bot response
-      setTimeout(() => {
-        const botResponse = generateBotResponse(inputValue);
-        const botMessage = {
-          id: Date.now() + 1,
-          text: botResponse,
-          sender: 'bot',
-          timestamp: new Date().toLocaleTimeString(),
-        };
-
-        setMessages(prev => [...prev, botMessage]);
-        setIsTyping(false);
-      }, 1500);
-    }
-  };
-
-  const generateBotResponse = (input) => {
-    const lowerInput = input.toLowerCase();
-
-    if (lowerInput.includes('visual') || lowerInput.includes('simulation') || lowerInput.includes('yes') || lowerInput.includes('oo')) {
-      return "Great! I'll generate a visual simulation. Based on your payment patterns, here's what I can show you:\n\n📈 If you delay the ₱4,000 payment by 1 week, your next 3 contributions will need to increase by ₱500 each to stay on track.\n\n📊 Alternative: You could extend the timeline by 2 weeks and keep the same contribution amounts.\n\nWhich option would you prefer to explore further?";
-    } else if (lowerInput.includes('extend') || lowerInput.includes('timeline')) {
-      return "Timeline extension is a good strategy! Here are your options:\n\n⏰ Option 1: Extend by 2 weeks - keep same amounts\n⏰ Option 2: Extend by 1 month - reduce future contributions by ₱300 each\n⏰ Option 3: Flexible schedule - pay when you can, goal completion by December\n\nWhich timeline works best for your current situation?";
-    } else if (lowerInput.includes('increase') || lowerInput.includes('more')) {
-      return "I understand you're considering increasing contributions. Let me analyze this:\n\n💰 If you increase by ₱500/month: Goal completed 6 weeks earlier\n💰 If you increase by ₱1000/month: Goal completed 3 months earlier\n\n⚠️ But consider your cash flow - sustainable amounts are better than aggressive targets that might cause stress.\n\nWhat's your comfortable maximum monthly contribution?";
-    } else if (lowerInput.includes('help') || lowerInput.includes('advice')) {
-      return "Here's my personalized advice based on your financial profile:\n\n✅ Priority: Build a ₱2,000 emergency buffer first\n✅ Strategy: Set up automatic transfers on your payday\n✅ Backup: Have 2-3 alternative payment dates ready\n\nRemember, consistency beats perfection. Better to contribute steadily than to stress about perfect timing!";
-    } else {
-      return "I can help you explore different scenarios for your group payments. Try asking about:\n\n• Visual simulations of payment impacts\n• Timeline extensions or adjustments\n• Increasing or decreasing contribution amounts\n• Emergency backup plans\n\nWhat would you like to analyze first?";
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-primary flex flex-col overflow-hidden px-6">
+    <main className="min-h-screen bg-primary flex flex-col overflow-hidden px-6">
       {/* Header */}
       <header className="flex items-center justify-between py-4 text-secondary flex-shrink-0 border-b border-shadow">
-        <div className="flex items-center">
+        <section className="flex items-center">
           <button 
             onClick={() => navigate(-1)}
             className="mr-4 p-2 hover:bg-shadow rounded-full transition-colors"
@@ -353,49 +346,51 @@ export default function WhatIf() {
             <ArrowBack className="w-6 h-6" />
           </button>
           <h1 className="text-lg font-medium">What-If Scenarios</h1>
-        </div>
+        </section>
 
-        <div className="flex items-center space-x-4">
+        <nav className="flex items-center space-x-4">
           {/* Period Tabs */}
-          <div className="flex bg-secondary rounded-full p-1 border border-primary/20">
+          <fieldset className="flex bg-secondary rounded-full p-1 border border-primary/20">
+            <legend className="sr-only">Time Period Selection</legend>
             {['Day', 'Week', 'Month', 'Year'].map((period) => (
               <button
                 key={period}
-                onClick={() => setActiveTab(period)}
+                onClick={() => setActiveTimePeriod(period)}
                 className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                  activeTab === period
+                  activeTimePeriod === period
                     ? 'bg-primary text-secondary'
                     : 'text-textcolor hover:text-primary'
                 }`}
+                aria-pressed={activeTimePeriod === period}
               >
                 {period}
               </button>
             ))}
-          </div>
-        </div>
+          </fieldset>
+        </nav>
       </header>
 
       {/* Main Content Area with Grid */}
-      <div className="h-[75vh] py-4 pb-24">
-        <div className="w-[70vw] mx-auto h-full">
+      <section className="h-[75vh] py-4 pb-24">
+        <article className="w-[70vw] mx-auto h-full">
           <GridLayoutManager
-            gridCols={gridCols}
-            gridRows={gridRows}
-            onLayoutChange={handleEnhancedLayoutChange}
-            onResize={handleSmartResize}
+            gridCols={gridDimensions.cols}
+            gridRows={gridDimensions.rows}
+            onLayoutChange={handleChartLayoutChange}
+            onResize={handleChartResize}
             className="h-full w-full"
           >
           {/* Main Payment Analysis Chart */}
           <ChartWidget
             id="mainChart"
-            gridX={currentLayout.mainChart.x}
-            gridY={currentLayout.mainChart.y}
-            gridWidth={currentLayout.mainChart.width}
-            gridHeight={currentLayout.mainChart.height}
+            gridX={chartLayout.mainChart.x}
+            gridY={chartLayout.mainChart.y}
+            gridWidth={chartLayout.mainChart.width}
+            gridHeight={chartLayout.mainChart.height}
             minWidth={3}
             minHeight={2}
             title="Payment Analysis"
-            chartData={chartData}
+            chartData={mainChartData}
             chartOptions={chartOptions}
             legendItems={[
               { color: '#830000', label: 'Payment if not sent' },
@@ -406,10 +401,10 @@ export default function WhatIf() {
           {/* Payment Trends Chart */}
           <ChartWidget
             id="trendsChart"
-            gridX={currentLayout.trendsChart.x}
-            gridY={currentLayout.trendsChart.y}
-            gridWidth={currentLayout.trendsChart.width}
-            gridHeight={currentLayout.trendsChart.height}
+            gridX={chartLayout.trendsChart.x}
+            gridY={chartLayout.trendsChart.y}
+            gridWidth={chartLayout.trendsChart.width}
+            gridHeight={chartLayout.trendsChart.height}
             minWidth={3}
             minHeight={2}
             title="Payment Trends"
@@ -456,10 +451,10 @@ export default function WhatIf() {
           {/* Group Performance Chart */}
           <ChartWidget
             id="performanceChart"
-            gridX={currentLayout.performanceChart.x}
-            gridY={currentLayout.performanceChart.y}
-            gridWidth={currentLayout.performanceChart.width}
-            gridHeight={currentLayout.performanceChart.height}
+            gridX={chartLayout.performanceChart.x}
+            gridY={chartLayout.performanceChart.y}
+            gridWidth={chartLayout.performanceChart.width}
+            gridHeight={chartLayout.performanceChart.height}
             minWidth={3}
             minHeight={2}
             title="Group Performance"
@@ -503,26 +498,26 @@ export default function WhatIf() {
             ]}
           />
         </GridLayoutManager>
-        </div>
-      </div>
+        </article>
+      </section>
 
       {/* Chat Interface - Fixed at bottom but respects layout */}
-      <div className="fixed bottom-0 bg-secondary border-t border-primary/20 z-50 left-6 lg:left-70 right-6">
+      <aside className="fixed bottom-0 bg-secondary border-t border-primary/20 z-50 left-6 lg:left-70 right-6">
         {/* Chat Header with Toggle */}
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+        <header className="px-4 py-3 flex items-center justify-between">
+          <section className="flex items-center space-x-3">
+            <figure className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <span className="text-secondary text-sm font-medium">$</span>
-            </div>
-            <div>
+            </figure>
+            <hgroup>
               <h3 className="font-medium text-textcolor">
-                {messages.length > 0 && messages[0].sender === 'user' 
-                  ? messages[0].text.slice(0, 40) + (messages[0].text.length > 40 ? '...' : '')
+                {conversationMessages.length > 0 && conversationMessages[0].sender === 'user' 
+                  ? conversationMessages[0].content.slice(0, 40) + (conversationMessages[0].content.length > 40 ? '...' : '')
                   : 'Financial Assistant'
                 }
               </h3>
-            </div>
-          </div>
+            </hgroup>
+          </section>
           
           <button
             onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -531,114 +526,119 @@ export default function WhatIf() {
           >
             {isChatExpanded ? <ExpandMore className="w-5 h-5" /> : <ExpandLess className="w-5 h-5" />}
           </button>
-        </div>
+        </header>
 
         {/* Chat Messages Container - Only show when expanded */}
         {isChatExpanded && (
-          <div className="px-4 border-t border-primary/20" style={{ height: '50vh' }}>
-            <div className="h-full overflow-y-auto space-y-4 py-4">
-              {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {message.sender === 'bot' && (
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-3 flex-shrink-0 mt-1">
+          <section className="px-4 border-t border-primary/20" style={{ height: '50vh' }}>
+            <ul className="h-full overflow-y-auto space-y-4 py-4 list-none">
+              {conversationMessages.map((message) => (
+              <li key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {message.sender === 'assistant' && (
+                  <figure className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-3 flex-shrink-0 mt-1">
                     <span className="text-secondary text-sm font-medium">$</span>
-                  </div>
+                  </figure>
                 )}
                 
-                <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                <article className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
                   message.sender === 'user'
                     ? 'bg-primary text-secondary'
                     : 'bg-secondary border border-primary/20 text-textcolor'
                 }`}>
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
                   
                   {message.details && (
-                    <div className="mt-3 space-y-3">
+                    <details className="mt-3 space-y-3" open>
+                      <summary className="sr-only">Message Details</summary>
                       {message.details.map((detail, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <span className="text-accent font-medium">{detail.icon}</span>
+                        <section key={index} className="flex items-start space-x-2">
+                          <span className="text-accent font-medium" role="img" aria-label="icon">{detail.icon}</span>
                           <p className="text-sm text-textcolor/80">{detail.text}</p>
-                        </div>
+                        </section>
                       ))}
-                    </div>
+                    </details>
                   )}
                   
-                  <div className={`text-xs mt-2 ${
+                  <time className={`text-xs mt-2 block ${
                     message.sender === 'user' ? 'text-secondary/70' : 'text-textcolor/60'
                   }`}>
                     {message.timestamp}
-                  </div>
-                </div>
-              </div>
+                  </time>
+                </article>
+              </li>
             ))}
             
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+            {isAssistantTyping && (
+              <li className="flex justify-start">
+                <figure className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-3 flex-shrink-0">
                   <span className="text-secondary text-sm font-medium">$</span>
-                </div>
-                <div className="bg-secondary border border-primary/20 px-4 py-3 rounded-2xl">
-                  <div className="flex space-x-1">
+                </figure>
+                <output className="bg-secondary border border-primary/20 px-4 py-3 rounded-2xl">
+                  <div className="flex space-x-1" role="status" aria-label="Assistant is typing">
                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
                   </div>
-                </div>
-              </div>
+                </output>
+              </li>
               )}
               
               {/* Quick Action Buttons - Only show when expanded and few messages */}
-              {messages.length <= 2 && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <button
-                    onClick={() => setInputValue("Show me visual simulation")}
-                    className="px-3 py-2 bg-primary/10 text-primary rounded-full text-xs hover:bg-primary/20 transition-colors"
-                  >
-                    📊 Visual Simulation
-                  </button>
-                  <button
-                    onClick={() => setInputValue("What if I increase my contribution?")}
-                    className="px-3 py-2 bg-accent/10 text-accent rounded-full text-xs hover:bg-accent/20 transition-colors"
-                  >
-                    💰 Increase Amount
-                  </button>
-                  <button
-                    onClick={() => setInputValue("Can I extend the timeline?")}
-                    className="px-3 py-2 bg-green/10 text-green rounded-full text-xs hover:bg-green/20 transition-colors"
-                  >
-                    ⏰ Extend Timeline
-                  </button>
-                </div>
+              {conversationMessages.length <= 2 && (
+                <li>
+                  <nav className="flex flex-wrap gap-2 mt-4" role="group" aria-label="Quick actions">
+                    <button
+                      onClick={() => setChatInput("Show me visual simulation")}
+                      className="px-3 py-2 bg-primary/10 text-primary rounded-full text-xs hover:bg-primary/20 transition-colors"
+                    >
+                      📊 Visual Simulation
+                    </button>
+                    <button
+                      onClick={() => setChatInput("What if I increase my contribution?")}
+                      className="px-3 py-2 bg-accent/10 text-accent rounded-full text-xs hover:bg-accent/20 transition-colors"
+                    >
+                      💰 Increase Amount
+                    </button>
+                    <button
+                      onClick={() => setChatInput("Can I extend the timeline?")}
+                      className="px-3 py-2 bg-green/10 text-green rounded-full text-xs hover:bg-green/20 transition-colors"
+                    >
+                      ⏰ Extend Timeline
+                    </button>
+                  </nav>
+                </li>
               )}
               
               <div ref={messagesEndRef} />
-            </div>
-          </div>
+            </ul>
+          </section>
         )}
 
         {/* Input Area - Always visible */}
-        <div className="p-4 border-t border-primary/20">
-          <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-            <div className="flex-1 relative">
+        <footer className="p-4 border-t border-primary/20">
+          <form onSubmit={handleMessageSubmit} className="flex items-center space-x-3">
+            <fieldset className="flex-1 relative">
+              <legend className="sr-only">Message Input</legend>
               <input
                 type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about scenarios..."
                 className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60"
               />
-            </div>
+            </fieldset>
             
             <button
               type="submit"
               className="p-2 bg-primary text-secondary rounded-full hover:bg-shadow transition-colors disabled:opacity-50"
-              disabled={!inputValue.trim()}
+              disabled={!chatInput.trim()}
+              aria-label="Send message"
             >
               <Send className="w-5 h-5" />
             </button>
           </form>
-        </div>
-      </div>
-    </div>
+        </footer>
+      </aside>
+    </main>
   );
 }
