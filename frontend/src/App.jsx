@@ -1,6 +1,8 @@
 import { createBrowserRouter, RouterProvider }  from 'react-router-dom';
 import { ChatProvider } from './contexts/ChatContext';
 import Layout from './pages/Layout';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Settings from './pages/Settings';
@@ -19,6 +21,16 @@ import PrivacyLegalTab from './components/PrivacyLegalTab';
 import NotificationsTab from './components/NotificationsTab';
 
 const router = createBrowserRouter([
+  // Standalone Auth Pages (outside Layout)
+  {
+    path: '/login',
+    element: <Login />
+  },
+  {
+    path: '/signup',
+    element: <Signup />
+  },
+  // Main App with Layout
   { path: '/' , 
     element: <Layout />,
     children: [
