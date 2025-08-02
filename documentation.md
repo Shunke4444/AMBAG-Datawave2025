@@ -12,7 +12,7 @@ AMBAG is an intelligent Filipino financial collaboration platform that helps gro
 - 📊 What-if scenario simulations and performance analysis
 - 💡 Intelligent decision-making system with agentic workflows
 - 📱 Real-time progress monitoring and notifications
-- 💳 Bank-free auto payment system (GCash, PayMaya, BPI, Virtual Balance)
+- 💳 Bank-free auto payment system (BPI, Virtual Balance)
 - 🔐 Session-based authentication and user management
 - ⏰ Background scheduler for automated monitoring
 - 💬 AI chatbot for financial advice and guidance
@@ -242,16 +242,11 @@ AMBAG is an intelligent Filipino financial collaboration platform that helps gro
    - Goal marked as completed immediately
    - Manager can withdraw externally later
 
-2. **GCash/PayMaya Instructions**
-   - Auto-generates step-by-step payment instructions
-   - Includes recipient details and reference codes
-   - Sends notifications to manager
-
-3. **BPI Bank Transfer**
+2. **BPI Bank Transfer**
    - Creates detailed bank transfer instructions
    - Includes account numbers and proper references
 
-4. **Manual Payment Options**
+3. **Manual Payment Options**
    - Provides multiple payment options (GCash, bank, cash)
    - Flexible for different situations
 
@@ -492,7 +487,6 @@ POST /ai-tools/agentic-action?goal_id=goal_electric_march_uuid
 ```
 Member contributes → Goal reaches target → Auto payment enabled? → 
 Virtual Balance: Instant completion → AI notification sent
-GCash/BPI: Instructions generated → Manager notified
 ```
 
 #### 2. **Deadline Approaching Workflow**
