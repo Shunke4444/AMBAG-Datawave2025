@@ -11,10 +11,12 @@ import {
 } from '@mui/icons-material';
 import { IconButton, Tooltip, List, ListSubheader, ListItemIcon, ListItemText, Collapse, ListItemButton} from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import Typography from '@mui/material/Typography';
+
 
 import { Waves } from '../assets/images';
 
-const Sidebar = ({isCollapsed, setIsCollapsed}) => {
+const Sidebar = ({isCollapsed, setIsCollapsed, isMobile = false, onMobileClose}) => {
   
   const [openTransactionMenu, setOpenTransactionMenu] = useState(false); 
 
@@ -22,23 +24,33 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
     setOpenTransactionMenu(!openTransactionMenu);
   }
 
-
-
   const handleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+  }
+
+  // Handle mobile link clicks
+  const handleMobileLinkClick = () => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
   }
 
   const navItems = [
     {to:'/dashboard', label:'Dashboard' , icon:<DashboardIcon/>},
     {to:'/goals', label:'Goals' , icon:<GoalsIcon/>},
-    {to:'/assistantBot' , label:'AI Assistant' , icon:<AssistantIcon/> },
-    {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> }
+    {to:'/ai-assistant' , label:'AI Assistant' , icon:<AssistantIcon/> },
+    {to:'/takeALoan' , label:'Take a Loan?' , icon:<LoanIcon/> },
+    {to: '/transaction-history', label: 'Transaction History', icon: <TransactionIcon />},
   ]
   
 
   return (
     <>
-    <aside className={`bg-primary  h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50 ${isCollapsed ? "w-24" : "w-64"}`}>
+    <aside className={`
+      bg-primary h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50 
+      ${isCollapsed ? "w-24" : "w-64"}
+      ${isMobile ? 'lg:relative lg:top-auto' : ''}
+    `}>
 
       {/** profile and menu btn */}
       <div className="flex justify-between items-center py-5 ml-5">
@@ -65,6 +77,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
           <NavLink
             key={to}
             to={to}
+            onClick={handleMobileLinkClick}
             className={({isActive}) => `
               flex items-center gap-3 rounded-xl p-3 font-bold text-sm transition-colors
               ${isActive ? 'bg-shadow text-secondary' : 'text-secondary hover:bg-shadow/30'}
@@ -81,22 +94,31 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
 
         
       {/* Transactions Dropdown */}
-        <List component="nav" disablePadding>
-          <ListItemButton onClick={handle_Transaction_Dropdown} 
-          className={`rounded-xl py-3 px-4 text-secondary hover:bg-shadow/30 transition-all duration-300 ${
-              isCollapsed ? 'justify-center' : ''
-            }`}>
+
+        <List component="NavLink" disablePadding>
+          <ListItemButton
+            onClick={handle_Transaction_Dropdown}
+            className={`
+              rounded-xl py-3 px-4 text-secondary transition-all duration-300 hover:bg-shadow/30 
+              ${isCollapsed ? 'justify-center' : ''}
+            `}
+          >
             <Tooltip title={isCollapsed ? 'Transactions' : ''} placement="right">
-              <ListItemIcon className=" min-w-0 mr-3">
-                {<TransactionIcon className='text-secondary' />}
+              <ListItemIcon className="min-w-0 mr-3">
+                <TransactionIcon className="text-secondary" />
               </ListItemIcon>
             </Tooltip>
+
             {!isCollapsed && (
               <>
-                <ListItemText primary="Transactions" 
-                  primaryTypographyProps={{ className: "text-secondary font-semibold text-sm" }}
-                />
-                {openTransactionMenu ? <ExpandLess /> : <ExpandMore />}
+                <ListItemText disableTypography>
+                  <div className="ml-3 text-sm font-bold text-secondary absolute left-10 bottom-2 ">
+                    Transactions
+                  </div>
+                </ListItemText>
+
+
+                {openTransactionMenu ? <ExpandLess className='text-secondary'/> : <ExpandMore className='text-secondary' />}
               </>
             )}
           </ListItemButton>
@@ -114,6 +136,7 @@ const Sidebar = ({isCollapsed, setIsCollapsed}) => {
                   key={to}
                   component={NavLink}
                   to={to}
+                  onClick={handleMobileLinkClick}
                   className={`pl-14 py-2 text-secondary hover:bg-shadow/30 transition-all duration-200 text-sm font-bold ${
                     isCollapsed ? 'hidden' : ''
                   }`}

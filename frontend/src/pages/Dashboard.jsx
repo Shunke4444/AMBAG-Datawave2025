@@ -1,56 +1,61 @@
+import ConsistencyStat from "../components/ConsistencyStat"
+import ContributionDiv from "../components/ContributionDiv"
+import DashboardBtns from "../components/DashboardBtns"
+import GoalCards from "../components/GoalCards"
 
+import {
+  Notifications as NotifyIcon,
+  Settings as SettingIcon,
+  ContactSupport as SupportIcon,
+} from '@mui/icons-material';
+
+import { NavLink } from "react-router-dom";
 
 const Dashboard = () => {
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-full min-h-screen">
-      
-
-      <main>
-        <div className="">
-          <h1 className="text-xl font-bold text-textcolor p-20">
+    <main className="flex flex-col w-full h-full min-h-screen mx-12">
+        <div>
+          <h1 className="text-xl font-bold text-textcolor px-20 py-16">
             Dashboard
           </h1>
           {/* notif, settings , help supp  */}
+
+            
+
         </div>
         
-        <div className="w-432  h-208.25 bg-primary mx-20 rounded-tr-4xl rounded-tl-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4 ">
+        {/* Grid */}
+        <div className="w-372  h-176 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4 ">
 
           {/* Member List - Tall Left Box */}
-            <div className="row-span-3 bg-secondary rounded-2xl p-4 col-span-1">
+            <div className=" bg-secondary rounded-2xl p-4 col-span-1">
+              <p className="text-md font-bold text-primary bg-gray-200 p-3 rounded-2xl shadow-gray-300 shadow">
+                Group Contribution Status
+              </p>
               {/* Group Contribution Status */}
+                <ContributionDiv />
             </div>
 
           {/* Top Right Boxes */}
-            <div className="col-span-1 bg-secondary rounded-xl p-4">
-              {/* Monthly House Bills */}
-            </div>
-            <div className="col-span-1 bg-secondary rounded-xl p-4">
-              {/* Boracay Trip */}
-            </div>
-
-            {/* Mid Right Boxes */}
-            <div className="col-span-1 bg-secondary rounded-xl p-4">
-              {/* Tuition Fee */}
-            </div>
-            <div className="col-span-1 bg-secondary rounded-xl p-4">
-              {/* Emergency Funds */}
-            </div>
+          <div className=" col-span-2">
+            <GoalCards />
+          </div>
+            
 
             {/* Bottom Right Wide Box */}
-            <div className="col-span-2 bg-secondary rounded-xl p-4">
+            <div className="col-span-1 row-span-3 bg-secondary rounded-2xl p-4">
               {/* Consistency Report and Stats */}
+              <ConsistencyStat />
             </div>
 
-            {/* Footer Buttons */}
-            <div className="col-span-3 bg-secondary rounded-xl p-4 flex justify-between gap-4">
-              {/* Buttons like Add Goal, Notify Members, etc. */}
+              {/* Bottom Right Wide Box */}
+            <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
+              <DashboardBtns />
             </div>
 
         </div>
-      </main>
-
-    </div>
+    </main>
   )
 }
 
