@@ -1,5 +1,4 @@
 
-__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
@@ -7,3 +6,4 @@ __pycache__/
 db.sqlite3
 .env
 venv/
+__pycache__/
