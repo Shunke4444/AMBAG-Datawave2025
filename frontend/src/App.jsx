@@ -8,7 +8,8 @@ import Settings from './pages/Settings';
 import AIAssistant from './pages/AIAssitant';
 import WhatIf from './pages/WhatIf'
 import TransactionHistory from './pages/TransactionHistory';
-
+import MemberPage from './pages/MemberPage';
+import Notifications from './pages/Notifications';
 const router = createBrowserRouter([
   { path: '/' , 
     element: <Layout />,
@@ -20,6 +21,8 @@ const router = createBrowserRouter([
       {path: 'what-if', element: <WhatIf/>},
       {path: 'settings', element: <Settings /> },
       {path: 'transaction-history', element: <TransactionHistory />},
+      {path: 'member', element: <MemberPage />},
+      {path: 'notifications', element: <Notifications />},
     ],
   },
 ])
