@@ -1,16 +1,15 @@
 import { useState } from "react";
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Avatar,
-  Typography,
-  Pagination,
+  Table,TableBody,
+  TableCell,TableContainer,
+  TableHead,TableRow,
+  Paper,Avatar,
+  Typography, Pagination,
+  Box, FormControl, 
+  InputLabel, Select,
+  MenuItem,TextField,
+  Button,InputAdornment
 } from "@mui/material";
 import { styled } from "@mui/system";
 
@@ -64,7 +63,7 @@ const AuditLogs = () => {
   },
 ];
 
-  const ActionTag = styled("span")(({ theme }) => ({
+  const ActionTag = styled("span")(() => ({
       color: "var(--color-primary)",
       fontWeight: 600,
   }));
@@ -95,7 +94,79 @@ const AuditLogs = () => {
         Monitor any changes and actions made inside your group with audit logs.
       </Typography>
 
-      <TableContainer component={Paper} className="rounded-xl shadow-md p-8">
+      <Box
+        display="flex"
+        flexWrap="wrap"
+        alignItems="center"
+        gap={2}
+        mb={4}
+        px={12}
+      >
+        {/* Role Filter */}
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Role</InputLabel>
+          <Select label="Role" value="" onChange={() => {}}>
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="Member">Member</MenuItem>
+            <MenuItem value="Manager">Manager</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Action Filter */}
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Action</InputLabel>
+          <Select label="Action" value="" onChange={() => {}}>
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="CONTRIBUTED">Contributed</MenuItem>
+            <MenuItem value="ADDED GOAL">Added Goal</MenuItem>
+            <MenuItem value="REQUESTED WITHDRAWAL">Requested Withdrawal</MenuItem>
+            <MenuItem value="APPROVED CONTRIBUTION">Approved</MenuItem>
+          </Select>
+        </FormControl>
+
+          {/* Search */}
+          <TextField
+            size="small"
+            placeholder="Search by name or ID"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: 'gray' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* From Date */}
+          <label htmlFor="from-date">From</label>
+          <TextField
+            size="small"
+            type="date"
+            name="from-date"
+            shrink
+          />
+
+          {/* To Date */}
+          <label htmlFor="to-date">To</label>
+          <TextField
+            size="small"
+            type="date" 
+            name="to-date"
+            shrink
+          />
+
+        {/* Reset Button */}
+        <Button variant="outlined" size="small" onClick={() => {
+          setFilter('');
+          // Add reset logic for dropdowns and dates if implemented
+        }}>
+          Reset
+        </Button>
+      </Box>
+
+      <TableContainer component={Paper} className="rounded-xl shadow-md p-8 outline-1 outline-primary">
         <Table>
           <TableHead className="bg-[--color-secondary]">
             <TableRow>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Sidebar from "../components/Sidebar";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import {
   Notifications as NotifyIcon,
   Settings as SettingIcon,
@@ -26,6 +26,7 @@ const Layout = () => {
   if (path.includes("deposit")) return "Deposit";
   if (path.includes("transactions")) return "Transactions";
   if (path.includes("ai-assistant")) return "AI Assistant";
+  if (path.includes("help-support")) return "Help Center"
   return "Dashboard";
 };
 
@@ -59,7 +60,7 @@ const Layout = () => {
               <button className="cursor-pointer">
                 <NotifyIcon className="hover:text-primary" />
               </button >
-              <button className="cursor-pointer">
+              <button onClick={()=> navigate("/help-support")} className="cursor-pointer">
                 <SupportIcon className="hover:text-primary" />
               </button >
               <button onClick={() => navigate("/settings")} className="cursor-pointer">

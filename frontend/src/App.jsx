@@ -19,6 +19,7 @@ import AccountSecurityTab from './components/AccountSecurityTab';
 import PreferencesTab from './components/PreferencesTab';
 import PrivacyLegalTab from './components/PrivacyLegalTab';
 import NotificationsTab from './components/NotificationsTab';
+import HelpSupport from './pages/HelpSupport';
 
 const router = createBrowserRouter([
   // Standalone Auth Pages (outside Layout)
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
           { path: "privacy-legal", element: <PrivacyLegalTab /> },
         ]
       },
+      {path: 'help-support', element: <HelpSupport /> }
     ],
   },
 ])
