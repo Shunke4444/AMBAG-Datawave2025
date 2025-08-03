@@ -6,7 +6,7 @@ import GoalCarouselMobile from '../components/mobile/GoalCarouselMobile';
 
 const ResponsiveGoals = () => {
   const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up("md")); // md+ shows desktop
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md")); 
 
   return (
     <div>

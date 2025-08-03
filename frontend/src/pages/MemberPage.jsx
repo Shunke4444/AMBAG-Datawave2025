@@ -53,7 +53,7 @@ export default function MemberPage() {
 
   return (
     <div className="min-h-screen bg-secondary">
-      <main className="mx-auto h-[58vh] lg:h-[52.5vh] bg-primary shadow-lg">
+      <main className="h-[59vh]  md:h-[50vh] lg:h-[52.5vh] bg-primary shadow-lg">
         <MobileHeader userName="Johnny" />
         
         <BalanceCard balance="123,456" />
@@ -64,7 +64,6 @@ export default function MemberPage() {
           onRequest={handleRequest}
           onDeposit={handleDeposit}
         />
-        
         <RecentActivity activities={mockActivities} />
         
         {/* Bottom spacing for mobile */}

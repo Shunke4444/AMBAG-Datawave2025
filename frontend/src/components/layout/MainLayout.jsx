@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../Sidebar";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Notifications as NotifyIcon,
@@ -7,14 +7,19 @@ import {
   ContactSupport as SupportIcon,
 } from '@mui/icons-material';
 import { useNavigate } from "react-router-dom";
+import { useTheme, useMediaQuery } from "@mui/material";
 
 const Layout = () => {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  // Check if current page should be full screen (no padding)
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  
   const isFullScreenPage = location.pathname === '/ai-assistant';
+  
+  const shouldHideHeader = isFullScreenPage || isMobile;
   
     const getPageTitle = () => {
     const path = location.pathname;
@@ -30,7 +35,6 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
           isCollapsed={isCollapsed}
@@ -39,7 +43,6 @@ const Layout = () => {
         />
       </div>
 
-      {/* Main */}
       <main
         className={`
           flex-1 transition-all duration-300 overflow-hidden
@@ -49,7 +52,7 @@ const Layout = () => {
         `}
       >
         {/* Global Top Header */}
-        {!isFullScreenPage && (
+        {!shouldHideHeader && (
           <div className="flex justify-between items-center py-6 px-10">
             <h1 className="text-xl font-bold text-textcolor">
               {getPageTitle()}

@@ -30,7 +30,7 @@ const RecentActivity = ({
   ]
 }) => {
   return (
-    <div className="mx-4 mt-6">
+    <div className="mx-4 mt-6 rounded-t-2xl ">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-textcolor">Recent Activity</h3>
         <ArrowForward className="w-5 h-5 text-textcolor/60" />

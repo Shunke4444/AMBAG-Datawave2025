@@ -1,18 +1,30 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Request from '../../assets/icons/request.svg';
 import PayShare from '../../assets/icons/payshare.svg';
 import Deposit from '../../assets/icons/DEPOSIT.svg';
+
 const ActionButtons = ({ onPayShare, onRequest, onDeposit }) => {
+  const navigate = useNavigate();
+
+  const handlePayShare = () => {
+    navigate('/payment');
+  };
+
+  const handleRequest = () => {
+    navigate('/member-requests');
+  };
+
   const actions = [
     {
       icon: <img src={PayShare} alt="Pay Share" className=" text-textcolor" />,
       label: 'Pay Share',
-      onClick: onPayShare
+      onClick: handlePayShare
     },
     {
       icon: <img src={Request} alt="Request" className=" text-textcolor" />,
       label: 'Request',
-      onClick: onRequest
+      onClick: handleRequest
     },
     {
       icon: <img src={Deposit} alt="Deposit" className=" ml-[0.75rem] w-12 h-12 text-textcolor" style={{filter: 'brightness(0)'}} />,
