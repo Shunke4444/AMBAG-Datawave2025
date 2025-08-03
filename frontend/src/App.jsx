@@ -45,7 +45,7 @@ const router = createBrowserRouter([
       {path: 'transactions/audit', element: <AuditLogs /> },
       {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
       {path: 'transactions/depositProcess', element: <DepositForm /> },  
-      {path: 'transaction-history', element: <TransactionHistory />},
+      {path: ' ', element: <TransactionHistory />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings

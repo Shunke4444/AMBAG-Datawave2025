@@ -107,6 +107,7 @@ export default function TransactionHistory() {
 
   return (
     <main className="flex flex-col w-full h-[100vh] overflow-hidden">
+      
       <MobileHeader title="Transaction History" />
 
       <section className="flex-1 bg-primary overflow-y-auto rounded-t-[2.5rem] mt-5 sm:px-6 py-6 sm:py-8 min-h-0">

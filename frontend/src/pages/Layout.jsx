@@ -17,16 +17,17 @@ const Layout = () => {
   const isFullScreenPage = location.pathname === '/ai-assistant';
   
     const getPageTitle = () => {
-    const path = location.pathname;
-    if (path.includes("dashboard")) return "Dashboard";
-    if (path.includes("goals")) return "Goals";
-    if (path.includes("settings")) return "Settings";
-    if (path.includes("withdrawal")) return "Withdrawal";
-    if (path.includes("deposit")) return "Deposit";
-    if (path.includes("transactions")) return "Transactions";
-    if (path.includes("ai-assistant")) return "AI Assistant";
-    return "Dashboard";
-  };
+  const path = location.pathname;
+  if (path.includes("transactions/audit")) return "Audit Logs";
+  if (path.includes("dashboard")) return "Dashboard";
+  if (path.includes("goals")) return "Goals";
+  if (path.includes("settings")) return "Settings";
+  if (path.includes("withdrawal")) return "Withdrawal";
+  if (path.includes("deposit")) return "Deposit";
+  if (path.includes("transactions")) return "Transactions";
+  if (path.includes("ai-assistant")) return "AI Assistant";
+  return "Dashboard";
+};
 
   return (
     <div className="flex min-h-screen">
