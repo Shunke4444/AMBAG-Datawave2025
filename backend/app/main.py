@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation, users  
-from routers.scheduler import start_scheduler  
+from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation, users  # Add users
+from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
 
@@ -26,10 +26,10 @@ app.include_router(simulation.router)
 group_balances = {}
 transactions = []
 
-@app.on_event("startup")
+"""app.on_event("startup")
 async def startup_event():
     start_scheduler() # Start the background scheduler # still on the process of implementing
-
+"""
 @app.get("/")
 def read_root():
     return Response("working na to")
