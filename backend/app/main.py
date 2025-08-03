@@ -26,10 +26,10 @@ app.include_router(simulation.router)
 group_balances = {}
 transactions = []
 
-"""app.on_event("startup")
+app.on_event("startup")
 async def startup_event():
     start_scheduler() # Start the background scheduler # still on the process of implementing
-"""
+
 @app.get("/")
 def read_root():
     return Response("working na to")
