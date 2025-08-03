@@ -156,7 +156,7 @@ AMBAG is an intelligent Filipino financial collaboration platform that helps gro
     "enabled": true,
     "payment_method": "virtual_balance",
     "recipient_details": {
-      "gcash_number": "+639171234567",
+      "BPI_number": "+639171234567",
       "account_name": "Maria Santos"
     },
     "require_confirmation": false,
@@ -207,7 +207,7 @@ AMBAG is an intelligent Filipino financial collaboration platform that helps gro
 {
   "amount": 1375.0,
   "contributor_name": "Pedro Santos",
-  "payment_method": "gcash",
+  "payment_method": "BPI",
   "reference_number": "GCH240802001"
 }
 ```
@@ -247,7 +247,7 @@ AMBAG is an intelligent Filipino financial collaboration platform that helps gro
    - Includes account numbers and proper references
 
 3. **Manual Payment Options**
-   - Provides multiple payment options (GCash, bank, cash)
+   - Provides multiple payment options (BPI, bank)
    - Flexible for different situations
 
 #### Auto Payment Endpoints:
@@ -300,10 +300,10 @@ GET /goal/virtual-balances
 {
   "reminder_id": "reminder_goal_electric_march_uuid_20250802_143000",
   "generated_reminder": {
-    "message": "Hi Juan! 👋 Kulang pa tayo ng ₱2,750 para sa electric bill! Your share: ₱1,375. Deadline: March 25 (bukas na!). Saglit lang, GCash mo na para hindi ma-disconnect 😅⚡",
+    "message": "Hi Juan! 👋 Kulang pa tayo ng ₱2,750 para sa electric bill! Your share: ₱1,375. Deadline: March 25 (bukas na!). Saglit lang, BPI mo na para hindi ma-disconnect 😅⚡",
     "urgency_level": "high",
     "suggested_actions": [
-      "Pay via GCash: +639171234567",
+      "Pay via BPI: +639171234567",
       "Ask for payment plan if needed", 
       "Contact group manager"
     ]
@@ -727,7 +727,7 @@ Content-Type: application/json
 {
   "amount": 2500.0,
   "contributor_name": "Test User 1",
-  "payment_method": "gcash",
+  "payment_method": "BPI",
   "reference_number": "GCH123456"
 }
 
@@ -737,7 +737,7 @@ Content-Type: application/json
 {
   "amount": 2500.0,
   "contributor_name": "Test User 2",
-  "payment_method": "gcash",
+  "payment_method": "BPI",
   "reference_number": "GCH123457"
 }
 ```
@@ -830,7 +830,7 @@ Content-Type: application/json
 **Solution:** Simulation engine shows outcomes of different choices with AI recommendations.
 
 #### Problem: "Hassle mag-transfer ng pera manually"
-**Solution:** Bank-free auto payment system handles transfers automatically using virtual balances, GCash, or BPI instructions.
+**Solution:** Bank-free auto payment system handles transfers automatically using virtual balances, BPI, or BPI instructions.
 
 #### Problem: "Walang secure authentication"
 **Solution:** Session-based authentication with role-based permissions and secure password handling.
@@ -850,7 +850,7 @@ Content-Type: application/json
 
 The system intelligently chooses payment methods based on:
 - **Goal amount** (virtual balance for smaller amounts)
-- **Member preferences** (GCash vs BPI vs manual)
+- **Member preferences** (BPI vs BPI vs manual)
 - **Manager approval requirements** (automatic vs manual confirmation)
 - **Threshold settings** (auto-complete under certain amounts)
 
