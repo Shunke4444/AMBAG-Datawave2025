@@ -7,11 +7,7 @@ const Goals = () => {
 
   return (
     <>
-      <main className="flex flex-col w-full h-full min-h-screen mx-12" >
-          {/** Header + iconBtns */}
-            <h1 className="text-xl font-bold text-textcolor px-20 py-16">
-              Financial Goals
-            </h1>  
+      <main className="flex flex-col w-full h-full min-h-screen  justify-center" >  
           
           <div className="w-372  h-176 bg-primary mx-20 rounded-4xl flex flex-col justify-start gap-4">
             <header className='flex justify-end p-8'>
