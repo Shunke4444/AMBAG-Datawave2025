@@ -7,10 +7,8 @@ import json
 import re
 from uuid import uuid4
 
-# Import AI client
 from .ai_client import get_ai_client
 
-# Import real data from other modules
 from .goal import goals, pool_status
 from .groups import group_db
 
@@ -19,25 +17,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai-tools", tags=["ai-tools"])
 
-
-# Helper functions for real data integration
 def get_goal_by_id(goal_id: str):
-    """Get goal data by ID from real goal database"""
     return goals.get(goal_id)
 
 def get_group_by_id(group_id: str):
-    """Get group data by ID from real group database"""
     return group_db.get(group_id)
 
 def find_group_for_goal(goal_id: str):
-    """Find the group associated with a goal"""
-    # Look for a group that might be associated with this goal
-    # This could be enhanced with a proper goal-group relationship table
     for group_id, group in group_db.items():
-        # Check if the goal creator is the group manager or if there's a naming pattern
         goal = goals.get(goal_id)
         if goal and hasattr(group, 'members'):
-            # Extract member names from GroupMember objects
             member_names = [member.user_id for member in group.members] if isinstance(group.members, list) else []
             # Check if goal creator matches any member or manager
             creator_user_id = f"user_{goal.creator_name.replace(' ', '_').lower()}"
@@ -46,7 +35,7 @@ def find_group_for_goal(goal_id: str):
     return None
 
 def convert_goal_to_group_format(goal_id: str):
-    """Convert goal data to group-like format for AI analysis with proper group integration"""
+    # Convert goal data for AI analysis with proper group integration
     goal = goals.get(goal_id)
     if not goal:
         return None
@@ -58,12 +47,10 @@ def convert_goal_to_group_format(goal_id: str):
     associated_group = find_group_for_goal(goal_id)
     
     if associated_group:
-        # Use group members if group exists - extract names from GroupMember objects
         if hasattr(associated_group, 'members') and isinstance(associated_group.members, list):
             all_members = []
             for member in associated_group.members:
                 if hasattr(member, 'user_id'):
-                    # Convert user_id back to readable name (this is a simplified conversion)
                     readable_name = member.user_id.replace('user_', '').replace('_', ' ').title()
                     all_members.append(readable_name)
                 else:
@@ -72,7 +59,7 @@ def convert_goal_to_group_format(goal_id: str):
             all_members = [goal.creator_name]
         group_description = getattr(associated_group, 'description', '') if hasattr(associated_group, 'description') else ''
     else:
-        # Fallback: Create realistic member list based on goal data and contributions
+        # Fallback to goal creator as the only member if no group found
         all_members = [goal.creator_name]
         
         # Add contributors who aren't already in the member list
@@ -81,6 +68,7 @@ def convert_goal_to_group_format(goal_id: str):
                 all_members.append(contributor["name"])
         
         # Add some realistic Filipino members for testing (if this is a small goal with few contributors)
+        # MOCKED DATA
         realistic_members = ["Maria Santos", "John Cruz", "Jane Dela Cruz", "Mike Reyes", "Sarah Garcia", "Alex Rodriguez", "Lisa Wong", "Carlos Mendoza"]
         
         # Add a few more members to make it realistic (up to 5 total)
@@ -113,7 +101,7 @@ def convert_goal_to_group_format(goal_id: str):
                 "amount": c["amount"],
                 "timestamp": c.get("timestamp", datetime.now().isoformat()),
                 "status": "confirmed",
-                "payment_method": c.get("payment_method", "cash"),
+                "payment_method": c.get("payment_method", "bank_transfer"),
                 "reference_number": c.get("reference_number", "")
             }
             for c in contributors_data
@@ -130,7 +118,7 @@ def convert_goal_to_group_format(goal_id: str):
 def calculate_group_analytics(group_data: dict):
     if not group_data:
         return {}
-    
+    # Initialize analytics data
     total_members = len(group_data.get("members", []))
     contributors = len(group_data.get("contributions", []))
     current_amount = group_data.get("current_amount", 0)
@@ -153,7 +141,8 @@ def calculate_group_analytics(group_data: dict):
             days_remaining = 0
     except:
         days_remaining = 0
-    
+
+    # Return analytics data
     return {
         "total_members": total_members,
         "contributors": contributors,
@@ -166,8 +155,8 @@ def calculate_group_analytics(group_data: dict):
         "daily_target": remaining_amount / max(days_remaining, 1) if days_remaining > 0 else remaining_amount
     }
 
+# Fallback autonomous actions when AI doesn't provide them
 def create_fallback_actions(group_data: dict, analytics: dict):
-    """Create fallback autonomous actions when AI doesn't provide them"""
     actions = []
     
     # Always create reminders for pending members
@@ -210,15 +199,15 @@ def create_fallback_actions(group_data: dict, analytics: dict):
     
     return actions
 
+
+#create test for backend
 def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
     """Create a test goal with associated group for comprehensive testing"""
-    from .goal import goal  # Fixed: Use proper relative import
-    from .groups import Group, GroupMember  # Fixed: Import GroupMember too
+    from .goal import goal 
+    from .groups import Group, GroupMember  
     
-    # Create goal
     goal_id = str(uuid4())
     
-    # Default member list if none provided
     if not member_names:
         member_names = ["Maria Santos", "John Cruz", "Jane Dela Cruz", "Mike Reyes", "Sarah Garcia"]
     
@@ -242,7 +231,6 @@ def create_test_goal_with_group(title: str, goal_amount: float, creator_name: st
     )
     goals[goal_id] = new_goal
     
-    # Create GroupMember objects for the new group structure
     group_members = []
     for i, member_name in enumerate(member_names):
         member = GroupMember(
@@ -254,7 +242,6 @@ def create_test_goal_with_group(title: str, goal_amount: float, creator_name: st
         )
         group_members.append(member)
     
-    # Create associated group in group_db with updated structure
     group = Group(
         id=goal_id,  # Use same ID to link goal and group
         name=f"Group for {title}",
@@ -313,29 +300,23 @@ def add_realistic_test_contributions(goal_id: str, contribution_percentage: floa
     
     return True
 
+
 # Database for AI analyses, reminders, notifications, and executed actions
-ai_analyses_db = []
 smart_reminders_db = []
 notifications_db = []
 executed_actions_db = []
 
 # Enhanced request models for autonomous execution
-class ComprehensiveAnalysisRequest(BaseModel):
-    group_id: str
-    analysis_types: List[str] = ["progress_tracking", "risk_assessment", "optimization", "predictions"]
-    auto_execute: bool = True  # When True, AI will autonomously execute recommended actions
-
 class SmartReminderRequest(BaseModel):
     group_id: str
-    reminder_type: str = "payment_due"
+    reminder_type: Optional[str] = None
     target_members: Optional[List[str]] = None
-    urgency: str = "medium"  # low, medium, high, critical
+    urgency: Optional[str] = None # low, medium, high, critical
     custom_message: Optional[str] = None
     auto_send: bool = True  # When True, reminders are automatically sent to members
 
 # AI Helper Function
 async def get_ai_analysis(prompt: str) -> dict:
-    """Get AI analysis using the existing AI client"""
     try:
         client = get_ai_client()
         
@@ -351,15 +332,11 @@ async def get_ai_analysis(prompt: str) -> dict:
         
         ai_response = response.choices[0].message.content
         
-        # Try to parse as JSON, fallback to text response
         if isinstance(ai_response, str):
             try:
-                # First try direct JSON parsing
                 return json.loads(ai_response)
             except:
-                # Try to extract JSON from markdown code blocks
                 try:
-                    # Look for JSON wrapped in markdown code blocks
                     import re
                     json_match = re.search(r'```json\s*(\{.*?\})\s*```', ai_response, re.DOTALL)
                     if json_match:
@@ -381,35 +358,104 @@ async def get_ai_analysis(prompt: str) -> dict:
         return {"error": f"AI analysis failed: {str(e)}", "analysis": "Unable to generate analysis"}
 
 # AUTONOMOUS ACTION LAYER - The core of agentic behavior
-async def execute_autonomous_action(action_type: str, group_id: str, action_data: Dict, target_members: Optional[List[str]] = None):
-    """Execute actual actions autonomously - this is what makes the system truly agentic"""
-    
+async def execute_autonomous_action(action_type: Optional[str], group_id: str, action_data: Dict, target_members: Optional[List[str]] = None):
+    """
+    Execute actions agentically: If action_type is None or 'auto', infer the best action(s) based on group data and risks.
+    """
     try:
+        # If action_type is None or 'auto', infer the best action(s) based on analytics and risks
+        if not action_type or action_type == "auto":
+            group_data = convert_goal_to_group_format(group_id)
+            
+            # Check if group_data is None
+            if not group_data:
+                logger.error(f"Could not find or convert goal {group_id} to group format")
+                return {"executed": False, "reason": f"Goal {group_id} not found"}
+            
+            analytics = calculate_group_analytics(group_data)
+            
+            # Enhanced agentic logic with multiple decision factors
+            progress = analytics.get("progress_percentage", 0)
+            days_remaining = analytics.get("days_remaining", 0)
+            pending_members = group_data.get("pending_members", [])
+            
+            logger.info(f"🤖 Agentic decision for group {group_id}: Progress={progress}%, Days={days_remaining}, Pending={len(pending_members)}")
+            
+            # Priority 1: Goal completed - transfer funds
+            if progress >= 100:
+                logger.info("🎉 Agentic decision: Goal completed, initiating fund transfer")
+                return await send_fund_transfer_alert(group_id, action_data)
+            
+            # Priority 2: Critical deadline with low progress - escalate immediately
+            elif days_remaining <= 1 and progress < 50:
+                logger.info("🚨 Agentic decision: Critical deadline, escalating to manager")
+                action_data.update({
+                    "situation": "Critical deadline with very low progress",
+                    "urgency": "critical",
+                    "amount_short": analytics.get("remaining_amount", 0),
+                    "deadline": group_data.get("deadline", "soon"),
+                    "late_members": pending_members
+                })
+                return await escalate_to_manager(group_id, action_data)
+            
+            # Priority 3: Urgent deadline with moderate progress - escalate
+            elif days_remaining <= 3 and progress < 70:
+                logger.info("⚠️ Agentic decision: Urgent deadline, escalating to manager")
+                action_data.update({
+                    "situation": "Deadline approaching with insufficient progress",
+                    "urgency": "high",
+                    "amount_short": analytics.get("remaining_amount", 0),
+                    "deadline": group_data.get("deadline", "soon"),
+                    "late_members": pending_members
+                })
+                return await escalate_to_manager(group_id, action_data)
+            
+            # Priority 4: Many pending members - send reminders
+            elif len(pending_members) > len(group_data.get("members", [])) * 0.3:  # >30% pending
+                logger.info("📢 Agentic decision: Many pending members, sending reminders")
+                action_data.update({
+                    "amount_due": analytics.get("remaining_amount", 0) / max(len(pending_members), 1),
+                    "deadline": group_data.get("deadline", "soon"),
+                    "remaining_amount": analytics.get("remaining_amount", 0),
+                    "urgency": "medium" if days_remaining > 7 else "high"
+                })
+                return await send_contributor_reminder(group_id, action_data, pending_members)
+            
+            # Priority 5: Low progress with time left - send motivational reminders
+            elif progress < 50 and days_remaining > 7:
+                logger.info("💪 Agentic decision: Low progress but time available, sending motivational reminders")
+                action_data.update({
+                    "amount_due": analytics.get("remaining_amount", 0) / max(len(pending_members), 1),
+                    "deadline": group_data.get("deadline", "soon"),
+                    "remaining_amount": analytics.get("remaining_amount", 0),
+                    "urgency": "medium"
+                })
+                return await send_contributor_reminder(group_id, action_data, pending_members)
+            
+            # Default: No immediate action needed
+            else:
+                logger.info("✅ Agentic decision: No immediate action required, monitoring continues")
+                return {"executed": False, "reason": "No agentic action needed - group is on track"}
+        
+        # Otherwise, execute the specified action_type
         if action_type == "send_reminder":
             return await send_contributor_reminder(group_id, action_data, target_members or [])
-        
         elif action_type == "escalate_manager":
             return await escalate_to_manager(group_id, action_data)
-        
         elif action_type == "redistribute_amount":
             return await suggest_redistribution(group_id, action_data)
-        
         elif action_type == "setup_payment_plan":
             return await setup_payment_plan(group_id, action_data, target_members or [])
-        
         elif action_type == "fund_transfer_alert":
             return await send_fund_transfer_alert(group_id, action_data)
-        
         else:
             logger.warning(f"Unknown action type: {action_type}")
             return {"executed": False, "reason": "Unknown action type"}
-            
     except Exception as e:
         logger.error(f"Action execution failed: {str(e)}")
         return {"executed": False, "error": str(e)}
 
 async def send_contributor_reminder(group_id: str, action_data: Dict, target_members: List[str]):
-    """PRODUCTION: Send actual reminders to contributors"""
     
     notifications_sent = []
     
@@ -423,7 +469,7 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         Current status: Only ₱{action_data.get('remaining_amount', 0)} left to reach your goal! 🎯
         
         Quick actions:
-        • Pay via BPI: [Manager's Account]
+        • Pay via BPI: Manager's Account
         • Request payment plan: Go to Request page
         • Check group progress
         
@@ -440,12 +486,13 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
             "channel": "push notification",  # Could be sms, email, push
             "status": "sent",
             "timestamp": datetime.now().isoformat(),
-            "auto_generated": True
+            "auto_generated": True  # Indicates this was generated by AI
         }
         
         notifications_db.append(notification)
         notifications_sent.append(member)
         
+        # Log the notification creation for debugging
         logger.info(f"✅ Notification created and stored: {notification['id']} for {member} in group {group_id}")
         logger.info(f"📊 Total notifications in database: {len(notifications_db)}")
     
@@ -465,6 +512,7 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         "recipients": notifications_sent,
         "count": len(notifications_sent)
     }
+
 
 async def escalate_to_manager(group_id: str, action_data: Dict):
     """PRODUCTION: Send alerts to manager when intervention needed"""
@@ -548,10 +596,10 @@ async def send_fund_transfer_alert(group_id: str, action_data: Dict):
     • Contributors: {action_data.get('contributor_count', 0)}
     • Collection period: {action_data.get('collection_period', 'N/A')}
     
-    Fund transfer to BPI account:
-    [Initiate Transfer] [View Breakdown] [Download Report]
-    
-    Contributors will be notified once transfer is complete.
+    Next steps:
+    1. Transfer funds to pay bills
+    2. Notify contributors about completion
+    3. Confirm payment once processed
     """
     
     # PRODUCTION: High-priority notification to manager
@@ -737,184 +785,6 @@ async def setup_payment_plan(group_id: str, action_data: Dict, target_members: L
         "members": plans_created
     }
 
-
-@router.post("/comprehensive-analysis")
-async def comprehensive_analysis(request: ComprehensiveAnalysisRequest, background_tasks: BackgroundTasks):
-    """
-    PRODUCTION: Single endpoint for all AI analysis with autonomous execution
-    Replaces 4 separate analysis endpoints with one comprehensive solution
-    """
-    
-    try:
-        # Get actual goal data from real database
-        group_data = convert_goal_to_group_format(request.group_id)
-        
-        if not group_data:
-            raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
-        
-        # Get analytics for the goal
-        analytics = calculate_group_analytics(group_data)
-        
-        # Prepare comprehensive context for AI
-        context = {
-            "group": group_data,
-            "analytics": analytics,
-            "analysis_types": request.analysis_types,
-            "current_total": group_data.get("current_amount", 0),
-            "goal_amount": group_data.get("goal_amount", 0),
-            "members": group_data.get("members", []),
-            "deadline": group_data.get("deadline", ""),
-            "auto_execute": request.auto_execute
-        }
-        
-        # Generate comprehensive AI analysis
-        ai_prompt = f"""
-        AMBAG Financial Group Analysis - Group {request.group_id}
-        
-        Context: Filipino financial collaboration platform for bill sharing and savings goals.
-        
-        Group Details:
-        - Title: {group_data.get('title', 'Untitled Group')}
-        - Goal: ₱{context['goal_amount']:,.2f}
-        - Current: ₱{context['current_total']:,.2f}
-        - Progress: {analytics.get('progress_percentage', 0):.1f}%
-        - Remaining: ₱{analytics.get('remaining_amount', 0):,.2f}
-        - Members: {len(context['members'])} total
-        - Contributors: {analytics.get('contributors', 0)}
-        - Pending: {analytics.get('non_contributors', 0)}
-        - Days Left: {analytics.get('days_remaining', 0)}
-        - Status: {group_data.get('status', 'unknown')}
-        - Deadline: {context['deadline']}
-        
-        Member List: {', '.join(context['members'])}
-        Pending Members: {', '.join(group_data.get('pending_members', []))}
-        
-        Recent Contributions:
-        {chr(10).join([f"• {c['member']}: ₱{c['amount']:,.2f} on {c['timestamp'][:10]}" for c in group_data.get('contributions', [])[-3:]])}
-        
-        Analysis Types Requested: {', '.join(request.analysis_types)}
-        Auto-Execute: {request.auto_execute}
-        
-        Provide detailed analysis for:
-        {"1. PROGRESS_TRACKING: Current progress, milestones, and completion trends" if "progress_tracking" in request.analysis_types else ""}
-        {"2. RISK_ASSESSMENT: Payment risks, member reliability, and deadline concerns" if "risk_assessment" in request.analysis_types else ""}
-        {"3. OPTIMIZATION: Efficiency improvements, strategies, and best practices" if "optimization" in request.analysis_types else ""}
-        {"4. PREDICTIONS: Future scenarios, completion likelihood, and recommendations" if "predictions" in request.analysis_types else ""}
-        
-        If auto_execute is true, suggest specific autonomous actions based on current status:
-        - send_reminder: For overdue contributors (include member names)
-        - escalate_manager: When intervention needed
-        - fund_transfer_alert: When goal reached
-        - redistribute_amount: When rebalancing needed
-        - setup_payment_plan: For struggling members
-        
-        Use real Filipino context and member names. Format response as JSON with analysis and recommended_actions array.
-        """
-        
-        # Get AI analysis
-        ai_response = await get_ai_analysis(ai_prompt)
-        
-        # Store the analysis
-        analysis_result = {
-            "id": f"analysis_{request.group_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            "group_id": request.group_id,
-            "analysis_types": request.analysis_types,
-            "ai_analysis": ai_response,
-            "context": context,
-            "timestamp": datetime.now().isoformat(),
-            "auto_execute": request.auto_execute
-        }
-        
-        ai_analyses_db.append(analysis_result)
-        
-        # AUTONOMOUS EXECUTION: If auto_execute is enabled, perform recommended actions
-        autonomous_results = []
-        if request.auto_execute:
-            # Check if AI response contains recommended actions
-            ai_actions = []
-            
-            # Handle different response formats
-            if isinstance(ai_response, dict):
-                # Direct recommended_actions
-                if "recommended_actions" in ai_response:
-                    ai_actions = ai_response.get("recommended_actions", [])
-                    logger.info(f"✅ Found direct recommended_actions: {len(ai_actions)} actions")
-                
-                # Nested in analysis object
-                elif "analysis" in ai_response and isinstance(ai_response["analysis"], dict):
-                    if "recommended_actions" in ai_response["analysis"]:
-                        ai_actions = ai_response["analysis"].get("recommended_actions", [])
-                        logger.info(f"✅ Found nested recommended_actions: {len(ai_actions)} actions")
-                
-                # Check if analysis contains text that needs re-parsing
-                elif "analysis" in ai_response and isinstance(ai_response["analysis"], str):
-                    try:
-                        # Try to parse the nested analysis string
-                        import re
-                        analysis_text = ai_response["analysis"]
-                        json_match = re.search(r'```json\s*(\{.*?\})\s*```', analysis_text, re.DOTALL)
-                        if json_match:
-                            nested_json = json.loads(json_match.group(1))
-                            if "recommended_actions" in nested_json:
-                                ai_actions = nested_json.get("recommended_actions", [])
-                                logger.info(f"✅ Found re-parsed recommended_actions: {len(ai_actions)} actions")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to re-parse nested analysis: {str(e)}")
-            
-            # If AI didn't provide actions or provided invalid format, create fallback actions based on group status
-            if not ai_actions:
-                logger.info(f"❌ AI didn't provide recommended_actions, creating fallback actions for group {request.group_id}")
-                ai_actions = create_fallback_actions(group_data, analytics)
-                logger.info(f"✅ Created {len(ai_actions)} fallback actions")
-            
-            # Execute the actions
-            for action in ai_actions:
-                if isinstance(action, dict) and "action_type" in action:
-                    # Execute the autonomous action in background
-                    background_tasks.add_task(
-                        execute_autonomous_action,
-                        action["action_type"],
-                        request.group_id,
-                        action.get("action_data", {}),
-                        action.get("target_members", [])
-                    )
-                    autonomous_results.append(action["action_type"])
-                    logger.info(f"Triggered autonomous action: {action['action_type']} for group {request.group_id}")
-            
-            # If still no actions, force create a basic reminder for pending members
-            if not autonomous_results and group_data.get("pending_members"):
-                logger.info(f"Force creating reminder for pending members in group {request.group_id}")
-                background_tasks.add_task(
-                    execute_autonomous_action,
-                    "send_reminder",
-                    request.group_id,
-                    {
-                        "amount_due": analytics.get("remaining_amount", 0) / len(group_data.get("pending_members", [1])),
-                        "deadline": group_data.get("deadline", "soon"),
-                        "remaining_amount": analytics.get("remaining_amount", 0),
-                        "urgency": "medium"
-                    },
-                    group_data.get("pending_members", [])
-                )
-                autonomous_results.append("send_reminder")
-        
-        response = {
-            "analysis_id": analysis_result["id"],
-            "group_id": request.group_id,
-            "analysis": ai_response,
-            "timestamp": analysis_result["timestamp"],
-            "autonomous_actions_triggered": autonomous_results if request.auto_execute else [],
-            "auto_execute": request.auto_execute
-        }
-        
-        logger.info(f"Comprehensive analysis completed for group {request.group_id} - Auto-execute: {request.auto_execute}")
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Comprehensive analysis error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
 @router.post("/smart-reminder")
 async def smart_reminder(request: SmartReminderRequest, background_tasks: BackgroundTasks):
     """
@@ -929,10 +799,10 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
         if not group_data:
             raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
         
-        # Get analytics for the goal
-        analytics = calculate_group_analytics(group_data)
+        if group_data is None:
+            raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
+        analytics = calculate_group_analytics(group_data) if group_data is not None else {}
         
-        # Prepare reminder context
         context = {
             "group": group_data,
             "analytics": analytics,
@@ -943,7 +813,6 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
             "custom_message": request.custom_message
         }
         
-        # Generate AI-powered reminder
         ai_prompt = f"""
         Generate personalized reminder for AMBAG financial group {request.group_id}
         
@@ -1001,15 +870,15 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
             target_members = request.target_members or group_data.get("pending_members", [])
             per_member_amount = analytics.get("remaining_amount", 0) / max(len(target_members), 1) if target_members else 0
             
-            # Execute autonomous reminder sending in background
+            # Execute autonomous action (let system decide best approach)
             background_tasks.add_task(
                 execute_autonomous_action,
-                "send_reminder",
+                "auto",  # Agentic mode - system decides best action
                 request.group_id,
                 {
                     "reminder_message": ai_reminder.get("message", "Payment reminder"),
-                    "urgency": request.urgency,
-                    "reminder_type": request.reminder_type,
+                    "urgency": request.urgency or "medium",
+                    "reminder_type": request.reminder_type or "payment_due",
                     "deadline": group_data.get("deadline", "soon"),
                     "amount_due": per_member_amount,
                     "remaining_amount": analytics.get("remaining_amount", 0),
@@ -1036,6 +905,50 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
     except Exception as e:
         logger.error(f"Smart reminder error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Reminder generation failed: {str(e)}")
+
+@router.post("/agentic-action")
+async def trigger_agentic_action(group_id: str, background_tasks: BackgroundTasks):
+    """
+    PRODUCTION: Pure agentic action - system autonomously decides and executes the best action
+    """
+    try:
+        # Get group data and analytics
+        group_data = convert_goal_to_group_format(group_id)
+        if not group_data:
+            raise HTTPException(status_code=404, detail=f"Goal {group_id} not found")
+        
+        analytics = calculate_group_analytics(group_data)
+        
+        # Execute pure agentic action (system decides everything)
+        background_tasks.add_task(
+            execute_autonomous_action,
+            None,  # Pure agentic mode - no action type specified
+            group_id,
+            {
+                "current_amount": group_data.get("current_amount", 0),
+                "goal_amount": group_data.get("goal_amount", 0),
+                "deadline": group_data.get("deadline", "soon"),
+                "remaining_amount": analytics.get("remaining_amount", 0),
+                "progress_percentage": analytics.get("progress_percentage", 0),
+                "days_remaining": analytics.get("days_remaining", 0),
+                "pending_members": group_data.get("pending_members", []),
+                "contributors": [c["member"] for c in group_data.get("contributions", [])]
+            },
+            group_data.get("pending_members", [])
+        )
+        
+        return {
+            "success": True,
+            "group_id": group_id,
+            "action_type": "agentic_autonomous",
+            "message": "System will autonomously determine and execute the best action",
+            "analytics": analytics,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Agentic action error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Agentic action failed: {str(e)}")
 
 # NOTIFICATION AND ACTION HISTORY ENDPOINTS
 
@@ -1074,7 +987,6 @@ async def get_dashboard_summary():
         "awaiting_payment_goals": len([g for g in goals.values() if g.status == "awaiting_payment"]),
         "total_notifications": len(notifications_db),
         "total_executed_actions": len(executed_actions_db),
-        "total_analyses": len(ai_analyses_db),
         "total_reminders": len(smart_reminders_db),
         "goals": []
     }
@@ -1138,7 +1050,6 @@ async def create_test_scenario_with_group():
             ] if hasattr(group, 'members') else [],
             "message": "Test scenario created successfully! Use this goal_id for testing agentic features.",
             "next_steps": [
-                f"Run comprehensive analysis: POST /ai-tools/comprehensive-analysis with goal_id: {goal_id}",
                 f"Check notifications: GET /ai-tools/notifications/{goal_id}",
                 f"Test smart reminders: POST /ai-tools/smart-reminder with goal_id: {goal_id}"
             ]
@@ -1164,14 +1075,7 @@ async def test_agentic_workflow(goal_id: str):
     
     analytics = calculate_group_analytics(group_data)
     
-    # Test 1: Comprehensive Analysis
-    analysis_request = ComprehensiveAnalysisRequest(
-        group_id=goal_id,
-        analysis_types=["progress_tracking", "risk_assessment", "optimization", "predictions"],
-        auto_execute=True
-    )
-    
-    # Simulate AI analysis
+    # Simulate AI analysis (removed comprehensive analysis endpoint)
     ai_actions = create_fallback_actions(group_data, analytics)
     
     # Execute actions

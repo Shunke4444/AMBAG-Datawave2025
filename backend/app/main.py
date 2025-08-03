@@ -15,14 +15,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(users.router)  # Add users router first for auth
+app.include_router(users.router)  
 app.include_router(groups.router)
 app.include_router(goal.router)
 app.include_router(chatbot.router)
 app.include_router(scheduler_api.router) 
 app.include_router(database.router)
 app.include_router(ai_tools_clean.router) 
-app.include_router(simulation.router)  # Add simulation router 
+app.include_router(simulation.router)  
 
 group_balances = {}
 transactions = []
