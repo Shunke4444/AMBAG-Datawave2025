@@ -111,7 +111,7 @@ const HelpSupport = () => {
     <main className="border-accent border-2 m-4 p-8 flex flex-col gap-8 ">
       <h1 className="text-md font-semibold text-primary">How Can We Help?</h1>
 
-      <div className="flex">
+      <div className="flex flex-col lg:flex">
         {/* How to get started with Ambag */}
               <section className="mx-12 py-4 max-w-3xl">
                 <Typography variant="h5" gutterBottom>

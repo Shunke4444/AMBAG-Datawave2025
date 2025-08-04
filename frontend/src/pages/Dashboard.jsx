@@ -1,5 +1,4 @@
-import {useState, useEffect} from 'react';
-import {useNavigate} from 'react-router-dom';
+
 
 import ConsistencyStat from "../components/ConsistencyStat"
 import ContributionDiv from "../components/ContributionDiv"
@@ -7,18 +6,10 @@ import DashboardBtns from "../components/DashboardBtns"
 import GoalCards from "../components/GoalCards"
 import useIsMobile from "../hooks/useIsMobile";
 
-import {
-  Notifications as NotifyIcon,
-  Settings as SettingIcon,
-  ContactSupport as SupportIcon,
-} from '@mui/icons-material';
-
-
-
 
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+
   const isMobile = useIsMobile();
     if (isMobile) {
       
@@ -26,30 +17,18 @@ const Dashboard = () => {
         <main className="flex flex-col min-h-screen bg-white">
         {/* Header */}
         <div className="bg-primary text-white px-4 pt-6 pb-4 rounded-b-3xl">
-          <div className="flex justify-between items-center">
-            <p>Hello <span className="text-yellow-400 font-bold">Admin!</span></p>
-            <div className="flex gap-4">
-              <button className="cursor-pointer">
-                <NotifyIcon  />
-              </button >
-              <button onClick={()=> navigate("/help-support")} className="cursor-pointer">
-                <SupportIcon  />
-              </button >
-              <button onClick={() => navigate("/settings")} className="cursor-pointer">
-                <SettingIcon  />
-              </button>
+        
+            <div className="mt-2">
+              <p className="text-sm">Balance</p>
+              <h2 className="text-3xl font-bold">₱123,456</h2>
             </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-sm">Balance</p>
-            <h2 className="text-3xl font-bold">₱123,456</h2>
-          </div>
+            {/* Goals (Mobile version of GoalCards) */}
+            <div className="p-4">
+              <GoalCards />
+            </div>
         </div>
 
-        {/* Goals (Mobile version of GoalCards) */}
-        <div className="p-4">
-          <GoalCards />
-        </div>
+        
 
         {/* Action Buttons */}
         <div className="flex justify-around px-4 py-2 bg-yellow-400 rounded-b-3xl">

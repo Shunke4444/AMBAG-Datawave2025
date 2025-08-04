@@ -4,6 +4,7 @@ import {
   LinearProgress, 
   Box } from '@mui/material';
 
+import useIsMobile from '../hooks/useIsMobile';
 
 const goals = [
   {

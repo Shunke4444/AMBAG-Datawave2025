@@ -32,11 +32,11 @@ const Layout = () => {
     };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col lg:flex min-h-screen">
 
 
       {/* Sidebar */}
-      <div className="hidden lg:block">
+      <div className="">
         <Sidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
