@@ -14,84 +14,20 @@ export default function Payment() {
   
   const availableBalance = 8000;
   const availableBalanceDisplay = 'P8000';
-  
+  const remainingAmount = 6000;
+
   const {
     amount,
-    isExceeded,
     shouldShake,
     handleNumberPress,
     handleDelete,
     handleDot
-  } = usePaymentAmount(availableBalance);
+  } = usePaymentAmount(availableBalance, remainingAmount);
 
-  // Desktop Version
-  if (!isMobile) {
-    return (
-      <div className="min-h-screen bg-secondary">
-        {/* Add shake animation styles */}
-        <style jsx>{`
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-            20%, 40%, 60%, 80% { transform: translateX(3px); }
-          }
-          .shake {
-            animation: shake 0.5s ease-in-out;
-          }
-        `}</style>
-        
-        <PaymentHeader title="Share Payment" />
-
-        {/* Desktop Content */}
-        <main className="max-w-4xl mx-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Side - Payment Form */}
-            <section className="bg-white rounded-2xl p-8 shadow-lg">
-              <RemainingShareCard 
-                goalName="House Bills"
-                remainingAmount="P6000"
-                isExceeded={isExceeded}
-                variant="desktop"
-              />
-
-              <PaymentAmountDisplay 
-                amount={amount}
-                availableBalance={availableBalanceDisplay}
-                isExceeded={isExceeded}
-                variant="desktop"
-              />
-
-              <PaymentButton 
-                amount={amount}
-                availableBalance={availableBalance}
-                variant="desktop"
-                goalName="House Bills"
-              >
-                Continue Payment
-              </PaymentButton>
-            </section>
-
-            {/* Right Side - Number Pad */}
-            <section className="bg-white rounded-2xl p-8 shadow-lg">
-              <h2 className="text-xl font-semibold text-textcolor mb-6 text-center">Enter Amount</h2>
-              <NumberPad 
-                onNumberPress={handleNumberPress}
-                onDelete={handleDelete}
-                onDot={handleDot}
-                variant="desktop"
-              />
-            </section>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Mobile Version
-  return (
-    <MobileLayout title="Share Payment">
-      {/* Add shake animation styles */}
-      <style jsx>{`
+  const desktopLayout = (
+    <div className="min-h-screen bg-secondary overflow-hidden">
+      {/* Add shake animation styles and disable scrolling */}
+      <style jsx global>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
@@ -100,18 +36,86 @@ export default function Payment() {
         .shake {
           animation: shake 0.5s ease-in-out;
         }
+        html, body {
+          overflow: hidden !important;
+          height: 100vh !important;
+        }
+        #root {
+          overflow: hidden !important;
+          height: 100vh !important;
+        }
+      `}</style>
+      
+      <PaymentHeader title="Share Payment" />
+
+      {/* Desktop Content */}
+      <main className="max-w-4xl mx-auto p-6 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+          {/* Left Side - Payment Form */}
+          <section className="bg-white rounded-2xl p-8 shadow-lg">
+            <RemainingShareCard 
+              goalName="House Bills"
+              remainingAmount={`P${remainingAmount}`}
+              variant="desktop"
+            />
+
+            <PaymentAmountDisplay 
+              amount={amount}
+              availableBalance={availableBalanceDisplay}
+              variant="desktop"
+            />
+
+            <PaymentButton 
+              amount={amount}
+              availableBalance={availableBalance}
+              variant="desktop"
+              goalName="House Bills"
+            >
+              Continue Payment
+            </PaymentButton>
+          </section>
+
+          {/* Right Side - Number Pad */}
+          <section className="bg-white rounded-2xl p-8 shadow-lg">
+            <h2 className="text-xl font-semibold text-textcolor mb-6 text-center">Enter Amount</h2>
+            <NumberPad 
+              onNumberPress={handleNumberPress}
+              onDelete={handleDelete}
+              onDot={handleDot}
+              variant="desktop"
+            />
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+
+  const mobileLayout = (
+    <MobileLayout title="Share Payment">
+      {/* Add shake animation styles and disable scrolling */}
+      <style jsx global>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+          20%, 40%, 60%, 80% { transform: translateX(3px); }
+        }
+        .shake {
+          animation: shake 0.5s ease-in-out;
+        }
+        html, body {
+          overflow: hidden;
+        }
       `}</style>
 
       <RemainingShareCard 
         goalName="House Bills"
-        remainingAmount="P6000"
+        remainingAmount={`P${remainingAmount}`}
         variant="mobile"
       />
 
       <PaymentAmountDisplay 
         amount={amount}
         availableBalance={availableBalanceDisplay}
-        isExceeded={isExceeded}
         variant="mobile"
       />
 
@@ -134,4 +138,6 @@ export default function Payment() {
       </div>
     </MobileLayout>
   );
+
+  return isMobile ? mobileLayout : desktopLayout;
 }

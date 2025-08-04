@@ -24,6 +24,7 @@ import NotificationsTab from './components/NotificationsTab';
 import Payment from './pages/PaymentPageFlow/Payment';
 import Request from './pages/MemberRequest/Request'
 import ConfirmPay from './pages/PaymentPageFlow/ConfirmPay';
+import Receipt from './pages/PaymentPageFlow/Receipt';
 const router = createBrowserRouter([
   {
     path: '/login',
@@ -62,6 +63,7 @@ const router = createBrowserRouter([
       {path: 'member-requests', element: <Request />},
       {path: 'payment', element: <Payment />},
       {path: 'payment/confirm', element: <ConfirmPay />},
+      {path: 'receipt', element: <Receipt />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings

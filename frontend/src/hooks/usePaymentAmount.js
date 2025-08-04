@@ -1,20 +1,8 @@
 import { useState, useCallback } from 'react';
 
-export function usePaymentAmount(availableBalance = 8000) {
+export function usePaymentAmount(availableBalance = 8000, remainingAmount = 6000) {
   const [amount, setAmount] = useState('0');
-  const [isExceeded, setIsExceeded] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
-
-  const checkAmountExceeded = useCallback((newAmount) => {
-    const numericAmount = parseFloat(newAmount.replace(/,/g, '')) || 0;
-    const exceeded = numericAmount > availableBalance;
-    setIsExceeded(exceeded);
-    
-    if (exceeded && !shouldShake) {
-      setShouldShake(true);
-      setTimeout(() => setShouldShake(false), 500);
-    }
-  }, [availableBalance, shouldShake]);
 
   const handleNumberPress = useCallback((number) => {
     let newAmount;
@@ -25,8 +13,7 @@ export function usePaymentAmount(availableBalance = 8000) {
       newAmount = Number(cleanAmount).toLocaleString();
     }
     setAmount(newAmount);
-    checkAmountExceeded(newAmount);
-  }, [amount, checkAmountExceeded]);
+  }, [amount]);
 
   const handleDelete = useCallback(() => {
     let newAmount;
@@ -37,20 +24,17 @@ export function usePaymentAmount(availableBalance = 8000) {
       newAmount = cleanAmount ? Number(cleanAmount).toLocaleString() : '0';
     }
     setAmount(newAmount);
-    checkAmountExceeded(newAmount);
-  }, [amount, checkAmountExceeded]);
+  }, [amount]);
 
   const handleDot = useCallback(() => {
-    if (!amount.includes('.')) {
+    if (!amount.includes('.') && amount !== '0') {
       const newAmount = amount + '.';
       setAmount(newAmount);
-      checkAmountExceeded(newAmount);
     }
-  }, [amount, checkAmountExceeded]);
+  }, [amount]);
 
   return {
     amount,
-    isExceeded,
     shouldShake,
     handleNumberPress,
     handleDelete,

@@ -34,12 +34,12 @@ const MobileLayout = ({
 
   // Default variant (for payment pages)
   return (
-    <div className={`min-h-screen bg-white ${responsiveClasses} ${className}`}>
+    <div className={`min-h-screen bg-white overflow-hidden ${responsiveClasses} ${className}`}>
       {/* White Header */}
       <MobileHeader title={title} />
       
       {/* Red Background Container with Rounded Top Corners */}
-      <main className="bg-primary text-white rounded-t-3xl min-h-[calc(100vh-80px)] px-6 pt-8">
+      <main className="bg-primary text-white rounded-t-3xl min-h-[calc(100vh-80px)] px-6 pt-8 overflow-hidden">
         {children}
       </main>
     </div>

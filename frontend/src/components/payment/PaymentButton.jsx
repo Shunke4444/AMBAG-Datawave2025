@@ -15,10 +15,9 @@ export default function PaymentButton({
   // Parse the amount to check if it's valid for navigation
   const numericAmount = parseFloat(amount.replace(/,/g, '')) || 0;
   const isAmountZero = numericAmount === 0;
-  const isOverBalance = numericAmount > availableBalance;
   
-  // Button should be disabled if amount is 0, over balance, or explicitly disabled
-  const isButtonDisabled = disabled || isAmountZero || isOverBalance;
+  // Button should be disabled only if amount is 0 or explicitly disabled
+  const isButtonDisabled = disabled || isAmountZero;
 
   const handleClick = () => {
     if (!isButtonDisabled && numericAmount >= 1) {
@@ -43,7 +42,6 @@ export default function PaymentButton({
 
   const getAriaLabel = () => {
     if (isAmountZero) return "Enter an amount to continue";
-    if (isOverBalance) return "Amount exceeds available balance";
     if (disabled) return "Payment disabled";
     return "Continue to confirm payment";
   };
