@@ -15,23 +15,26 @@ const Layout = () => {
   const navigate = useNavigate();
   // Check if current page should be full screen (no padding)
   const isFullScreenPage = location.pathname === '/ai-assistant';
+
   
     const getPageTitle = () => {
-  const path = location.pathname;
-  if (path.includes("transactions/audit")) return "Audit Logs";
-  if (path.includes("dashboard")) return "Dashboard";
-  if (path.includes("goals")) return "Goals";
-  if (path.includes("settings")) return "Settings";
-  if (path.includes("withdrawal")) return "Withdrawal";
-  if (path.includes("deposit")) return "Deposit";
-  if (path.includes("transactions")) return "Transactions";
-  if (path.includes("ai-assistant")) return "AI Assistant";
-  if (path.includes("help-support")) return "Help Center"
-  return "Dashboard";
-};
+      const path = location.pathname;
+      if (path.includes("transactions/audit")) return "Audit Logs";
+      if (path.includes("dashboard")) return "Dashboard";
+      if (path.includes("goals")) return "Goals";
+      if (path.includes("settings")) return "Settings";
+      if (path.includes("withdrawal")) return "Withdrawal";
+      if (path.includes("deposit")) return "Deposit";
+      if (path.includes("transactions")) return "Transactions";
+      if (path.includes("ai-assistant")) return "AI Assistant";
+      if (path.includes("help-support")) return "Help Center"
+      return "Dashboard";
+    };
 
   return (
     <div className="flex min-h-screen">
+
+
       {/* Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -49,11 +52,14 @@ const Layout = () => {
           ${isCollapsed ? "lg:ml-24" : "lg:ml-64"}
           ml-0
         `}
+        
       >
+
+
         {/* Global Top Header */}
         {!isFullScreenPage && (
-          <div className="flex justify-between items-center py-6 px-10">
-            <h1 className="text-xl font-bold text-textcolor">
+          <div className="hidden lg:flex lg:justify-between lg:items-center py-6 px-10 bg-primary lg:bg-secondary">
+            <h1 className="text-xl font-bold text-textcolor hidden lg:block">
               {getPageTitle()}
             </h1>
             <div className="flex gap-4 items-center text-textcolor">
