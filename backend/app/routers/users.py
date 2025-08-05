@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
 from uuid import uuid4
+from .mongo import users_collection
+from .verify_token import verify_token
 import hashlib
 import logging
 
@@ -31,18 +33,16 @@ class UserProfile(BaseModel):
     emergency_contact_number: Optional[str] = None
 
 class UserCreate(BaseModel):
-    email: str  # Will be validated by Firebase/MongoDB
-    password: str
     profile: UserProfile
     role: UserRole
 
 class UserLogin(BaseModel):
-    email: str  # Will be validated by Firebase/MongoDB
+    # email: str  # Will be validated by Firebase/MongoDB
     password: str
 
 class User(BaseModel):
-    id: str
-    email: str  # Will be validated by Firebase/MongoDB
+    firebase_uid: str
+    # email: str  # Will be validated by Firebase/MongoDB
     profile: UserProfile
     role: UserRole
     is_active: bool = True
@@ -50,8 +50,8 @@ class User(BaseModel):
     last_login: Optional[str] = None
 
 class UserResponse(BaseModel):
-    id: str
-    email: str  # Will be validated by Firebase/MongoDB
+    firebase_uid: str
+    # email: str  # Will be validated by Firebase/MongoDB
     profile: UserProfile
     role: UserRole
     is_active: bool
@@ -121,84 +121,86 @@ def get_current_user(session_token: str) -> Optional[User]:
 
 # Authentication Endpoints
 @router.post("/register", response_model=UserResponse)
-async def register_user(user_data: UserCreate):
+async def register_user(user_data: UserCreate, user=Depends(verify_token)):
     try:
-        # Basic email format validation
-        if not validate_email_format(user_data.email):
-            raise HTTPException(status_code=400, detail="Invalid email format")
-        
-        for existing_user in users_db.values():
-            if existing_user.email == user_data.email:
-                raise HTTPException(status_code=400, detail="Email already registered")
+        firebase_uid = user["uid"]
+        email = user["email"]
+
+        if users_collection.find_one({"email": email}):
+            raise HTTPException(status_code=400, detail="Email already registered")
+
         # Create new user
-        user_id = str(uuid4())
-        hashed_password = hash_password(user_data.password)
+        # user_id = str(uuid4())
+        # hashed_password = hash_password(user_data.password)
         
         new_user = User(
-            id=user_id,
-            email=user_data.email,
+            firebase_uid=firebase_uid,
             profile=user_data.profile,
             role=user_data.role,
             created_at=datetime.now().isoformat(),
             is_active=True
         )
+
+        users_collection.insert_one(new_user.model_dump())
         
-        users_db[user_id] = new_user
+        # users_db[user_id] = new_user
+        logger.info(f"New user registered: {email} as {user_data.role.role_type}")
         
-        # Store password hash separately 
-        user_passwords = getattr(register_user, '_passwords', {})
-        user_passwords[user_id] = hashed_password
-        register_user._passwords = user_passwords
-        
-        logger.info(f"New user registered: {user_data.email} as {user_data.role.role_type}")
-        
-        return UserResponse(**new_user.dict())
+        return UserResponse(**new_user.model_dump())
         
     except Exception as e:
         logger.error(f"User registration error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/login", response_model=SessionResponse)
-async def login_user(login_data: UserLogin):
+async def login_user(request: Request, user=Depends(verify_token)):
     try:
-        user = None
-        user_id = None
-        for uid, u in users_db.items():
-            if u.email == login_data.email:
-                user = u
-                user_id = uid
-                break
+        # user = None
+        # user_id = None
+        # for uid, u in users_db.items():
+        #     if u.email == login_data.email:
+        #         user = u
+        #         user_id = uid
+        #         break
+
+        firebase_uid = user["uid"]
+        email = user["email"]
+
+        user_data = users_collection.find_one({"firebase_uid": firebase_uid})
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found in database")
         
-        if not user or not user_id:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-        if not user.is_active:
+        if not user_data.get("is_active", True):
             raise HTTPException(status_code=401, detail="Account is deactivated")
         
-        user_passwords = getattr(register_user, '_passwords', {})
-        stored_password = user_passwords.get(user_id)
+        # user_passwords = getattr(register_user, '_passwords', {})
+        # stored_password = user_passwords.get(user_id)
         
-        if not stored_password or not verify_password(login_data.password, stored_password):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+        # if not stored_password or not verify_password(login_data.password, stored_password):
+        #     raise HTTPException(status_code=401, detail="Invalid email or password")
         
+        users_collection.update_one(
+            {"id": firebase_uid},
+            {"$set": {"last_login": datetime.now().isoformat()}}
+        )
+
         # Create session
         session_token = create_session_token()
-        user_sessions[session_token] = user_id
+        # user_sessions[session_token] = user_id
         
-        # Update last login
-        user.last_login = datetime.now().isoformat()
-        users_db[user_id] = user
+        logger.info(f"User logged in: {email}")
         
-        logger.info(f"User logged in: {login_data.email}")
-        
+        user_response = UserResponse(**user_data)
         return SessionResponse(
-            user_id=user_id,
+            user_id=firebase_uid,
             session_token=session_token,
-            user=UserResponse(**user.dict())
+            user=user_response
         )
         
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
@@ -220,11 +222,11 @@ async def get_user_profile(user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return UserResponse(**user.dict())
+    return UserResponse(**user.model_dump())
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users():
-    return [UserResponse(**user.dict()) for user in users_db.values()]
+    return [UserResponse(**user.model_dump()) for user in users_db.values()]
 
 @router.put("/profile/{user_id}", response_model=UserResponse)
 async def update_user_profile(user_id: str, update_data: UserUpdate):
@@ -243,7 +245,7 @@ async def update_user_profile(user_id: str, update_data: UserUpdate):
     users_db[user_id] = user
     logger.info(f"User profile updated: {user_id}")
     
-    return UserResponse(**user.dict())
+    return UserResponse(**user.model_dump())
 
 @router.delete("/profile/{user_id}")
 async def delete_user(user_id: str):
@@ -270,7 +272,7 @@ async def delete_user(user_id: str):
 @router.get("/by-role/{role_type}", response_model=List[UserResponse])
 async def get_users_by_role(role_type: str):
     filtered_users = [
-        UserResponse(**user.dict()) 
+        UserResponse(**user.model_dump()) 
         for user in users_db.values() 
         if user.role.role_type == role_type
     ]
@@ -351,7 +353,7 @@ async def create_member_request(request_data: CreateMemberRequest, session_token
 async def get_sent_requests(user_id: str):
     """Get all requests sent by a user"""
     user_requests = [
-        req.dict() 
+        req.model_dump() 
         for req in member_requests_db.values() 
         if req.from_user_id == user_id
     ]
@@ -365,7 +367,7 @@ async def get_sent_requests(user_id: str):
 async def get_received_requests(manager_id: str):
     """Get all requests received by a manager"""
     manager_requests = [
-        req.dict()
+        req.model_dump()
         for req in member_requests_db.values()
         if req.to_manager_id == manager_id
     ]
@@ -382,7 +384,7 @@ async def get_request_details(request_id: str):
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
-    return request.dict()
+    return request.model_dump()
 
 class ManagerResponse(BaseModel):
     response_message: bool
@@ -414,7 +416,7 @@ async def respond_to_request(request_id: str, response: ManagerResponse, manager
     
     logger.info(f"💬 Manager responded to request {request_id}")
     
-    return {"message": "Response sent successfully", "request": request.dict()}
+    return {"message": "Response sent successfully", "request": request.model_dump()}
  
 
 @router.get("/requests/types")
@@ -438,7 +440,7 @@ async def get_user_by_session(session_token: str):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid session token")
     
-    return UserResponse(**user.dict())
+    return UserResponse(**user.model_dump())
 
 @router.post("/create-test-users")
 async def create_test_users():

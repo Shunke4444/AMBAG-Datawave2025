@@ -90,7 +90,7 @@ def create_group(group: GroupCreate):
         logger.info(f"New group created: {group.name} by manager {group.manager_id}")
         
         return GroupResponse(
-            **new_group.dict(),
+            **new_group.model_dump(),
             member_count=len(new_group.members)
         )
         
@@ -102,7 +102,7 @@ def create_group(group: GroupCreate):
 def get_all_groups():
     """Get all groups"""
     return [
-        GroupResponse(**group.dict(), member_count=len(group.members))
+        GroupResponse(**group.model_dump(), member_count=len(group.members))
         for group in group_db.values()
         if group.is_active
     ]
@@ -115,7 +115,7 @@ def get_group(group_id: str):
         raise HTTPException(status_code=404, detail="Group not found")
     
     return GroupResponse(
-        **group.dict(),
+        **group.model_dump(),
         member_count=len(group.members)
     )
 
@@ -146,7 +146,7 @@ def add_member_to_group(group_id: str, member_request: AddMemberRequest):
     logger.info(f"User {member_request.user_id} added to group {group_id} as {member_request.role}")
     
     return GroupResponse(
-        **group.dict(),
+        **group.model_dump(),
         member_count=len(group.members)
     )
 
@@ -208,7 +208,7 @@ def get_user_groups(user_id: str):
         for member in group.members:
             if member.user_id == user_id and member.is_active:
                 user_groups.append(GroupResponse(
-                    **group.dict(),
+                    **group.model_dump(),
                     member_count=len(group.members)
                 ))
                 break
@@ -229,7 +229,7 @@ def update_group(group_id: str, group_update: GroupBase):
     logger.info(f"Group {group_id} updated")
     
     return GroupResponse(
-        **group.dict(),
+        **group.model_dump(),
         member_count=len(group.members)
     )
 

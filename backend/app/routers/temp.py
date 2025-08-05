@@ -54,12 +54,12 @@ async def verify_token(request: Request):
 async def get_data(user=Depends(verify_token)):
     try:
         user_id = user["uid"]
-        data = list(collection.find({"userId": user_id}, {"_id": 0}))
+        # data = list(collection.find({"userId": user_id}, {"_id": 0}))   // For user specific userId
+        data = list(collection.find({"name": "Ned Stark"}, {"_id": 0}))
         return {"data": data}
     except Exception as e:
         print("Error:", e)
         raise e
-    
-# Future write commands TBD
+
 
 
