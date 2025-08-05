@@ -10,11 +10,11 @@ import useIsMobile from "../hooks/useIsMobile";
 
 const Dashboard = () => {
 
-  const isMobile = useIsMobile();
-    if (isMobile) {
+  const isUseMobile = useIsMobile();
+    if (isUseMobile) {
       
       return (
-        <main className="flex flex-col min-h-screen bg-white">
+        <main className="flex flex-col min-h-screen bg-white mb-16">
         {/* Header */}
         <div className="bg-primary text-white px-4 pt-6 pb-4 rounded-b-3xl">
         
@@ -28,28 +28,20 @@ const Dashboard = () => {
             </div>
         </div>
 
-        
-
-        {/* Action Buttons */}
-        <div className="flex justify-around px-4 py-2 bg-yellow-400 rounded-b-3xl">
-          <button className="bg-white px-4 py-2 rounded-xl font-bold text-sm shadow">Pay Share</button>
-          <button className="bg-white px-4 py-2 rounded-xl font-bold text-sm shadow">Goals</button>
-          <button className="bg-white px-4 py-2 rounded-xl font-bold text-sm shadow">Deposit</button>
+         {/* Dashboard Buttons */}
+        <div className="p-4">
+          <DashboardBtns />
         </div>
 
         {/* Contribution Summary */}
-        <div className="p-4">
+        <h1 className="text-md text-textcolor mx-8 mt-12">Recent Activity</h1>
+        <div className="px-4">
           <ContributionDiv />
         </div>
 
         {/* ConsistencyStat */}
         <div className="p-4">
           <ConsistencyStat />
-        </div>
-
-        {/* Dashboard Buttons */}
-        <div className="p-4">
-          <DashboardBtns />
         </div>
 
         {/* Bottom Navigation */}
@@ -85,7 +77,6 @@ const Dashboard = () => {
             <GoalCards />
           </div>
             
-
             {/* Bottom Right Wide Box */}
             <div className="col-span-1 row-span-3 bg-secondary rounded-2xl p-4">
               {/* Consistency Report and Stats */}

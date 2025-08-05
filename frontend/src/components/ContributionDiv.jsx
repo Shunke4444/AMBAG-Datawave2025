@@ -80,11 +80,8 @@ const ContributionDiv = () => {
       };
     }
 
-  
-
   return (
-    <div className="max-h-[550px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7">
-
+    <div className="max-h-[550px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
         {contributionsList.length === 0 ? (
             <Typography variant="body2" className="text-center text-gray-500 p-4">
               No member contributions yet.
@@ -93,7 +90,7 @@ const ContributionDiv = () => {
 
             <List>
               {contributionsList.map((contributions, index)=>(
-                <div key = {index}>
+                <div key = {index} className='px-4'>
                   <ListItem>
                     <ListItemText>
                       <div className="grid grid-cols-3">
@@ -105,7 +102,7 @@ const ContributionDiv = () => {
                           <p className='text-xxs text-green font-light'>Contributed</p>
                           <p className='text-xxs font-light'>{contributions.role}</p>
                         </div>
-                        <div className="flex flex-col gap-6 absolute left-72">
+                        <div className="flex flex-col gap-6 absolute left-72 md:left-136 lg:left-64">
                           <p className='text-xs font-semibold text-green'>{contributions.amount}</p>
                           <p className='text-xxs font-light'>{contributions.date}</p>
                         </div>

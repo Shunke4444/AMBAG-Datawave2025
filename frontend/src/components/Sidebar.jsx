@@ -24,11 +24,10 @@ const navItems = [
     { to: '/takeALoan', label: 'Take a Loan?', icon: <LoanIcon /> }
   ];
 
-const Sidebar = () => {
+const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate(); // ✅ Call at top
   const isMobile = useIsMobile(); // ✅ Call at top
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [openTransactionMenu, setOpenTransactionMenu] = useState(false);
 
   const handleCollapse = () => setIsCollapsed(!isCollapsed);
