@@ -27,17 +27,17 @@ const WithdrawForm = () => {
     },
     {
       name:"PayMaya",
-      payTime: "10-15mins",
+      payTime: "5-10mins",
       fee:"5%"
     },
     {
       name:"GCash",
-      payTime: "10-15mins",
+      payTime: "15-20mins",
       fee:"8%"
     },
     {
       name:"Gotyme",
-      payTime: "10-15mins",
+      payTime: "5-10mins",
       fee:"6%"
     },
   ]
@@ -63,7 +63,9 @@ const WithdrawForm = () => {
               onChange={optionChange}
               label="Payment Options"
             >
-              <MenuItem value="Bank Card">Bank Card</MenuItem>
+              <MenuItem value="Bank Card">Bank Card
+              
+              </MenuItem>
               <MenuItem value="PayMaya">Maya Wallet</MenuItem>
               <MenuItem value="GCash">GCash</MenuItem>
               <MenuItem value="Gotyme">Gotyme</MenuItem>

@@ -126,11 +126,11 @@ export default function Signup() {
           </div>
         )}
 
-=        <section className="mb-4">
+        <section className="mb-4">
           <button
             onClick={handleGoogleAuth}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary border-2 border-textcolor/10 rounded-lg text-textcolor text-sm font-medium hover:border-primary/30 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary border-2 border-textcolor/10 rounded-lg text-textcolor text-sm font-medium hover:border-primary/30 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
           >
             <Google className="w-4 h-4 group-hover:scale-110 transition-transform" />
             <span>Sign up with Google</span>
@@ -213,7 +213,7 @@ export default function Signup() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-textcolor/40 hover:text-textcolor transition-colors"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-textcolor/40 hover:text-textcolor transition-colors cursor-pointer"
               >
                 {showPassword ? <VisibilityOff className="w-4 h-4" /> : <Visibility className="w-4 h-4" />}
               </button>
@@ -244,7 +244,7 @@ export default function Signup() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-textcolor/40 hover:text-textcolor transition-colors"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-textcolor/40 hover:text-textcolor transition-colors cursor-pointer"
               >
                 {showConfirmPassword ? <VisibilityOff className="w-4 h-4" /> : <Visibility className="w-4 h-4" />}
               </button>
@@ -257,7 +257,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-primary to-shadow text-secondary font-semibold py-2.5 px-4 rounded-lg hover:from-shadow hover:to-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-lg text-sm"
+            className="w-full bg-gradient-to-r from-primary to-shadow text-secondary font-semibold py-2.5 px-4 rounded-lg hover:from-shadow hover:to-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-lg text-sm cursor-pointer"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
@@ -275,7 +275,7 @@ export default function Signup() {
             Already have an account?
             <button
               onClick={() => navigate('/login')}
-              className="ml-1 text-primary hover:text-shadow font-medium transition-colors"
+              className="ml-1 text-primary hover:text-shadow font-medium transition-colors cursor-pointer"
             >
               Sign In
             </button>

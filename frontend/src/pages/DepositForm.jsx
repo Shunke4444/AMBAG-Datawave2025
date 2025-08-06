@@ -27,17 +27,17 @@ const DepositForm = () => {
     },
     {
       name:"PayMaya",
-      payTime: "10-15mins",
+      payTime: "5-10mins",
       fee:"5%"
     },
     {
       name:"GCash",
-      payTime: "10-15mins",
+      payTime: "15-20mins",
       fee:"8%"
     },
     {
       name:"Gotyme",
-      payTime: "10-15mins",
+      payTime: "5-10mins",
       fee:"6%"
     },
   ]
