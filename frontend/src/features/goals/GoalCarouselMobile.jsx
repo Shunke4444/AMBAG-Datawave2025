@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import GoalCardGlassMobile from "./GoalCardGlassMobile";
-import { goals } from "../dashboard/GoalCards";
+import mockGoals from "./mockGoals";
 
 const GoalCarouselMobile = () => {
   const [index, setIndex] = useState(0);
-  const total = goals.length;
+  const total = mockGoals.length;
 
-  const next = () => setIndex((i) => (i + 1) % total);n
+  const next = () => setIndex((i) => (i + 1) % total);
   const prev = () => setIndex((i) => (i - 1 + total) % total);
 
   return (
@@ -28,13 +28,13 @@ const GoalCarouselMobile = () => {
             transition={{ duration: 0.3 }}
             className="flex justify-center"
           >
-            <GoalCardGlassMobile goal={goals[index]} />
+            <GoalCardGlassMobile goal={mockGoals[index]} />
           </motion>
         </AnimatePresence>
       </div>
 
       <div className="flex gap-2">
-        {goals.map((_, i) => (
+        {mockGoals.map((_, i) => (
           <button
             key={i}
             onClick={() => setIndex(i)}

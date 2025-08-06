@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useTheme, useMediaQuery } from '@mui/material';
 import MobileLayout from './PaymentLayout';
 import PaymentHeader from './PaymentHeader';

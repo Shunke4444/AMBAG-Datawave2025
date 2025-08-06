@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Notifications as NotifyIcon,
   Settings as SettingIcon,
@@ -8,11 +8,14 @@ import {
   Home as HomeIcon,
   SettingsAccessibility as MembersSettingsIcon,
   Assignment as RequestsIcon,
+  Menu as MenuIcon,
+  SmartToy as AssistantIcon,
+  Add as AddGoalcon,
 } from '@mui/icons-material';
-import { useNavigate } from "react-router-dom";
 import { useTheme, useMediaQuery } from "@mui/material";
 import useIsMobile from "../../hooks/useIsMobile";
 import Notifications from "../../features/notifications/Notifications";
+import mockNotifs from "../../features/notifications/mockNotifs";
 
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -32,56 +35,38 @@ const Layout = () => {
   const handleApprove = () => {};
   const handleDecline = () => {};
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-    if (path.includes("dashboard")) return "Dashboard";
-    if (path.includes("goals")) return "Goals";
-    if (path.includes("settings")) return "Settings";
-    if (path.includes("withdrawal")) return "Withdrawal";
-    if (path.includes("deposit")) return "Deposit";
-    if (path.includes("audit")) return "Audit Logs";
-    if (path.includes("transactions")) return "Transactions";
-    if (path.includes("ai-assistant")) return "AI Assistant";
-    return "Dashboard";
+  const pageTitles = {
+    dashboard: "Dashboard",
+    goals: "Goals",
+    settings: "Settings",
+    withdrawal: "Withdrawal",
+    deposit: "Deposit",
+    audit: "Audit Logs",
+    transactions: "Transactions",
+    "ai-assistant": "AI Assistant",
   };
 
-  // Global Notifs , accesses both mobile and desktop notifs
-  const notifArray = [
-    {
-      id: 1,
-      type: "request",
-      title: "Goal Request from Member",
-      details: "Member wants to add goal for tuition fee",
-      time: "9:18am",
-      date: "06/08/2025",
-    },
-    {
-      id:2,
-      type: "info",
-      title: "Contribution received from Member",
-      details: "Member contributed 2,500.00 PHP in Tuition Fee",
-      time: "2:32pm",
-      date: "06/08/2025",
-    },
-    {
-      id: 3,
-      type: "info",
-      title: "Contribution received from Member",
-      details: "Member contributed 2,500.00 PHP in Tuition Fee",
-      time: "7:45pm",
-      date: "06/08/2025",
-    },
-  ]
+  const getPageTitle = () => {
+    const path = location.pathname;
+    const key = Object.keys(pageTitles).find((k) => path.includes(k));
+    return pageTitles[key] || "Dashboard";
+  };
 
   // MOBILE LAYOUT
   if (isUseMobile) {
     return (
       <>
         <div className="flex justify-between items-center p-4 bg-primary">
+          <button className="cursor-pointer">
+            <MenuIcon className="text-secondary"/>
+          </button>
           <p className="text-md font-semibold text-secondary">
             Hello <span className="text-yellow-400 font-bold">User!</span>
           </p>
           <div className="flex gap-4">
+            <button onClick={() => navigate('ai-assistant')} className="cursor-pointer">
+              <AssistantIcon className="text-secondary"/>
+            </button>
             <button className="cursor-pointer">
               <NotifyIcon onClick={toggleNotifDialog} className="text-secondary" />
             </button>
@@ -97,7 +82,7 @@ const Layout = () => {
         <Outlet />
         {notifDialogOpen && (
           <Notifications
-            notifs={notifArray}
+            notifs={mockNotifs}
             onApprove={handleApprove}
             onDecline={handleDecline}
             onNotifClick={closeNotifDialog}
@@ -151,7 +136,7 @@ const Layout = () => {
               {getPageTitle()}
             </h1>
             <div className="flex gap-4 items-center text-textcolor">
-              <button className="cursor-pointer">
+              <button onClick={toggleNotifDialog} className="cursor-pointer">
                 <NotifyIcon className="hover:text-primary" />
               </button >
               <button className="cursor-pointer">
@@ -167,7 +152,7 @@ const Layout = () => {
         <Outlet />
           {notifDialogOpen && (
           <Notifications
-            notifs={notifArray}
+            notifs={mockNotifs}
             onApprove={handleApprove}
             onDecline={handleDecline}
           />

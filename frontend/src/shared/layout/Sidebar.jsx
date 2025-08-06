@@ -5,9 +5,6 @@ import { Collapse, IconButton, List, ListItemButton, ListItemIcon, ListItemText,
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import {
   AccountCircle as AccountIcon,
-  Notifications as NotifyIcon,
-  Settings as SettingIcon,
-  ContactSupport as SupportIcon,
   Dashboard as DashboardIcon,
   Check as GoalsIcon,
   SmartToy as AssistantIcon,
@@ -15,6 +12,8 @@ import {
   Menu as MenuIcon,
   Receipt as TransactionIcon,
 } from '@mui/icons-material';
+
+import useIsMobile from "../../hooks/useIsMobile";
 
 const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
@@ -25,6 +24,8 @@ const navItems = [
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [openTransactionMenu, setOpenTransactionMenu] = useState(false);
+  const isUseMobile = useIsMobile();
+
 
   const handleCollapse = () => setIsCollapsed(!isCollapsed);
   const handle_Transaction_Dropdown = () => {
@@ -44,6 +45,17 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   }
 }, [isCollapsed]);
 
+
+  // Mobile Layout
+  {isUseMobile && !isCollapsed && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-40"
+      onClick={() => setIsCollapsed(true)}
+    />
+    
+  )}
+
+  
   // ✅ Desktop layout
   return (
     <aside

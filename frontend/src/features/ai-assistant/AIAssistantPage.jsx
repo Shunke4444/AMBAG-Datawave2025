@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChatHistory } from "../../contexts/ChatContext";
 import ChatSidebar from "./ChatSidebar";
@@ -33,7 +33,7 @@ export default function AIAssitant() {
 
   // Get current chat messages
   const currentChat = getCurrentChat();
-  const messages = currentChat?.messages || [];
+  const messages = useMemo(() => currentChat?.messages || [], [currentChat]);
 
   // Create initial chat if none exists
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function AIAssitant() {
     if (currentChatId && messages.length > 0) {
       updateChatMessages(currentChatId, messages);
     }
-  }, [messages.length]); // Only trigger when message count changes
+  }, [currentChatId, messages, updateChatMessages]); // Only trigger when message count changes
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

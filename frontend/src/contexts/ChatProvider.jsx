@@ -1,30 +1,25 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+// ChatProvider.jsx
+import { useState, useEffect } from 'react';
+import { ChatContext } from './ChatContext';
 
-const ChatContext = createContext();
-
-export const useChatHistory = () => {
-  const context = useContext(ChatContext);
-  if (!context) {
-    throw new Error('useChatHistory must be used within ChatProvider');
-  }
-  return context;
-};
-
-export const ChatProvider = ({ children }) => {
+const ChatProvider = ({ children }) => {
   const [chatHistory, setChatHistory] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
 
+  // Load chat history from localStorage on mount
   useEffect(() => {
     const savedChats = localStorage.getItem('ambag-chat-history');
     if (savedChats) {
       const parsedChats = JSON.parse(savedChats);
       setChatHistory(parsedChats);
-      
+
       if (!currentChatId && parsedChats.length > 0) {
         setCurrentChatId(parsedChats[0].id);
       }
     }
-  }, []);
+  }, [currentChatId]);
+
+  // Save chat history to localStorage on changes
   useEffect(() => {
     if (chatHistory.length > 0) {
       localStorage.setItem('ambag-chat-history', JSON.stringify(chatHistory));
@@ -34,28 +29,29 @@ export const ChatProvider = ({ children }) => {
   const createNewChat = () => {
     const newChat = {
       id: Date.now(),
-      title: "New Chat",
+      title: 'New Chat',
       messages: [],
       createdAt: new Date().toISOString(),
-      lastMessage: ""
+      lastMessage: '',
     };
-    
     setChatHistory(prev => [newChat, ...prev]);
     setCurrentChatId(newChat.id);
     return newChat;
   };
 
   const updateChatMessages = (chatId, messages) => {
-    setChatHistory(prev => prev.map(chat => 
-      chat.id === chatId 
-        ? { 
-            ...chat, 
-            messages,
-            lastMessage: messages[messages.length - 1]?.text?.slice(0, 50) + "..." || "",
-            title: messages.find(m => m.sender === 'user')?.text?.slice(0, 30) + "..." || "New Chat"
-          }
-        : chat
-    ));
+    setChatHistory(prev =>
+      prev.map(chat =>
+        chat.id === chatId
+          ? {
+              ...chat,
+              messages,
+              lastMessage: messages[messages.length - 1]?.text?.slice(0, 50) + '...' || '',
+              title: messages.find(m => m.sender === 'user')?.text?.slice(0, 30) + '...' || 'New Chat',
+            }
+          : chat
+      )
+    );
   };
 
   const deleteChat = (chatId) => {
@@ -75,16 +71,20 @@ export const ChatProvider = ({ children }) => {
   };
 
   return (
-    <ChatContext.Provider value={{
-      chatHistory,
-      currentChatId,
-      setCurrentChatId,
-      createNewChat,
-      updateChatMessages,
-      deleteChat,
-      getCurrentChat
-    }}>
+    <ChatContext.Provider
+      value={{
+        chatHistory,
+        currentChatId,
+        setCurrentChatId,
+        createNewChat,
+        updateChatMessages,
+        deleteChat,
+        getCurrentChat,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );
 };
+
+export default ChatProvider;

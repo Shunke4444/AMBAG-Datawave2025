@@ -1,7 +1,7 @@
 // components/ResponsiveGoals.jsx
 import React from "react";
 import { useTheme, useMediaQuery } from "@mui/material";
-import GoalCards from "../dashboard/GoalCards";
+import GoalCards from "./GoalCards";
 import GoalCarouselMobile from './GoalCarouselMobile';
 
 const ResponsiveGoals = () => {

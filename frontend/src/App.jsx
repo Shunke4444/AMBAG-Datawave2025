@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider }  from 'react-router-dom';
-import { ChatProvider } from './contexts/ChatContext';
+import ChatProvider from './contexts/ChatProvider';
+import  AuthRoleProvider  from './contexts/AuthRoleProvider';
 import Layout from './shared/layout/Layout';
 import Login from './features/auth/LoginPage';
 import Signup from './features/auth/SignupPage';
@@ -11,7 +12,6 @@ import WhatIf from './features/what-if/WhatIfPage'
 import Withdrawal from './features/transactions/WithdrawalPage';
 import Deposit from './features/transactions/DepositPage';
 import TransactionHistory from './features/transactions/TransactionHistoryPage';
-import ManagerPage from './features/manager/ManagerPage';
 import MemberPage from './features/members/MemberPage';
 import ManagerNotifications from './features/notifications/ManagerNotificationPage';
 import AuditLogs from './features/transactions/AuditLogsPage';
@@ -41,10 +41,6 @@ const router = createBrowserRouter([
   {
     path: '/member',
     element: <MemberPage />
-  },
-  {
-    path: '/manager',
-    element: <ManagerPage />
   },
   {
     path: '/payment',
@@ -89,11 +85,14 @@ const router = createBrowserRouter([
   },
 ])
 
+
 const App = () => {
   return (
-    <ChatProvider>
-      <RouterProvider router={router} />
-    </ChatProvider>
+    <AuthRoleProvider> 
+      <ChatProvider>   
+        <RouterProvider router={router} />
+      </ChatProvider>
+    </AuthRoleProvider>
   )
 }
 export default App
