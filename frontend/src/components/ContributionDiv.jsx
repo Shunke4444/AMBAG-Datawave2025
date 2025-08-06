@@ -102,7 +102,7 @@ const ContributionDiv = () => {
                           <p className='text-xxs text-green font-light'>Contributed</p>
                           <p className='text-xxs font-light'>{contributions.role}</p>
                         </div>
-                        <div className="flex flex-col gap-6 absolute left-72 md:left-136 lg:left-64">
+                        <div className="flex flex-col gap-4 absolute left-72 md:left-136 lg:left-64">
                           <p className='text-xs font-semibold text-green'>{contributions.amount}</p>
                           <p className='text-xxs font-light'>{contributions.date}</p>
                         </div>

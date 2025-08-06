@@ -1,9 +1,8 @@
 
-import { useState } from "react";
-import { NavLink, useNavigate} from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink } from "react-router-dom";
 import { Collapse, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
-import useIsMobile from "../hooks/useIsMobile"; 
 import {
   AccountCircle as AccountIcon,
   Notifications as NotifyIcon,
@@ -25,40 +24,25 @@ const navItems = [
   ];
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
-  const navigate = useNavigate(); // ✅ Call at top
-  const isMobile = useIsMobile(); // ✅ Call at top
-
   const [openTransactionMenu, setOpenTransactionMenu] = useState(false);
 
   const handleCollapse = () => setIsCollapsed(!isCollapsed);
-  const handleMobileLinkClick = () => {
-    if (isMobile) setIsCollapsed(true); // Optional behavior for mobile nav
-  };
   const handle_Transaction_Dropdown = () => {
-    setOpenTransactionMenu(!openTransactionMenu);
-  };
-
-  // ✅ If mobile, render simplified top bar
-  if (isMobile) {
-    return (
-      <div className="flex justify-between items-center p-4 bg-primary">
-        <p className="text-md font-semibold text-secondary">
-          Hello <span className="text-yellow-400 font-bold">User!</span>
-        </p>
-        <div className="flex gap-4">
-          <button className="cursor-pointer">
-            <NotifyIcon className="text-secondary"/>
-          </button>
-          <button onClick={() => navigate("/help-support")} className="cursor-pointer">
-            <SupportIcon className="text-secondary" />
-          </button>
-          <button onClick={() => navigate("/settings")} className="cursor-pointer">
-            <SettingIcon className="text-secondary" />
-          </button>
-        </div>
-      </div>
-    );
+  if (isCollapsed) {
+    setIsCollapsed(false); // Expand sidebar first
+    setTimeout(() => {
+      setOpenTransactionMenu(true); // Open dropdown AFTER expansion animation
+    }, 500); // Match your sidebar's transition duration
+  } else {
+    setOpenTransactionMenu(prev => !prev); // Toggle normally if already expanded
   }
+};
+
+  useEffect(() => {
+  if (isCollapsed) {
+    setOpenTransactionMenu(false);
+  }
+}, [isCollapsed]);
 
   // ✅ Desktop layout
   return (
@@ -66,7 +50,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       className={`
         bg-primary h-screen fixed top-0 left-0 p-2 transition-all duration-300 z-50
         ${isCollapsed ? "w-24" : "w-64"}
-        ${isMobile ? "lg:relative lg:top-auto" : ""}
       `}
     >
       <div className="flex justify-between items-center py-5 ml-5">
@@ -85,7 +68,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           <NavLink
             key={to}
             to={to}
-            onClick={handleMobileLinkClick}
             className={({ isActive }) => `
               flex items-center gap-3 rounded-xl p-3 font-bold text-sm transition-colors
               ${isActive ? "bg-shadow text-secondary" : "text-secondary hover:bg-shadow/30"}
@@ -141,7 +123,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
                   key={to}
                   component={NavLink}
                   to={to}
-                  onClick={handleMobileLinkClick}
                   className={`
                     pl-14 py-2 text-secondary hover:bg-shadow/30 transition-all duration-200 text-sm font-bold
                     ${isCollapsed ? "hidden" : ""}

@@ -43,13 +43,6 @@ const Dashboard = () => {
         <div className="p-4">
           <ConsistencyStat />
         </div>
-
-        {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-md flex justify-around py-2">
-          <button className="flex flex-col items-center text-primary text-xs">🏠<span>Home</span></button>
-          <button className="flex flex-col items-center text-gray-400 text-xs">📩<span>Requests</span></button>
-          <button className="flex flex-col items-center text-gray-400 text-xs">👥<span>Members</span></button>
-        </nav>
       </main>
       )
     }
