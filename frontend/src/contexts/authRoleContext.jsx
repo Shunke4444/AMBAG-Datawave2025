@@ -20,4 +20,4 @@ export const AuthRoleProvider = ({ children }) => {
 };
 
 // ✅ Custom hook to use this context
-export const useUserRole = () => useContext(AuthRoleContext);
+export const useAuthRole = () => useContext(AuthRoleContext);
