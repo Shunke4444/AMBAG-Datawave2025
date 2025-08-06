@@ -10,7 +10,7 @@ const MobileHeader = ({ userName = "Johnny" }) => {
     };
 
     const handleNotificationClick = () => {
-        navigate('/notifications'); 
+        navigate('/member-notification'); 
     };
 
   return (

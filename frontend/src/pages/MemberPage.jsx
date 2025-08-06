@@ -24,32 +24,6 @@ export default function MemberPage() {
     { label: 'Remaining', amount: 2000 }
   ];
 
-  const mockActivities = [
-    {
-      id: 1,
-      name: 'Dianne Boholst',
-      description: 'Fully Deposit',
-      date: 'July 5',
-      amount: '+1500 PHP',
-      type: 'deposit'
-    },
-    {
-      id: 2,
-      name: 'Gab Vinculado',
-      description: 'Partial Pay',
-      date: 'July 4',
-      amount: '+200 PHP',
-      type: 'payment'
-    },
-    {
-      id: 3,
-      name: 'You',
-      description: 'Partial Pay',
-      date: 'July 5',
-      amount: '+2000PHP',
-      type: 'payment'
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -64,8 +38,7 @@ export default function MemberPage() {
           onRequest={handleRequest}
           onDeposit={handleDeposit}
         />
-        <RecentActivity activities={mockActivities} />
-        
+        <RecentActivity />
         {/* Bottom spacing for mobile */}
         <div className="h-8"></div>
       </main>

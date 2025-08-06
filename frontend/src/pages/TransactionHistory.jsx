@@ -111,15 +111,10 @@ export default function TransactionHistory() {
 
   return (
     <main className="flex flex-col w-full h-[100vh] overflow-hidden">
-<<<<<<< HEAD
-      {isMobile && <MobileHeader title="Transaction History" />}
-      <section className={`flex-1 bg-primary overflow-y-auto rounded-t-[2.5rem] ${isMobile ? 'mt-5' : 'mt-0'} sm:px-6 py-6 sm:py-8 min-h-0`}>
-=======
       
       <MobileHeader title="Transaction History" />
 
       <section className="flex-1 bg-primary overflow-y-auto rounded-t-[2.5rem] mt-5 sm:px-6 py-6 sm:py-8 min-h-0">
->>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717
         <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 mx-4 sm:mx-0">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

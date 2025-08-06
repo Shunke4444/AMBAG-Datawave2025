@@ -1,34 +1,61 @@
 import React from 'react';
-import { ArrowForward, AccountCircle } from '@mui/icons-material';
+import { 
+  ArrowForward, 
+  AccountCircle, 
+  CheckCircle, 
+  Receipt,
+  Handshake
+} from '@mui/icons-material';
+import DepositIcon from '../../assets/icons/DEPOSIT.svg';
+import PartialPay from '../../assets/icons/PARTIAL-PAY.svg';
 
 const RecentActivity = ({ 
   activities = [
     {
       id: 1,
-      name: 'Dianne Boholst',
-      description: 'Fully Deposit',
-      date: 'July 5',
-      amount: '+1500 PHP',
+      name: 'Deposit',
+      description: 'Monthly Contribution',
+      date: 'Aug 5, 2025',
+      amount: '+₱2,500.00',
       type: 'deposit'
     },
     {
       id: 2,
-      name: 'Gab Vinculado',
-      description: 'Partial Pay',
-      date: 'July 4',
-      amount: '+200 PHP',
+      name: 'Partial Pay',
+      description: 'Loan Payment',
+      date: 'Aug 3, 2025',
+      amount: '+₱5,000.00',
       type: 'payment'
     },
+
     {
-      id: 3,
-      name: 'You',
-      description: 'Partial Pay',
-      date: 'July 5',
-      amount: '+2000PHP',
-      type: 'payment'
+      id: 4,
+      name: 'Loaned',
+      description: 'Emergency Loan',
+      date: 'Jul 30, 2025',
+      amount: '-₱3,200.00',
+      type: 'loan'
     }
   ]
 }) => {
+
+  const getAvatarIcon = (activity) => {
+    switch (activity.type) {
+      case 'loan':
+        return <Handshake className="text-secondary" />;
+      case 'withdrawal':
+        return <AccountCircle className="text-secondary" />;
+      case 'deposit':
+        return <img src={DepositIcon} alt="Deposit" className="w-6 h-6" style={{filter: 'brightness(0) saturate(100%) invert(100%)'}} />;
+      case 'payment':
+        return <img src={PartialPay} alt="Partial Pay" className="w-6 h-6" style={{filter: 'brightness(0) saturate(100%) invert(100%)'}} />;
+      case 'interest':
+        return <CheckCircle className="text-secondary" />;
+      default:
+        return <Receipt className="text-secondary" />;
+    }
+  };
+
   return (
     <div className="mx-4 mt-6 rounded-t-2xl ">
       <div className="flex items-center justify-between mb-4">
@@ -38,9 +65,9 @@ const RecentActivity = ({
       
       <div className="space-y-3">
         {activities.map((activity) => (
-          <div key={activity.id} className="flex items-center space-x-3 p-3 bg-secondary rounded-xl">
+          <div key={activity.id} className="flex items-center space-x-3 p-3 bg-secondary rounded-xl shadow-md">
             <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <AccountCircle className="w-6 h-6 text-secondary" />
+              {getAvatarIcon(activity)}
             </div>
             
             <div className="flex-1 min-w-0">
@@ -52,7 +79,9 @@ const RecentActivity = ({
             
             <div className="text-right flex-shrink-0">
               <div className={`font-semibold ${
-                activity.type === 'deposit' ? 'text-green' : 'text-accent'
+                activity.type === 'deposit' || activity.type === 'payment' || activity.type === 'interest' 
+                  ? 'text-green' 
+                  : 'text-primary'
               }`}>
                 {activity.amount}
               </div>

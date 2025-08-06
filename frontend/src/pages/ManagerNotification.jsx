@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Notifications() {
+export default function ManagerNotifications() {
   return (
     <div>Notifications</div>
   )

@@ -12,7 +12,7 @@ import Withdrawal from './pages/Withdrawal';
 import Deposit from './pages/Deposit';
 import TransactionHistory from './pages/TransactionHistory';
 import MemberPage from './pages/MemberPage';
-import Notifications from './pages/Notifications';
+import ManagerNotifications from './pages/ManagerNotification';
 import AuditLogs from './pages/AuditLogs';
 import WithdrawForm from './pages/WithdrawForm';
 import DepositForm from './pages/DepositForm';
@@ -21,15 +21,13 @@ import AccountSecurityTab from './components/AccountSecurityTab';
 import PreferencesTab from './components/PreferencesTab';
 import PrivacyLegalTab from './components/PrivacyLegalTab';
 import NotificationsTab from './components/NotificationsTab';
-<<<<<<< HEAD
 import Payment from './pages/PaymentPageFlow/Payment';
 import Request from './pages/MemberRequest/Request'
 import ConfirmPay from './pages/PaymentPageFlow/ConfirmPay';
 import Receipt from './pages/PaymentPageFlow/Receipt';
-=======
 import HelpSupport from './pages/HelpSupport';
+import MemberNotification from './pages/MemberNotification';
 
->>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717
 const router = createBrowserRouter([
   {
     path: '/login',
@@ -39,7 +37,6 @@ const router = createBrowserRouter([
     path: '/signup',
     element: <Signup />
   },
-<<<<<<< HEAD
   {
     path: '/member',
     element: <MemberPage />
@@ -49,9 +46,8 @@ const router = createBrowserRouter([
     element: <Payment />
     // add children later
   },
-=======
 
->>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717
+
   // Main App with Layout
   { path: '/' , 
     element: <Layout />,
@@ -67,16 +63,13 @@ const router = createBrowserRouter([
       {path: 'transactions/audit', element: <AuditLogs /> },
       {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
       {path: 'transactions/depositProcess', element: <DepositForm /> },  
-<<<<<<< HEAD
       {path: 'transaction-history', element: <TransactionHistory />},
-      {path: 'notifications', element: <Notifications />},
+      {path: 'manager-notifications', element: <ManagerNotifications />},
       {path: 'member-requests', element: <Request />},
       {path: 'payment', element: <Payment />},
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},
-=======
-      {path: ' ', element: <TransactionHistory />},
->>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717
+      {path: 'member-notification', element: <MemberNotification />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings

@@ -10,7 +10,7 @@ export default function MobileHeader({ title = "Page Title" }) {
   }
 
   return (
-  <header className="flex items-center justify-center relative px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 mt-5 bg-white">
+  <header className="flex items-center justify-center relative px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 bg-white">
         <button 
           className="absolute left-4 sm:left-6 flex lg:hidden items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-primary rounded-full text-secondary hover:bg-shadow transition-colors flex-shrink-0"
           aria-label="Go back"
