@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider }  from 'react-router-dom';
 import { ChatProvider } from './contexts/ChatContext';
-import Layout from './pages/Layout';
+import Layout from './components/layout/MainLayout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +11,8 @@ import WhatIf from './pages/WhatIf'
 import Withdrawal from './pages/Withdrawal';
 import Deposit from './pages/Deposit';
 import TransactionHistory from './pages/TransactionHistory';
+import MemberPage from './pages/MemberPage';
+import ManagerNotifications from './pages/ManagerNotification';
 import AuditLogs from './pages/AuditLogs';
 import WithdrawForm from './pages/WithdrawForm';
 import DepositForm from './pages/DepositForm';
@@ -19,10 +21,14 @@ import AccountSecurityTab from './components/AccountSecurityTab';
 import PreferencesTab from './components/PreferencesTab';
 import PrivacyLegalTab from './components/PrivacyLegalTab';
 import NotificationsTab from './components/NotificationsTab';
+import Payment from './pages/PaymentPageFlow/Payment';
+import Request from './pages/MemberRequest/Request'
+import ConfirmPay from './pages/PaymentPageFlow/ConfirmPay';
+import Receipt from './pages/PaymentPageFlow/Receipt';
 import HelpSupport from './pages/HelpSupport';
+import MemberNotification from './pages/MemberNotification';
 
 const router = createBrowserRouter([
-  // Standalone Auth Pages (outside Layout)
   {
     path: '/login',
     element: <Login />
@@ -31,6 +37,16 @@ const router = createBrowserRouter([
     path: '/signup',
     element: <Signup />
   },
+  {
+    path: '/member',
+    element: <MemberPage />
+  },
+  {
+    path: '/payment',
+    element: <Payment />
+    // add children later
+  },
+
 
   // Main App with Layout
   { path: '/' , 
@@ -47,7 +63,13 @@ const router = createBrowserRouter([
       {path: 'transactions/audit', element: <AuditLogs /> },
       {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
       {path: 'transactions/depositProcess', element: <DepositForm /> },  
-      {path: ' ', element: <TransactionHistory />},
+      {path: 'transaction-history', element: <TransactionHistory />},
+      {path: 'manager-notifications', element: <ManagerNotifications />},
+      {path: 'member-requests', element: <Request />},
+      {path: 'payment', element: <Payment />},
+      {path: 'payment/confirm', element: <ConfirmPay />},
+      {path: 'receipt', element: <Receipt />},
+      {path: 'member-notification', element: <MemberNotification />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings

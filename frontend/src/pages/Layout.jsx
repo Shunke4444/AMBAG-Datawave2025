@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 import { useState, useEffect, useRef  } from "react";
 import Sidebar from "../components/Sidebar";
 import { Outlet, useLocation } from "react-router-dom";
@@ -215,3 +217,4 @@ const Layout = () => {
 }
 
 export default Layout
+>>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717
