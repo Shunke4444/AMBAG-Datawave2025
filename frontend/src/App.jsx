@@ -1,32 +1,33 @@
 import { createBrowserRouter, RouterProvider }  from 'react-router-dom';
-import { ChatProvider } from './contexts/ChatContext';
-import Layout from './components/layout/MainLayout';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Goals from './pages/Goals';
-import Settings from './pages/Settings';
-import AIAssistant from './pages/AIAssitant';
-import WhatIf from './pages/WhatIf'
-import Withdrawal from './pages/Withdrawal';
-import Deposit from './pages/Deposit';
-import TransactionHistory from './pages/TransactionHistory';
-import MemberPage from './pages/MemberPage';
-import ManagerNotifications from './pages/ManagerNotification';
-import AuditLogs from './pages/AuditLogs';
-import WithdrawForm from './pages/WithdrawForm';
-import DepositForm from './pages/DepositForm';
-import ProfileTab from './components/ProfileTab';
-import AccountSecurityTab from './components/AccountSecurityTab';
-import PreferencesTab from './components/PreferencesTab';
-import PrivacyLegalTab from './components/PrivacyLegalTab';
-import NotificationsTab from './components/NotificationsTab';
-import Payment from './pages/PaymentPageFlow/Payment';
-import Request from './pages/MemberRequest/Request'
-import ConfirmPay from './pages/PaymentPageFlow/ConfirmPay';
-import Receipt from './pages/PaymentPageFlow/Receipt';
-import HelpSupport from './pages/HelpSupport';
-import MemberNotification from './pages/MemberNotification';
+import ChatProvider from './contexts/ChatProvider';
+import  AuthRoleProvider  from './contexts/AuthRoleProvider';
+import Layout from './shared/layout/Layout';
+import Login from './features/auth/LoginPage';
+import Signup from './features/auth/SignupPage';
+import Dashboard from './features/dashboard/DashboardPage';
+import Goals from './features/goals/GoalsPage';
+import Settings from './features/settings/SettingsPage';
+import AIAssistant from './features/ai-assistant/AIAssistantPage';
+import WhatIf from './features/what-if/WhatIfPage'
+import Withdrawal from './features/transactions/WithdrawalPage';
+import Deposit from './features/transactions/DepositPage';
+import TransactionHistory from './features/transactions/TransactionHistoryPage';
+import MemberPage from './features/members/MemberPage';
+import ManagerNotifications from './features/notifications/ManagerNotificationPage';
+import AuditLogs from './features/transactions/AuditLogsPage';
+import WithdrawForm from './features/transactions/WithdrawForm';
+import DepositForm from './features/transactions/DepositForm';
+import ProfileTab from './features/settings/ProfileTab';
+import AccountSecurityTab from './features/settings/AccountSecurityTab';
+import PreferencesTab from './features/settings/PreferencesTab';
+import PrivacyLegalTab from './features/settings/PrivacyLegalTab';
+import NotificationsTab from './features/notifications/NotificationsTab';
+import Payment from './features/payments/PaymentPage';
+import Request from './features/members/RequestPage'
+import ConfirmPay from './features/payments/ConfirmPayPage';
+import Receipt from './features/payments/ReceiptPage';
+import HelpSupport from './features/help-support/HelpSupportPage';
+import MemberNotification from './features/notifications/MemberNotificationPage';
 
 const router = createBrowserRouter([
   {
@@ -84,11 +85,14 @@ const router = createBrowserRouter([
   },
 ])
 
+
 const App = () => {
   return (
-    <ChatProvider>
-      <RouterProvider router={router} />
-    </ChatProvider>
+    <AuthRoleProvider> 
+      <ChatProvider>   
+        <RouterProvider router={router} />
+      </ChatProvider>
+    </AuthRoleProvider>
   )
 }
 export default App
