@@ -1,43 +1,40 @@
-<<<<<<< HEAD
-=======
 import { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import { Outlet, useLocation } from "react-router-dom";
+import Sidebar from "../Sidebar";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Notifications as NotifyIcon,
   Settings as SettingIcon,
   ContactSupport as SupportIcon,
 } from '@mui/icons-material';
 import { useNavigate } from "react-router-dom";
+import { useTheme, useMediaQuery } from "@mui/material";
 
 const Layout = () => {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  // Check if current page should be full screen (no padding)
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  
   const isFullScreenPage = location.pathname === '/ai-assistant';
-
+  
+  const shouldHideHeader = isFullScreenPage || isMobile;
   
     const getPageTitle = () => {
-      const path = location.pathname;
-      if (path.includes("transactions/audit")) return "Audit Logs";
-      if (path.includes("dashboard")) return "Dashboard";
-      if (path.includes("goals")) return "Goals";
-      if (path.includes("settings")) return "Settings";
-      if (path.includes("withdrawal")) return "Withdrawal";
-      if (path.includes("deposit")) return "Deposit";
-      if (path.includes("transactions")) return "Transactions";
-      if (path.includes("ai-assistant")) return "AI Assistant";
-      if (path.includes("help-support")) return "Help Center"
-      return "Dashboard";
-    };
+    const path = location.pathname;
+    if (path.includes("dashboard")) return "Dashboard";
+    if (path.includes("goals")) return "Goals";
+    if (path.includes("settings")) return "Settings";
+    if (path.includes("withdrawal")) return "Withdrawal";
+    if (path.includes("deposit")) return "Deposit";
+    if (path.includes("transactions")) return "Transactions";
+    if (path.includes("ai-assistant")) return "AI Assistant";
+    return "Dashboard";
+  };
 
   return (
     <div className="flex min-h-screen">
-
-
-      {/* Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
           isCollapsed={isCollapsed}
@@ -46,7 +43,6 @@ const Layout = () => {
         />
       </div>
 
-      {/* Main */}
       <main
         className={`
           flex-1 transition-all duration-300 overflow-hidden
@@ -54,21 +50,18 @@ const Layout = () => {
           ${isCollapsed ? "lg:ml-24" : "lg:ml-64"}
           ml-0
         `}
-        
       >
-
-
         {/* Global Top Header */}
-        {!isFullScreenPage && (
-          <div className="hidden lg:flex lg:justify-between lg:items-center py-6 px-10 bg-primary lg:bg-secondary">
-            <h1 className="text-xl font-bold text-textcolor hidden lg:block">
+        {!shouldHideHeader && (
+          <div className="flex justify-between items-center py-6 px-10">
+            <h1 className="text-xl font-bold text-textcolor">
               {getPageTitle()}
             </h1>
             <div className="flex gap-4 items-center text-textcolor">
               <button className="cursor-pointer">
                 <NotifyIcon className="hover:text-primary" />
               </button >
-              <button onClick={()=> navigate("/help-support")} className="cursor-pointer">
+              <button className="cursor-pointer">
                 <SupportIcon className="hover:text-primary" />
               </button >
               <button onClick={() => navigate("/settings")} className="cursor-pointer">
@@ -85,4 +78,3 @@ const Layout = () => {
 }
 
 export default Layout
->>>>>>> 89a11b2a92a3aa9de0a50de84b7b42930281f717

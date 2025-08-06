@@ -8,13 +8,17 @@ import {
   
 } from '@mui/icons-material';
 import HandshakeIcon from '@mui/icons-material/Handshake';
+import { useTheme, useMediaQuery } from '@mui/material';
 import MobileHeader from '../components/MobileHeader';
 import BPILogo from '../assets/images/BPILOGO.png';
 import DepositIcon from '../assets/icons/DEPOSIT.svg';
 import WithdrawIcon from '../assets/icons/WITHDRAW.svg';
 import PartialPay from '../assets/icons/PARTIAL-PAY.svg';
+
 export default function TransactionHistory() {
   const [searchQuery, setSearchQuery] = useState('');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const activities = [
     {
