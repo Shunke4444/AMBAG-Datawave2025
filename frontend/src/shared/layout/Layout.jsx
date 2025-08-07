@@ -30,7 +30,7 @@ const Layout = () => {
                         location.pathname.includes('/payment') || 
                         location.pathname.includes('/confirm') || 
                         location.pathname.includes('/receipt') ||
-                        location.pathname.includes('/request') ||
+                        (location.pathname.includes('/request') && !location.pathname.includes('requests-approval')) ||
                         location.pathname.includes('member-requests') ||
                         location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
@@ -50,6 +50,8 @@ const Layout = () => {
     audit: "Audit Logs",
     transactions: "Transactions",
     "ai-assistant": "AI Assistant",
+    "requests-approval": "Requests Approval",
+    "member-list": "Members",
   };
 
   const getPageTitle = () => {
@@ -92,7 +94,7 @@ const Layout = () => {
               onClick={() => navigate("/requests-approval")} 
               className={`flex flex-col items-center text-xs ${
                 location.pathname === '/requests-approval' 
-                  ? 'text-primary' 
+                  ? 'text-primary'
                   : 'text-gray-400'
               }`}
             >
@@ -100,14 +102,14 @@ const Layout = () => {
               <span>Requests</span>
             </button>
             <button 
-              onClick={() => navigate("/members")} 
+              onClick={() => navigate("/member-list")} 
               className={`flex flex-col items-center text-xs ${
-                location.pathname === '/members' 
+                location.pathname === '/member-list' 
                   ? 'text-primary' 
                   : 'text-gray-400'
               }`}
             >
-              <MembersSettingsIcon className={location.pathname === '/members' ? "text-primary" : "text-gray-400"} />
+              <MembersSettingsIcon className={location.pathname === '/member-list' ? "text-primary" : "text-gray-400"} />
               <span>Members</span>
             </button>
           </nav>

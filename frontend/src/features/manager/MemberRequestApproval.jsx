@@ -3,14 +3,9 @@ import { motion } from 'framer-motion';
 import { 
   Check,
   Close as CloseIcon,
-  ArrowBack,
-  Home as HomeIcon,
-  Assignment as RequestsIcon,
-  SettingsAccessibility as MembersSettingsIcon,
 } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
 
-// Sample request data
+
 const sampleRequests = [
   {
     id: 1,
@@ -77,8 +72,6 @@ export default function MemberRequestApproval() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const filteredRequests = requests.filter(request => {
     const matchesSearch = request.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -145,17 +138,7 @@ export default function MemberRequestApproval() {
 
   // Mobile Layout
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-4 py-4 flex items-center justify-center relative">
-          <div className="absolute left-4 w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <ArrowBack className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-lg font-semibold text-gray-900">Requests Approval</h1>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-white">
       <div className="px-4 py-4 pb-20">
         {/* To be Approved Section */}
         <div className="mb-6">
@@ -409,43 +392,6 @@ export default function MemberRequestApproval() {
           </motion.div>
         </div>
       )}
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
-        <button 
-          onClick={() => navigate("/dashboard")} 
-          className={`flex flex-col items-center text-xs ${
-            location.pathname === '/dashboard' || location.pathname === '/' 
-              ? 'text-primary' 
-              : 'text-gray-400'
-          }`}
-        >
-          <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
-          <span>Home</span>
-        </button>
-        <button 
-          onClick={() => navigate("/requests-approval")} 
-          className={`flex flex-col items-center text-xs ${
-            location.pathname === '/requests-approval' || location.pathname.includes('member-requests')
-              ? 'text-primary' 
-              : 'text-gray-400'
-          }`}
-        >
-          <RequestsIcon className={location.pathname === '/requests-approval' || location.pathname.includes('member-requests') ? "text-primary" : "text-gray-400"} />
-          <span>Requests</span>
-        </button>
-        <button 
-          onClick={() => navigate("/members")} 
-          className={`flex flex-col items-center text-xs ${
-            location.pathname === '/members' 
-              ? 'text-primary' 
-              : 'text-gray-400'
-          }`}
-        >
-          <MembersSettingsIcon className={location.pathname === '/members' ? "text-primary" : "text-gray-400"} />
-          <span>Members</span>
-        </button>
-      </nav>
     </div>
   );
 }

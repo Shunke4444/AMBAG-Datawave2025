@@ -29,6 +29,7 @@ import Receipt from './features/payments/ReceiptPage';
 import HelpSupport from './features/help-support/HelpSupportPage';
 import MemberNotification from './features/notifications/MemberNotificationPage';
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
+import MemberList from './features/manager/MemberList';
 
 const router = createBrowserRouter([
   {
@@ -48,7 +49,6 @@ const router = createBrowserRouter([
     element: <Payment />
     // add children later
   },
-
 
   // Main App with Layout
   { path: '/' , 
@@ -74,6 +74,7 @@ const router = createBrowserRouter([
       {path: 'receipt', element: <Receipt />},
       {path: 'member-notification', element: <MemberNotification />},
       {path: 'requests-approval', element: <MemberRequestApproval />},
+      {path: 'member-list', element: <MemberList />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
