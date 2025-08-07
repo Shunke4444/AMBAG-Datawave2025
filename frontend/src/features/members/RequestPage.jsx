@@ -16,6 +16,7 @@ import {
   Badge
 } from '@mui/material';
 import MobileLayout from '../payments/PaymentLayout';
+import MobileHeader from '../../shared/components/MobileHeader';
 import RequestSubmittedModal from './RequestSubmittedModal';
 
 export default function Request() {
@@ -133,7 +134,7 @@ export default function Request() {
 
   // Desktop Layout
   const desktopLayout = (
-    <main className="min-h-screen bg-secondary p-4">
+    <main className="min-h-screen bg-white p-4">
       <div className="max-w-4xl mx-auto">
         <div className={`grid gap-8 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
           {/* Request Form */}
@@ -483,15 +484,14 @@ export default function Request() {
 
   // Mobile Layout
   const mobileLayout = (
-    <MobileLayout title="Member Request">
-      <div className="space-y-8">
+    <main className="min-h-screen bg-white">
+      {/* Mobile Header */}
+      <MobileHeader title="Member Request" />
+      
+      <div className="px-0 py-4 space-y-8">
         {/* Request Form */}
-        <Card className="shadow-lg bg-white">
-          <CardContent className="p-6">
-            <Typography variant="h6" className="mb-6 font-semibold text-textcolor">
-              New Request
-            </Typography>
-            
+        <Card className="shadow-none bg-white rounded-none">
+          <CardContent className="p-4">
             <form onSubmit={handleSubmit}>
               {/* Request Type */}
               <Box mb={3}>
@@ -740,14 +740,14 @@ export default function Request() {
                 fullWidth
                 variant="contained"
                 sx={{
-                  backgroundColor: '#FFD700',
-                  color: '#000',
+                  backgroundColor: '#830000',
+                  color: 'white',
                   py: 1.5,
                   borderRadius: 2,
                   fontSize: '1rem',
                   fontWeight: 'bold',
                   '&:hover': {
-                    backgroundColor: '#FFC107',
+                    backgroundColor: '#6b0000',
                   }
                 }}
               >
@@ -758,7 +758,7 @@ export default function Request() {
         </Card>
 
         {/* Request History/Status */}
-        <Card className="shadow-lg bg-white">
+        <Card className="shadow-none bg-white rounded-none">
           <CardContent className="p-4">
             <Typography variant="h6" className="mb-4 font-semibold text-textcolor text-sm">
               Recent Requests
@@ -829,7 +829,7 @@ export default function Request() {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
+    </main>
   );
 
   return (
