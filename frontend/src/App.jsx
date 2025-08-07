@@ -30,8 +30,12 @@ import HelpSupport from './features/help-support/HelpSupportPage';
 import MemberNotification from './features/notifications/MemberNotificationPage';
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
-
+import { OnboardingWrapper } from './features/on-boarding';
 const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <OnboardingWrapper />
+  },
   {
     path: '/login',
     element: <Login />
@@ -51,7 +55,7 @@ const router = createBrowserRouter([
   },
 
   // Main App with Layout
-  { path: '/' , 
+  { path: '/app' , 
     element: <Layout />,
     children: [
       {index: true, element: <Dashboard />},
@@ -75,6 +79,7 @@ const router = createBrowserRouter([
       {path: 'member-notification', element: <MemberNotification />},
       {path: 'requests-approval', element: <MemberRequestApproval />},
       {path: 'member-list', element: <MemberList />},
+
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
