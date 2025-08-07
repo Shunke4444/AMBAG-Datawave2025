@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 import {
   Accordion,
   AccordionSummary,
@@ -7,7 +9,8 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Call as ContactIcon,
-  Mail as EmailIcon
+  Mail as EmailIcon,
+  ArrowBack as BackIcon,
 } from '@mui/icons-material';
 
 const faqs = [
@@ -107,10 +110,16 @@ Link at least one e-wallet or card so you can withdraw or contribute without del
 
 
 const HelpSupport = () => {
+
+  
+  const navigate = useNavigate();
+
   return (
     <main className="border-accent border-2 m-4 p-8 flex flex-col gap-8 ">
+      <button onClick={() => navigate(-1)} className="flex cursor-pointer hover:bg-gray-200 w-fit p-4 rounded-4xl" >
+        <BackIcon />
+      </button>
       <h1 className="text-md font-semibold text-primary">How Can We Help?</h1>
-
       <div className="flex flex-col lg:flex">
         {/* How to get started with Ambag */}
               <section className="mx-12 py-4 max-w-3xl">
@@ -154,11 +163,11 @@ const HelpSupport = () => {
                   Contact Support
                 </Typography>
                 <div className="flex gap-12">
-                  <span className="flex gap-8">
+                  <span className="flex gap-2 lg:gap-8">
                     <ContactIcon />
                       1212-345-6789
                   </span >
-                  <span className="flex gap-8">
+                  <span className="flex gap-2 lg:gap-8">
                     <EmailIcon />
                       support@ambag.ph
                   </span>

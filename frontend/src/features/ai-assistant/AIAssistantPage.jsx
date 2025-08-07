@@ -10,6 +10,7 @@ import {
   Close as CloseIcon,
   Mic as MicIcon,
   Send as SendIcon,
+  ArrowBack as BackIcon,
 } from "@mui/icons-material";
 
 export default function AIAssitant() {
@@ -239,8 +240,10 @@ export default function AIAssitant() {
       />
       
       <main className="flex flex-col h-screen bg-white relative transition-all duration-300 lg:ml-80">
-        <header className="bg-white shadow-sm px-4 py-3 flex items-center space-x-3">
-          <button
+        
+        <header className="bg-white shadow-sm px-4 py-3 flex items-center space-x-3 justify-between">
+          <div className="flex gap-4">
+            <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="text-textcolor hover:text-opacity-80 transition-colors lg:hidden"
             aria-label="Toggle chat history"
@@ -252,6 +255,11 @@ export default function AIAssitant() {
               BAYO
             </span>
           </h1>
+          </div>
+          
+          <button onClick={() => navigate(-1)} className="cursor-pointer hover:bg-gray-200 w-fit p-4 rounded-4xl" >
+            <BackIcon />
+          </button>
         </header>
 
       <section className="flex-1 overflow-y-auto px-4 py-6">

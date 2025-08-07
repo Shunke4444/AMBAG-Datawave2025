@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState , useEffect} from "react";
 import Sidebar from "./Sidebar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -16,6 +16,9 @@ import { useTheme, useMediaQuery } from "@mui/material";
 import useIsMobile from "../../hooks/useIsMobile";
 import Notifications from "../../features/notifications/Notifications";
 import mockNotifs from "../../features/notifications/mockNotifs";
+// import { useAuthRole } from "../../contexts/AuthRoleContext";
+
+const authRole = "Manager";
 
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -34,6 +37,15 @@ const Layout = () => {
   const closeNotifDialog = () => setNotifDialogOpen(false);
   const handleApprove = () => {};
   const handleDecline = () => {};
+    // Handle background scroll
+  useEffect(() => {
+  document.body.style.overflow = notifDialogOpen ? "hidden" : "auto";
+  return () => {
+    document.body.style.overflow = "auto";
+  };
+}, [notifDialogOpen]);
+
+
 
   const pageTitles = {
     dashboard: "Dashboard",
@@ -57,9 +69,7 @@ const Layout = () => {
     return (
       <>
         <div className="flex justify-between items-center p-4 bg-primary">
-          <button className="cursor-pointer">
-            <MenuIcon className="text-secondary"/>
-          </button>
+          
           <p className="text-md font-semibold text-secondary">
             Hello <span className="text-yellow-400 font-bold">User!</span>
           </p>
@@ -81,22 +91,27 @@ const Layout = () => {
 
         <Outlet />
         {notifDialogOpen && (
-          <Notifications
-            notifs={mockNotifs}
-            onApprove={handleApprove}
-            onDecline={handleDecline}
-            onNotifClick={closeNotifDialog}
-          />
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={closeNotifDialog}
+            />
+            <Notifications
+              notifs={mockNotifs}
+              onApprove={handleApprove}
+              onDecline={handleDecline}
+            />
+          </>
         )}
 
         {/* Mobile Bottom Nav */}
-        {!isFullScreenPage && (
+        {!isFullScreenPage && authRole === "Manager" && (
           <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
-            <button onClick={() => navigate("/dashboard")} className="flex flex-col items-center text-primary text-xs">
+            <button onClick={() => navigate("/dashboard")} className="flex flex-col items-center text-primary text-xs cursor-pointer">
               <HomeIcon className="text-primary" />
               <span>Home</span>
             </button>
-            <button onClick={() => navigate("/requests")} className="flex flex-col items-center text-gray-400 text-xs">
+            <button onClick={() => navigate("/requests")} className="flex flex-col items-center text-gray-400 text-xs cursor-pointer">
               <RequestsIcon className="text-primary" />
               <span>Requests</span>
             </button>
@@ -151,12 +166,18 @@ const Layout = () => {
 
         <Outlet />
           {notifDialogOpen && (
-          <Notifications
-            notifs={mockNotifs}
-            onApprove={handleApprove}
-            onDecline={handleDecline}
-          />
-        )}
+            <>
+              <div
+                className="fixed inset-0 bg-black/50 z-40"
+                onClick={closeNotifDialog}
+              />
+              <Notifications
+                notifs={mockNotifs}
+                onApprove={handleApprove}
+                onDecline={handleDecline}
+              />
+            </>
+          )}
       </main>
     </div>
   );

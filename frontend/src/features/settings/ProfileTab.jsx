@@ -1,10 +1,5 @@
 
 
-
-
-
-
-
 const ProfileTab = () => {
   return (
     <main className="border-accent border-2 m-4 p-4 flex flex-col gap-12 ">

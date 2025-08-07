@@ -7,7 +7,7 @@ const Dashboard = () => {
   // const { authRole } = useAuthRole();
 
   // Hard Code for testing
-  const authRole = "Member";
+  const authRole = "Manager";
 
   return (
     <>

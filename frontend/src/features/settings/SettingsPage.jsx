@@ -1,16 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import ProfileTab from './ProfileTab';
-import AccountSecurityTab from './AccountSecurityTab';
-import PreferencesTab from './PreferencesTab';
-import PrivacyLegal from './PrivacyLegalTab';
 
-import {
-  InputLabel,
-  MenuItem,
-  FormControl,
-  Select,
 
-} from '@mui/material';
 
 const TABS = [
   'Profile',
@@ -20,6 +10,11 @@ const TABS = [
 ];
 
 const Settings = () => {
+
+
+
+
+
   return (
     <main className="flex flex-col w-full h-full min-h-screen">
       
