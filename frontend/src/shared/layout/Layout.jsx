@@ -15,10 +15,12 @@ import {
 import { useTheme, useMediaQuery } from "@mui/material";
 import useIsMobile from "../../hooks/useIsMobile";
 import Notifications from "../../features/notifications/Notifications";
-import mockNotifs from "../../features/notifications/mockNotifs";
-// import { useAuthRole } from "../../contexts/AuthRoleContext";
+import { ManagerNotifs }  from "../../features/notifications/ManagerNotifs";
+import { MemberNotifs } from "../../features/notifications/MemberNotifs";
+import MobileHeader from "../../components/MobileHeader";// import { useAuthRole } from "../../contexts/AuthRoleContext";
 
 const authRole = "Manager";
+const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
 
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -29,7 +31,13 @@ const Layout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isUseMobile = useIsMobile();
 
-  const isFullScreenPage = location.pathname === '/ai-assistant';
+  const isFullScreenPage = location.pathname === '/ai-assistant' || 
+                        location.pathname.includes('/payment') || 
+                        location.pathname.includes('/confirm') || 
+                        location.pathname.includes('/receipt') ||
+                        (location.pathname.includes('/request') && !location.pathname.includes('requests-approval')) ||
+                        location.pathname.includes('member-requests') ||
+                        location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
 
   // Notification dialog handlers (placeholders)
@@ -56,6 +64,8 @@ const Layout = () => {
     audit: "Audit Logs",
     transactions: "Transactions",
     "ai-assistant": "AI Assistant",
+    "requests-approval": "Requests Approval",
+    "member-list": "Members",
   };
 
   const getPageTitle = () => {
@@ -68,26 +78,11 @@ const Layout = () => {
   if (isUseMobile) {
     return (
       <>
-        <div className="flex justify-between items-center p-4 bg-primary">
-          
-          <p className="text-md font-semibold text-secondary">
-            Hello <span className="text-yellow-400 font-bold">User!</span>
-          </p>
-          <div className="flex gap-4">
-            <button onClick={() => navigate('ai-assistant')} className="cursor-pointer">
-              <AssistantIcon className="text-secondary"/>
-            </button>
-            <button className="cursor-pointer">
-              <NotifyIcon onClick={toggleNotifDialog} className="text-secondary" />
-            </button>
-            <button onClick={() => navigate("/help-support")} className="cursor-pointer">
-              <SupportIcon className="text-secondary" />
-            </button>
-            <button onClick={() => navigate("/settings")} className="cursor-pointer">
-              <SettingIcon className="text-secondary" />
-            </button>
-          </div>
-        </div>
+        {!isFullScreenPage && 
+        <MobileHeader 
+        title={getPageTitle()} 
+        onNotifClick={toggleNotifDialog} 
+        />}
 
         <Outlet />
         {notifDialogOpen && (
@@ -97,7 +92,7 @@ const Layout = () => {
               onClick={closeNotifDialog}
             />
             <Notifications
-              notifs={mockNotifs}
+              notifs={notifs}
               onApprove={handleApprove}
               onDecline={handleDecline}
             />
@@ -107,16 +102,37 @@ const Layout = () => {
         {/* Mobile Bottom Nav */}
         {!isFullScreenPage && authRole === "Manager" && (
           <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
-            <button onClick={() => navigate("/dashboard")} className="flex flex-col items-center text-primary text-xs cursor-pointer">
-              <HomeIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/dashboard")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/dashboard' || location.pathname === '/' 
+                  ? 'text-primary' 
+                  : 'text-gray-400'
+              }cursor-pointer`}
+            >
+              <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
               <span>Home</span>
             </button>
-            <button onClick={() => navigate("/requests")} className="flex flex-col items-center text-gray-400 text-xs cursor-pointer">
-              <RequestsIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/requests-approval")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/requests-approval' 
+                  ? 'text-primary'
+                  : 'text-gray-400'
+              } cursor-pointer`}
+            >
+              <RequestsIcon className={location.pathname === '/requests-approval' ? "text-primary" : "text-gray-400"} />
               <span>Requests</span>
             </button>
-            <button onClick={() => navigate("/members")} className="flex flex-col items-center text-gray-400 text-xs">
-              <MembersSettingsIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/member-list")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/member-list' 
+                  ? 'text-primary' 
+                  : 'text-gray-400'
+              } cursor-pointer`}
+            >
+              <MembersSettingsIcon className={location.pathname === '/member-list' ? "text-primary" : "text-gray-400"} />
               <span>Members</span>
             </button>
           </nav>
@@ -172,7 +188,7 @@ const Layout = () => {
                 onClick={closeNotifDialog}
               />
               <Notifications
-                notifs={mockNotifs}
+                notifs={notifs}
                 onApprove={handleApprove}
                 onDecline={handleDecline}
               />

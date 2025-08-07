@@ -1,46 +1,139 @@
 import { useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import GoalCardGlassMobile from "./GoalCardGlassMobile";
 import mockGoals from "./mockGoals";
 
 const GoalCarouselMobile = () => {
   const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
   const total = mockGoals.length;
 
-  const next = () => setIndex((i) => (i + 1) % total);
-  const prev = () => setIndex((i) => (i - 1 + total) % total);
+  const next = () => {
+    setDirection(1);
+    setIndex((i) => (i + 1) % total);
+  };
+  
+  const prev = () => {
+    setDirection(-1);
+    setIndex((i) => (i - 1 + total) % total);
+  };
+
+  // Enhanced swipe animation variants
+  const swipeVariants = {
+    enter: (direction) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.8,
+      rotateY: direction > 0 ? 15 : -15
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      rotateY: 0,
+      transition: {
+        x: { type: "spring", stiffness: 400, damping: 25 }, 
+        opacity: { duration: 0.1 }, 
+        scale: { duration: 0.15 }, 
+        rotateY: { duration: 0.15 } 
+      }
+    },
+    exit: (direction) => ({
+      zIndex: 0,
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.8,
+      rotateY: direction < 0 ? 15 : -15,
+      transition: {
+        x: { type: "spring", stiffness: 400, damping: 25 },
+        opacity: { duration: 0.1 }, 
+        scale: { duration: 0.15 }, 
+        rotateY: { duration: 0.15 } 
+      }
+    })
+  };
+
+
+  let startX = 0;
+  
+  const handleTouchStart = (e) => {
+    startX = e.touches[0].clientX;
+  };
+  
+  const handleTouchEnd = (e) => {
+    const endX = e.changedTouches[0].clientX;
+    const diff = startX - endX;
+    
+    if (Math.abs(diff) > 50) { 
+      if (diff > 0) {
+        next(); 
+      } else {
+        prev(); 
+      }
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center gap-4 ">
-      <div className="relative w-full max-w-2xl flex justify-center">
-        <AnimatePresence mode="wait">
-          <motion
+    <div className="flex flex-col items-center gap-4">
+      <div 
+        className="relative w-full max-w-2xl flex justify-center touch-pan-y overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ perspective: "1000px" }}
+      >
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
             key={index}
+            custom={direction}
+            variants={swipeVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
-            onDragEnd={(e, info) => {
-              if (info.offset.x < -30) next();
-              else if (info.offset.x > 30) prev();
+            dragElastic={0.3}
+            whileDrag={{ 
+              scale: 0.95,
+              rotateY: 5,
+              transition: { duration: 0 }
             }}
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.3 }}
-            className="flex justify-center"
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipeThreshold = 50;
+              const swipeVelocityThreshold = 500;
+              
+              if (Math.abs(offset.x) > swipeThreshold || Math.abs(velocity.x) > swipeVelocityThreshold) {
+                if (offset.x > 0 || velocity.x > 0) {
+                  prev();
+                } else {
+                  next();
+                }
+              }
+            }}
+            className="flex justify-center cursor-grab active:cursor-grabbing"
+            style={{ 
+              touchAction: 'pan-y',
+              transformStyle: 'preserve-3d'
+            }}
           >
             <GoalCardGlassMobile goal={mockGoals[index]} />
-          </motion>
+          </motion.div>
         </AnimatePresence>
       </div>
 
       <div className="flex gap-2">
         {mockGoals.map((_, i) => (
-          <button
+          <motion.button
             key={i}
-            onClick={() => setIndex(i)}
+            onClick={() => {
+              setDirection(i > index ? 1 : -1);
+              setIndex(i);
+            }}
+            whileHover={{ scale: 1.2 }}
+            whileTap={{ scale: 0.9 }}
             aria-label={`Go to goal ${i + 1}`}
-            className={`w-3 h-3 rounded-full transition ${
-              i === index ? "bg-yellow-400" : "bg-gray-500/60"
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              i === index ? "bg-yellow-400 shadow-lg" : "bg-gray-500/60 hover:bg-gray-400/80"
             }`}
           />
         ))}

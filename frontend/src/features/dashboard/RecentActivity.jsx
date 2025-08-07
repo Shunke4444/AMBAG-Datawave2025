@@ -8,6 +8,7 @@ import {
 } from '@mui/icons-material';
 import DepositIcon from '../../assets/icons/DEPOSIT.svg';
 import PartialPay from '../../assets/icons/PARTIAL-PAY.svg';
+import { useNavigate } from 'react-router-dom';
 
 const RecentActivity = ({ 
   activities = [
@@ -56,11 +57,22 @@ const RecentActivity = ({
     }
   };
 
+  const navigate = useNavigate();
+  const handleRecentActivityClick = (activity) => {
+    navigate(`/transactions/history`);
+  };
+
+
   return (
     <div className="mx-4 mt-24 rounded-t-2xl ">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-textcolor">Recent Activity</h3>
-        <ArrowForward className="w-5 h-5 text-textcolor/60" />
+        <button 
+          onClick={handleRecentActivityClick} 
+          className="w-10 h-10 bg-primary hover:bg-primary/90 rounded-full flex items-center justify-center transition-colors"
+        >
+          <ArrowForward className="w-5 h-5 text-white" />
+        </button>
       </div>
       
       <div className="space-y-3">

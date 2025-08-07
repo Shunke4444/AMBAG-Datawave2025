@@ -2,7 +2,7 @@
 import {Add as AddIcon} from '@mui/icons-material';
 import GoalInfo from './GoalInfo';
 
-const Goals = () => {
+const GoalsPage = () => {
 
 
   return (
@@ -22,4 +22,4 @@ const Goals = () => {
   )
 }
 
-export default Goals
+export default GoalsPage

@@ -1,10 +1,11 @@
 
 import { useNavigate } from 'react-router-dom';
-import Request from '../../assets/icons/request.svg';
+import { Handshake } from '@mui/icons-material';
+import Loan from '../../assets/icons/loan.svg';
 import PayShare from '../../assets/icons/payshare.svg';
 import Deposit from '../../assets/icons/DEPOSIT.svg';
 
-const ActionButtons = ({ onPayShare, onRequest, onDeposit }) => {
+const ActionButtons = ({ onPayShare, onRequest, onDeposit, onLoan }) => {
   const navigate = useNavigate();
 
   const handlePayShare = () => {
@@ -15,21 +16,30 @@ const ActionButtons = ({ onPayShare, onRequest, onDeposit }) => {
     navigate('/member-requests');
   };
 
+  const handleLoan = () => {
+    if (onLoan) onLoan();
+  };
+
   const actions = [
     {
-      icon: <img src={PayShare} alt="Pay Share" className=" text-textcolor" />,
+      icon: <img src={PayShare} alt="Pay Share" className="w-12 h-12 text-textcolor" />,
       label: 'Pay Share',
       onClick: handlePayShare
     },
     {
-      icon: <img src={Request} alt="Request" className=" text-textcolor" />,
+      icon: <Handshake fontSize='large' className="w-12 h-12 text-black" />,
       label: 'Request',
       onClick: handleRequest
     },
     {
-      icon: <img src={Deposit} alt="Deposit" className=" ml-[0.75rem] w-12 h-12 text-textcolor" style={{filter: 'brightness(0)'}} />,
+      icon: <img src={Deposit} alt="Deposit" className="w-12 h-12 text-textcolor" style={{filter: 'brightness(0)'}} />,
       label: 'Deposit',
       onClick: onDeposit
+    },
+    {
+      icon: <img src={Loan} alt="Loan" className="w-10 h-10 text-textcolor" style={{filter: 'brightness(0)'}} />,
+      label: 'Loan',
+      onClick: handleLoan
     }
   ];
 

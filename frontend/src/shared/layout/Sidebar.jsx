@@ -19,7 +19,6 @@ const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { to: '/goals', label: 'Goals', icon: <GoalsIcon /> },
     { to: '/ai-assistant', label: 'AI Assistant', icon: <AssistantIcon /> },
-    { to: '/takeALoan', label: 'Take a Loan?', icon: <LoanIcon /> }
   ];
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {

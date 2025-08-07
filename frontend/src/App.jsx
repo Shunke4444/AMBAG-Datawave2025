@@ -28,8 +28,14 @@ import ConfirmPay from './features/payments/ConfirmPayPage';
 import Receipt from './features/payments/ReceiptPage';
 import HelpSupport from './features/help-support/HelpSupportPage';
 import MemberNotification from './features/notifications/MemberNotificationPage';
-
+import MemberRequestApproval from './features/manager/MemberRequestApproval'
+import MemberList from './features/manager/MemberList';
+import { OnboardingWrapper } from './features/on-boarding';
 const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <OnboardingWrapper />
+  },
   {
     path: '/login',
     element: <Login />
@@ -47,7 +53,6 @@ const router = createBrowserRouter([
     element: <Payment />
     // add children later
   },
-
 
   // Main App with Layout
   { path: '/' , 
@@ -67,10 +72,14 @@ const router = createBrowserRouter([
       {path: 'transaction-history', element: <TransactionHistory />},
       {path: 'manager-notifications', element: <ManagerNotifications />},
       {path: 'member-requests', element: <Request />},
+      {path: 'requests', element: <Request />},
       {path: 'payment', element: <Payment />},
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},
       {path: 'member-notification', element: <MemberNotification />},
+      {path: 'requests-approval', element: <MemberRequestApproval />},
+      {path: 'member-list', element: <MemberList />},
+
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings

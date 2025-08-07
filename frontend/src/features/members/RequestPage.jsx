@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme, useMediaQuery } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import {
   TextField,
   FormControl,
@@ -15,11 +16,13 @@ import {
   Badge
 } from '@mui/material';
 import MobileLayout from '../payments/PaymentLayout';
+import MobileHeader from '../../components/MobileHeader';
 import RequestSubmittedModal from './RequestSubmittedModal';
 
 export default function Request() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
+  const [searchParams] = useSearchParams();
   
   const [formData, setFormData] = useState({
     requestType: '',
@@ -28,8 +31,22 @@ export default function Request() {
     priority: '',
     amount: '',
     startingDate: '',
-    dueDate: ''
+    dueDate: '',
+    paymentPeriod: '',
+    interestRate: ''
   });
+
+  // Check URL parameters and pre-select loan request if needed
+  useEffect(() => {
+    const requestType = searchParams.get('type');
+    if (requestType === 'loan') {
+      setFormData(prev => ({
+        ...prev,
+        requestType: 'loan-request',
+        subject: 'Loan Request from Group Members'
+      }));
+    }
+  }, [searchParams]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [recentRequests, setRecentRequests] = useState([
@@ -66,6 +83,11 @@ export default function Request() {
       requiredFields.push('amount', 'startingDate', 'dueDate');
     }
     
+    // If request type is "loan-request", also validate loan-specific fields
+    if (formData.requestType === 'loan-request') {
+      requiredFields.push('amount', 'paymentPeriod', 'interestRate');
+    }
+    
     // Check if all required fields are filled
     const missingFields = requiredFields.filter(field => !formData[field]);
     
@@ -100,7 +122,9 @@ export default function Request() {
       priority: '',
       amount: '',
       startingDate: '',
-      dueDate: ''
+      dueDate: '',
+      paymentPeriod: '',
+      interestRate: ''
     });
   };
 
@@ -110,14 +134,16 @@ export default function Request() {
 
   // Desktop Layout
   const desktopLayout = (
-    <main className="min-h-screen bg-secondary p-4">
+    <main className="min-h-screen bg-white p-4">
       <div className="max-w-4xl mx-auto">
         <div className={`grid gap-8 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
           {/* Request Form */}
           <section className={`${isMobile ? 'col-span-1' : 'col-span-2'}`}>
             <Card className="shadow-lg">
               <CardContent className="p-8">
-            
+                <Typography variant="h5" className="mb-6 font-semibold text-textcolor">
+                  New Request
+                </Typography>
                 
                 <form onSubmit={handleSubmit}>
                   {/* Request Type */}
@@ -139,6 +165,7 @@ export default function Request() {
                         <MenuItem value="add-goal">Add a Goal</MenuItem>
                         <MenuItem value="change-goal">Change Goal</MenuItem>
                         <MenuItem value="discontinue-goal">Discontinue Goal</MenuItem>
+                        <MenuItem value="loan-request">Loan Request</MenuItem>
                         <MenuItem value="concern">Concern</MenuItem>
                         <MenuItem value="unable-to-pay">Unable to Pay</MenuItem>
                         <MenuItem value="extend-deadline">Extend Deadline</MenuItem>
@@ -230,6 +257,83 @@ export default function Request() {
                             shrink: true,
                           }}
                         />
+                      </Box>
+                    </>
+                  )}
+
+                  {/* Conditional Fields for Loan Request */}
+                  {formData.requestType === 'loan-request' && (
+                    <>
+                      {/* Loan Amount */}
+                      <Box mb={3}>
+                        <TextField
+                          fullWidth
+                          label="Loan Amount"
+                          placeholder="Enter the amount you want to borrow"
+                          variant="outlined"
+                          type="number"
+                          value={formData.amount}
+                          onChange={(e) => handleInputChange('amount', e.target.value)}
+                          sx={{
+                            backgroundColor: 'white',
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                            }
+                          }}
+                          InputProps={{
+                            startAdornment: <span style={{ marginRight: '8px' }}>₱</span>,
+                          }}
+                        />
+                      </Box>
+
+                      {/* Payment Period */}
+                      <Box mb={3}>
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel id="payment-period-label">Payment Period</InputLabel>
+                          <Select
+                            labelId="payment-period-label"
+                            value={formData.paymentPeriod || ''}
+                            onChange={(e) => handleInputChange('paymentPeriod', e.target.value)}
+                            label="Payment Period"
+                            sx={{
+                              backgroundColor: 'white',
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                              }
+                            }}
+                          >
+                            <MenuItem value="1">1 Month</MenuItem>
+                            <MenuItem value="2">2 Months</MenuItem>
+                            <MenuItem value="3">3 Months</MenuItem>
+                            <MenuItem value="6">6 Months</MenuItem>
+                            <MenuItem value="12">1 Year</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
+
+                      {/* Interest Rate Preference */}
+                      <Box mb={3}>
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel id="interest-rate-label">Preferred Interest Rate</InputLabel>
+                          <Select
+                            labelId="interest-rate-label"
+                            value={formData.interestRate || ''}
+                            onChange={(e) => handleInputChange('interestRate', e.target.value)}
+                            label="Preferred Interest Rate"
+                            sx={{
+                              backgroundColor: 'white',
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                              }
+                            }}
+                          >
+                            <MenuItem value="0">0% (No Interest)</MenuItem>
+                            <MenuItem value="2">2% per month</MenuItem>
+                            <MenuItem value="3">3% per month</MenuItem>
+                            <MenuItem value="5">5% per month</MenuItem>
+                            <MenuItem value="negotiable">Negotiable</MenuItem>
+                          </Select>
+                        </FormControl>
                       </Box>
                     </>
                   )}
@@ -380,11 +484,14 @@ export default function Request() {
 
   // Mobile Layout
   const mobileLayout = (
-    <MobileLayout title="Member Request">
-      <div className="space-y-8">
+    <main className="min-h-screen bg-white">
+      {/* Mobile Header */}
+      <MobileHeader title="Member Request" />
+      
+      <div className="px-0 py-4 space-y-8">
         {/* Request Form */}
-        <Card className="shadow-lg bg-white">
-          <CardContent className="p-6">          
+        <Card className="shadow-none bg-white rounded-none">
+          <CardContent className="p-4">
             <form onSubmit={handleSubmit}>
               {/* Request Type */}
               <Box mb={3}>
@@ -405,6 +512,7 @@ export default function Request() {
                     <MenuItem value="add-goal">Add a Goal</MenuItem>
                     <MenuItem value="change-goal">Change Goal</MenuItem>
                     <MenuItem value="discontinue-goal">Discontinue Goal</MenuItem>
+                    <MenuItem value="loan-request">Loan Request</MenuItem>
                     <MenuItem value="concern">Concern</MenuItem>
                     <MenuItem value="unable-to-pay">Unable to Pay</MenuItem>
                     <MenuItem value="extend-deadline">Extend Deadline</MenuItem>
@@ -504,6 +612,84 @@ export default function Request() {
                 </>
               )}
 
+              {/* Conditional Fields for Loan Request */}
+              {formData.requestType === 'loan-request' && (
+                <>
+                  {/* Loan Amount */}
+                  <Box mb={3}>
+                    <TextField
+                      fullWidth
+                      label="Loan Amount"
+                      placeholder="Enter the amount you want to borrow"
+                      variant="outlined"
+                      size="small"
+                      type="number"
+                      value={formData.amount}
+                      onChange={(e) => handleInputChange('amount', e.target.value)}
+                      sx={{
+                        backgroundColor: 'white',
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                        }
+                      }}
+                      InputProps={{
+                        startAdornment: <span style={{ marginRight: '8px' }}>₱</span>,
+                      }}
+                    />
+                  </Box>
+
+                  {/* Payment Period */}
+                  <Box mb={3}>
+                    <FormControl fullWidth variant="outlined" size="small">
+                      <InputLabel id="payment-period-label-mobile">Payment Period</InputLabel>
+                      <Select
+                        labelId="payment-period-label-mobile"
+                        value={formData.paymentPeriod || ''}
+                        onChange={(e) => handleInputChange('paymentPeriod', e.target.value)}
+                        label="Payment Period"
+                        sx={{
+                          backgroundColor: 'white',
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      >
+                        <MenuItem value="1">1 Month</MenuItem>
+                        <MenuItem value="2">2 Months</MenuItem>
+                        <MenuItem value="3">3 Months</MenuItem>
+                        <MenuItem value="6">6 Months</MenuItem>
+                        <MenuItem value="12">1 Year</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  {/* Interest Rate Preference */}
+                  <Box mb={3}>
+                    <FormControl fullWidth variant="outlined" size="small">
+                      <InputLabel id="interest-rate-label-mobile">Preferred Interest Rate</InputLabel>
+                      <Select
+                        labelId="interest-rate-label-mobile"
+                        value={formData.interestRate || ''}
+                        onChange={(e) => handleInputChange('interestRate', e.target.value)}
+                        label="Preferred Interest Rate"
+                        sx={{
+                          backgroundColor: 'white',
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      >
+                        <MenuItem value="0">0% (No Interest)</MenuItem>
+                        <MenuItem value="2">2% per month</MenuItem>
+                        <MenuItem value="3">3% per month</MenuItem>
+                        <MenuItem value="5">5% per month</MenuItem>
+                        <MenuItem value="negotiable">Negotiable</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </>
+              )}
+
               {/* Priority */}
               <Box mb={3}>
                 <FormControl fullWidth variant="outlined" size="small">
@@ -554,14 +740,14 @@ export default function Request() {
                 fullWidth
                 variant="contained"
                 sx={{
-                  backgroundColor: '#FFD700',
-                  color: '#000',
+                  backgroundColor: '#830000',
+                  color: 'white',
                   py: 1.5,
                   borderRadius: 2,
                   fontSize: '1rem',
                   fontWeight: 'bold',
                   '&:hover': {
-                    backgroundColor: '#FFC107',
+                    backgroundColor: '#6b0000',
                   }
                 }}
               >
@@ -572,7 +758,7 @@ export default function Request() {
         </Card>
 
         {/* Request History/Status */}
-        <Card className="shadow-lg bg-white">
+        <Card className="shadow-none bg-white rounded-none">
           <CardContent className="p-4">
             <Typography variant="h6" className="mb-4 font-semibold text-textcolor text-sm">
               Recent Requests
@@ -643,7 +829,7 @@ export default function Request() {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
+    </main>
   );
 
   return (

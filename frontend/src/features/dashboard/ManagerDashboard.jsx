@@ -32,7 +32,7 @@ const ManagerDashboard = () => {
         </div>
 
         {/* Contribution Summary */}
-        <div className="px-4">
+        <div className="p-4">
           <ContributionDiv />
         </div>
 

@@ -7,7 +7,7 @@ import {
   RequestPage as SendRequestIcon,
   Payments as DepositIcon,
   PsychologyAlt as WithdrawIcon,
-  
+  CreditScore as LoanIcon
 } from '@mui/icons-material';
 
 import useIsMobile from '../../hooks/useIsMobile';
@@ -17,14 +17,18 @@ const DashboardBtns = () => {
   const authRole = "Manager"; // later replace with useAuthRole()
   const isMobile = useIsMobile();
 
-  const btnClass = `${isMobile ? "bg-accent" : "bg-primary"} text-white hover:bg-primary/80 px-4 py-4 my-4 rounded-lg shadow cursor-pointer flex flex-col items-center`;
+  const btnClass = `
+  ${isMobile ? "bg-accent" : "bg-primary"}
+  text-white hover:bg-primary/80
+  w-20 h-20 sm:w-24 sm:h-24 sm:
+  px-8 py-8 my-4
+  rounded-lg shadow cursor-pointer
+  flex flex-col items-center justify-center
+  text-sm sm:text-base
+`;
 
-  // Shared mobile buttons (same for all roles)
-  const mobileButtons = [
-    {
-      icon: <SendRequestIcon />,
-      label: "Send Request",
-    },
+  // Shared buttons (used in both arrays)
+  const sharedMobileButtons = [
     {
       icon: <DepositIcon />,
       label: "Share Contribute",
@@ -33,6 +37,24 @@ const DashboardBtns = () => {
       icon: <WithdrawIcon />,
       label: "Ask Funds",
     },
+  ];
+
+  // Role-specific buttons
+  const memberMobileButtons = [
+    {
+      icon: <SendRequestIcon />,
+      label: "Send Request",
+    },
+    ...sharedMobileButtons,
+  ];
+
+  const managerMobileButtons = [
+    ...sharedMobileButtons,
+    {
+      icon: <LoanIcon />, // ← Replace with your actual nudge/notify icon
+      label: "Loan",
+    },
+    
   ];
 
   // Role-based buttons (desktop only)
@@ -66,19 +88,22 @@ const DashboardBtns = () => {
     },
   ];
 
-  // Decide which to render based on screen size
-  const selectedButtons = isMobile
-    ? mobileButtons // Show same buttons on mobile
-    : authRole === "Manager"
-      ? managerButtons
-      : authRole === "Member"
-        ? memberButtons
-        : [];
+  // Define buttons for mobile and desktop
+  const mobileButtons = authRole === "Manager" 
+    ? managerMobileButtons 
+    : memberMobileButtons;
 
+  const desktopButtons = authRole === "Manager" 
+    ? managerButtons 
+    : memberButtons;
+
+  const selectedButtons = isMobile ? mobileButtons : desktopButtons;
+
+  // Render (only if isMobile is true)
   if (isMobile) {
     return (
-      <div className='flex gap-16 justify-center'>
-        <div className='flex gap-8'>
+      <div className="flex gap-16 justify-center">
+        <div className="flex gap-8">
           {selectedButtons.map(({ icon, label }, index) => (
             <button key={index} className={btnClass}>
               {icon}
@@ -89,6 +114,7 @@ const DashboardBtns = () => {
       </div>
     );
   }
+
 
   return (
     <div className='flex gap-16'>
