@@ -10,6 +10,7 @@ db = client["ambag_database"]
 
 users_collection = db["users"]
 member_requests_collection = db["member_requests"]
+groups_collection = db["groups"]
 # Add more collections as needed, like:
 # goals_collection = db["goals"]
 # plans_collection = db["plans"]

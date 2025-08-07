@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from uuid import uuid4 #generate unique IDs
 from datetime import datetime
+from .mongo import users_collection, groups_collection, member_requests_collection
+from .verify_token import verify_token
 import logging
 
 # Configure logging
@@ -26,14 +28,14 @@ class GroupCreate(GroupBase):
     description: str = ""
 
 class GroupMember(BaseModel):
-    user_id: str
+    firebase_uid: str
     role: str  # "manager" or "contributor"
     joined_at: str
     contribution_total: float = 0.0
     is_active: bool = True
 
 class Group(GroupBase):
-    id: str
+    group_id: str
     manager_id: str
     members: List[GroupMember] = []
     created_at: str
@@ -42,11 +44,11 @@ class Group(GroupBase):
     total_contributions: float = 0.0
 
 class AddMemberRequest(BaseModel):
-    user_id: str
+    firebase_uid: str
     role: str = "contributor"  # Default to contributor
 
 class GroupResponse(BaseModel):
-    id: str
+    group_id: str
     name: str
     description: str
     manager_id: str
@@ -58,14 +60,24 @@ class GroupResponse(BaseModel):
     member_count: int
 
 @router.post("/", response_model=GroupResponse)
-def create_group(group: GroupCreate):
+def create_group(group: GroupCreate, user=Depends(verify_token)):
     """Create a new group with manager"""
     try:
         group_id = str(uuid4())
+        firebase_id = user["uid"]
+        users_collection.update_one(
+            {"firebase_uid": firebase_id},
+            {
+                "$set": {
+                    "role.role_type": "manager",
+                    "role.group_id": group_id
+                }
+            }
+        )
         
         # Create manager member entry
         manager_member = GroupMember(
-            user_id=group.manager_id,
+            firebase_uid=group.manager_id,
             role="manager",
             joined_at=datetime.now().isoformat(),
             contribution_total=0.0,
@@ -73,7 +85,7 @@ def create_group(group: GroupCreate):
         )
         
         new_group = Group(
-            id=group_id,
+            group_id=group_id,
             name=group.name,
             description=group.description,
             manager_id=group.manager_id,
@@ -83,9 +95,6 @@ def create_group(group: GroupCreate):
             total_goals=0,
             total_contributions=0.0
         )
-        
-        # Store in database
-        group_db[group_id] = new_group
         
         logger.info(f"New group created: {group.name} by manager {group.manager_id}")
         
@@ -99,36 +108,35 @@ def create_group(group: GroupCreate):
         raise HTTPException(status_code=500, detail=f"Group creation failed: {str(e)}")
 
 @router.get("/", response_model=List[GroupResponse])
-def get_all_groups():
+def get_all_groups(user=Depends(verify_token)):
     """Get all groups"""
-    return [
-        GroupResponse(**group.model_dump(), member_count=len(group.members))
-        for group in group_db.values()
-        if group.is_active
-    ]
+    groups_cursor = groups_collection.find()
+    groups = list(groups_cursor)
+
+    return [GroupResponse(**group) for group in groups]
 
 @router.get("/{group_id}", response_model=GroupResponse)
-def get_group(group_id: str):
+def get_group(group_id: str, user=Depends(verify_token)):
     """Get specific group by ID"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
     return GroupResponse(
-        **group.model_dump(),
-        member_count=len(group.members)
+        **group,
+        member_count=len(group["members"])
     )
 
 @router.post("/{group_id}/members", response_model=GroupResponse)
-def add_member_to_group(group_id: str, member_request: AddMemberRequest):
+def add_member_to_group(group_id: str, member_request: AddMemberRequest, user=Depends(verify_token)):
     """Add a member to group"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
     # Check if user is already a member
-    for member in group.members:
-        if member.user_id == member_request.user_id:
+    for member in group.get("members", []):
+        if member.get("firebase_uid") == member_request.firebase_uid:
             raise HTTPException(status_code=400, detail="User is already a member of this group")
     
     # Add new member
@@ -140,68 +148,84 @@ def add_member_to_group(group_id: str, member_request: AddMemberRequest):
         is_active=True
     )
     
-    group.members.append(new_member)
-    group_db[group_id] = group
+    groups_collection.update_one(
+        {"group_id": group_id},
+        {"$push": {"members": new_member.model_dump()}}
+    )
+
+    updated_group = groups_collection.find_one({"group_id": group_id})
+    if not updated_group:
+        raise HTTPException(status_code=500, detail="Failed to fetch updated group")
     
     logger.info(f"User {member_request.user_id} added to group {group_id} as {member_request.role}")
     
     return GroupResponse(
-        **group.model_dump(),
+        **updated_group,
         member_count=len(group.members)
     )
 
-@router.delete("/{group_id}/members/{user_id}")
-def remove_member_from_group(group_id: str, user_id: str):
+@router.delete("/{group_id}/members/{firebase_uid}")
+def remove_member_from_group(group_id: str, firebase_uid: str, user=Depends(verify_token)):
     """Remove a member from group"""
-    group = group_db.get(group_id)
+    # First check if group exists
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    # Cannot remove the manager
-    if user_id == group.manager_id:
-        raise HTTPException(status_code=400, detail="Cannot remove group manager")
-    
-    # Find and remove member
-    group.members = [member for member in group.members if member.user_id != user_id]
-    group_db[group_id] = group
-    
-    logger.info(f"User {user_id} removed from group {group_id}")
-    
-    return {"message": f"User {user_id} removed from group successfully"}
+
+    # Check if the member exists
+    members = group.get("members", [])
+    if not any(member.get("firebase_uid") == firebase_uid for member in members):
+        raise HTTPException(status_code=404, detail="Member not found in this group")
+
+    # Remove the member using $pull
+    groups_collection.update_one(
+        {"group_id": group_id},
+        {"$pull": {"members": {"firebase_uid": firebase_uid}}}
+    )
+
+    logger.info(f"User {firebase_uid} removed from group {group_id}")
+    return {"message": f"User {firebase_uid} removed from group successfully"}
 
 @router.get("/{group_id}/members", response_model=List[GroupMember])
-def get_group_members(group_id: str):
+def get_group_members(group_id: str, user=Depends(verify_token)):
     """Get all members of a group"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    return group.members
+    members = group.get("members", [])
+    return members
 
-@router.put("/{group_id}/members/{user_id}/role")
-def update_member_role(group_id: str, user_id: str, new_role: str):
+@router.put("/{group_id}/members/{firebase_uid}/role")
+def update_member_role(group_id: str, firebase_uid: str, new_role: str, user=Depends(verify_token)):
     """Update member role in group"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
     # Cannot change manager role
-    if user_id == group.manager_id:
-        raise HTTPException(status_code=400, detail="Cannot change manager role")
+    # if user_id == group.manager_id:
+    #     raise HTTPException(status_code=400, detail="Cannot change manager role")
     
     # Find and update member
-    for member in group.members:
-        if member.user_id == user_id:
-            member.role = new_role
-            group_db[group_id] = group
-            logger.info(f"User {user_id} role updated to {new_role} in group {group_id}")
-            return {"message": f"Member role updated to {new_role}"}
-    
-    raise HTTPException(status_code=404, detail="Member not found in group")
+    groups_collection.update_one(
+        {
+            "group_id": group_id,
+            "members.firebase_uid": firebase_uid
+        },
+        {
+            "$set": {
+                "members.$.role": new_role
+            }
+        }
+    )
+    return {"message": f"Member role updated to {new_role}"}
 
 @router.get("/user/{user_id}", response_model=List[GroupResponse])
 def get_user_groups(user_id: str):
     """Get all groups where user is a member"""
+    # We settle on one group per person so i dont think we need this route
+
     user_groups = []
     
     for group in group_db.values():
@@ -218,30 +242,44 @@ def get_user_groups(user_id: str):
 @router.put("/{group_id}")
 def update_group(group_id: str, group_update: GroupBase):
     """Update group information"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    group.name = group_update.name
-    group.description = group_update.description
-    group_db[group_id] = group
+    groups_collection.update_one(
+        {"group_id": group_id},
+        {
+            "$set": {
+                "name": group_update.name,
+                "description": group_update.description
+            }
+        }
+    )
     
     logger.info(f"Group {group_id} updated")
     
-    return GroupResponse(
-        **group.model_dump(),
-        member_count=len(group.members)
-    )
+    return {"message": f"Group {group_id} information updated"}
+
+    # return GroupResponse(
+    #     **group,
+    #     member_count=len(group.members)
+    # )
 
 @router.delete("/{group_id}")
 def delete_group(group_id: str):
     """Delete/deactivate a group"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    group.is_active = False
-    group_db[group_id] = group
+    groups_collection.update_one(
+        {"group_id": group_id},
+        {
+            "$set": {
+                "is_active": False
+            }
+        }
+    )
     
     logger.info(f"Group {group_id} deactivated")
     
@@ -250,25 +288,27 @@ def delete_group(group_id: str):
 @router.get("/{group_id}/stats")
 def get_group_statistics(group_id: str):
     """Get group statistics"""
-    group = group_db.get(group_id)
+    group = groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    active_members = len([m for m in group.members if m.is_active])
-    managers = len([m for m in group.members if m.role == "manager"])
-    contributors = len([m for m in group.members if m.role == "contributor"])
+    members = group.get("members", [])
+    
+    active_members = len([m for m in members if m.get("is_active")])
+    managers = len([m for m in members if m.get("role") == "manager"])
+    contributors = len([m for m in members if m.get("role") == "contributor"])
     
     return {
         "group_id": group_id,
-        "group_name": group.name,
+        "group_name": group["name"],
         "total_members": len(group.members),
         "active_members": active_members,
         "managers": managers,
         "contributors": contributors,
-        "total_goals": group.total_goals,
-        "total_contributions": group.total_contributions,
-        "average_contribution": group.total_contributions / active_members if active_members > 0 else 0,
-        "created_at": group.created_at
+        "total_goals": group["total_goals"],
+        "total_contributions": group["total_contributions"],
+        # "average_contribution": group.total_contributions / active_members if active_members > 0 else 0,
+        "created_at": group["created_at"]
     }
 
 @router.post("/create-test-group")

@@ -1,22 +1,17 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Optional
 from datetime import datetime
 from uuid import uuid4
 from .mongo import users_collection, member_requests_collection
 from .verify_token import verify_token
 from .goal import notify_manager_of_request, notify_member_of_request_response
-import hashlib
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-# replace with Firebase/MongoDB
-# users_db: Dict[str, "User"] = {}
-# member_requests_db: Dict[str, "MemberRequest"] = {}  # request_id -> MemberRequest
 
 # User Models
 class UserRole(BaseModel):
@@ -82,33 +77,6 @@ class CreateMemberRequest(BaseModel):
     subject: str  # Must be one of RequestType values
     message: str
 
-
-# Utility Functions
-def hash_password(password: str) -> str:
-    """Hash password using SHA256"""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def verify_password(password: str, hashed: str) -> bool:
-    """Verify password against hash"""
-    return hash_password(password) == hashed
-
-def create_session_token() -> str:
-    """Generate session token"""
-    return str(uuid4())
-
-def validate_email_format(email: str) -> bool:
-    """Basic email format validation"""
-    import re
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
-
-# def get_current_user(session_token: str) -> Optional[User]:
-#     """Get current user from session token"""
-#     user_id = user_sessions.get(session_token)
-#     if not user_id:
-#         return None
-#     return users_db.get(user_id)
-
 # Authentication Endpoints
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserCreate, user=Depends(verify_token)):
@@ -147,7 +115,7 @@ async def login_user(user=Depends(verify_token)):
             raise HTTPException(status_code=404, detail="User not found in database")
         
         users_collection.update_one(
-
+            {"firebase_uid": firebase_uid},
             {"$set": {"last_login": datetime.now().isoformat()}}
         )
         
@@ -169,14 +137,14 @@ async def login_user(user=Depends(verify_token)):
 @router.get("/profile/{user_id}", response_model=UserResponse)
 async def get_user_profile(user=Depends(verify_token)):
     firebase_uid = user["uid"]
-    user = users_collection.find_one({"firebase_uid": firebase_uid})
+    user_data = users_collection.find_one({"firebase_uid": firebase_uid})
     if not user:
         raise HTTPException(status_code=404, detail="User not found in database")
     
-    return UserResponse(**user.model_dump())
+    return UserResponse(**user_data)
 
 @router.get("/", response_model=List[UserResponse])
-async def get_all_users():
+async def get_all_users(user=Depends(verify_token)):
     users_cursor = users_collection.find()
     users = list(users_cursor)
 
@@ -205,7 +173,7 @@ async def update_user_profile(update_data: UserUpdate, user=Depends(verify_token
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = users_collection.find_one({"id": firebase_uid})
+    updated_user = users_collection.find_one({"firebase_uid": firebase_uid})
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found after update")
 
