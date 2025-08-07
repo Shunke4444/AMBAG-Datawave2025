@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import BalanceCard from '../dashboard/BalanceCard';
+import MemberHeader from '../members/MemberHeader'
 import HouseBillsCard from '../dashboard/HouseBillsCard';
 import ActionButtons from '../dashboard/ActionButtons';
 import RecentActivity from '../dashboard/RecentActivity';
 import ResponsiveGoals from '../goals/ResponsiveGoals';
+import LoanPage from '../loan/LoanPage';
+
 export default function MemberPage() {
+  const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
+
   const handlePayShare = () => {
     console.log('Pay Share clicked');
   };
@@ -17,6 +22,14 @@ export default function MemberPage() {
     console.log('Deposit clicked');
   };
 
+  const handleLoan = () => {
+    setIsLoanModalOpen(true);
+  };
+
+  const handleCloseLoanModal = () => {
+    setIsLoanModalOpen(false);
+  };
+
   const mockBills = [
     { label: 'Your Share', amount: 4000 },
     { label: "You've Paid", amount: 2000 },
@@ -27,7 +40,7 @@ export default function MemberPage() {
   return (
     <div className="min-h-screen bg-secondary">
       <main className="h-[59vh]  md:h-[50vh] lg:h-[52.5vh] bg-primary shadow-lg">
-        
+        <MemberHeader userName="Johnny" />
         <BalanceCard balance="123,456" />
 
         <ResponsiveGoals />
@@ -35,11 +48,18 @@ export default function MemberPage() {
           onPayShare={handlePayShare}
           onRequest={handleRequest}
           onDeposit={handleDeposit}
+          onLoan={handleLoan}
         />
         <RecentActivity />
         {/* Bottom spacing for mobile */}
         <div className="h-8"></div>
       </main>
+
+      {/* Loan Modal */}
+      <LoanPage 
+        isModalOpen={isLoanModalOpen}
+        onCloseModal={handleCloseLoanModal}
+      />
     </div>
   );
 }

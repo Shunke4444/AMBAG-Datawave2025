@@ -91,7 +91,7 @@ export default function Payment() {
   );
 
   const mobileLayout = (
-    <MobileLayout title="Share Payment">
+    <MobileLayout title="Mobile Payment">
       {/* Add shake animation styles and disable scrolling */}
       <style jsx global>{`
         @keyframes shake {

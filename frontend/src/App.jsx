@@ -67,6 +67,7 @@ const router = createBrowserRouter([
       {path: 'transaction-history', element: <TransactionHistory />},
       {path: 'manager-notifications', element: <ManagerNotifications />},
       {path: 'member-requests', element: <Request />},
+      {path: 'requests', element: <Request />},
       {path: 'payment', element: <Payment />},
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},

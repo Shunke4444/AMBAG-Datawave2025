@@ -11,6 +11,7 @@ import {
   Flag,
   Notifications
 } from '@mui/icons-material';
+import MobileLayout from '../payments/PaymentLayout';
 
 export default function MemberNotification() {
   const navigate = useNavigate();
@@ -244,18 +245,10 @@ export default function MemberNotification() {
   ];
 
   return (
-    <main className="min-h-screen">
-      {/* Header */}
-      <header className="bg-primary text-secondary p-4 sm:p-6 flex justify-between items-center">
-        <h1 className="text-lg sm:text-xl font-semibold">Notifications</h1>
-        <button className="text-secondary hover:text-accent transition-colors">
-          <Notifications className="w-6 h-6" />
-        </button>
-      </header>
-
+    <MobileLayout title="Notifications">
       {/* Content */}
-      <section className="bg-primary rounded-t-3xl  pt-6 pb-6 min-h-[calc(100vh-120px)]" aria-label="Notifications">
-        <div className="px-4 sm:px-6 max-w-4xl mx-auto">
+      <section className="pt-6 pb-6" aria-label="Notifications">
+        <div className="max-w-4xl mx-auto">
           {notifications.map((section, sectionIndex) => (
             <section key={sectionIndex} className="mb-6 sm:mb-8" aria-labelledby={`section-${sectionIndex}`}>
               {/* Section Header */}
@@ -391,6 +384,6 @@ export default function MemberNotification() {
           )}
         </div>
       </section>
-    </main>
+    </MobileLayout>
   );
 }

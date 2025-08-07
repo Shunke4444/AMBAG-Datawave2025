@@ -16,7 +16,7 @@ import { useTheme, useMediaQuery } from "@mui/material";
 import useIsMobile from "../../hooks/useIsMobile";
 import Notifications from "../../features/notifications/Notifications";
 import mockNotifs from "../../features/notifications/mockNotifs";
-
+import MobileHeader from "../../components/MobileHeader";
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
@@ -26,7 +26,13 @@ const Layout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isUseMobile = useIsMobile();
 
-  const isFullScreenPage = location.pathname === '/ai-assistant';
+  const isFullScreenPage = location.pathname === '/ai-assistant' || 
+                        location.pathname.includes('/payment') || 
+                        location.pathname.includes('/confirm') || 
+                        location.pathname.includes('/receipt') ||
+                        location.pathname.includes('/request') ||
+                        location.pathname.includes('member-requests') ||
+                        location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
 
   // Notification dialog handlers (placeholders)
@@ -56,28 +62,7 @@ const Layout = () => {
   if (isUseMobile) {
     return (
       <>
-        <div className="flex justify-between items-center p-4 bg-primary">
-          <button className="cursor-pointer">
-            <MenuIcon className="text-secondary"/>
-          </button>
-          <p className="text-md font-semibold text-secondary">
-            Hello <span className="text-yellow-400 font-bold">User!</span>
-          </p>
-          <div className="flex gap-4">
-            <button onClick={() => navigate('ai-assistant')} className="cursor-pointer">
-              <AssistantIcon className="text-secondary"/>
-            </button>
-            <button className="cursor-pointer">
-              <NotifyIcon onClick={toggleNotifDialog} className="text-secondary" />
-            </button>
-            <button onClick={() => navigate("/help-support")} className="cursor-pointer">
-              <SupportIcon className="text-secondary" />
-            </button>
-            <button onClick={() => navigate("/settings")} className="cursor-pointer">
-              <SettingIcon className="text-secondary" />
-            </button>
-          </div>
-        </div>
+        {!isFullScreenPage && <MobileHeader title={getPageTitle()} />}
 
         <Outlet />
         {notifDialogOpen && (
@@ -90,7 +75,7 @@ const Layout = () => {
         )}
 
         {/* Mobile Bottom Nav */}
-        {!isFullScreenPage && (
+        {/* {!isFullScreenPage && (
           <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
             <button onClick={() => navigate("/dashboard")} className="flex flex-col items-center text-primary text-xs">
               <HomeIcon className="text-primary" />
@@ -105,7 +90,7 @@ const Layout = () => {
               <span>Members</span>
             </button>
           </nav>
-        )}
+        )} */}
       </>
     );
   }
