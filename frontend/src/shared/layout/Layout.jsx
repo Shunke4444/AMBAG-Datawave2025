@@ -75,22 +75,43 @@ const Layout = () => {
         )}
 
         {/* Mobile Bottom Nav */}
-        {/* {!isFullScreenPage && (
+        {!isFullScreenPage && (
           <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
-            <button onClick={() => navigate("/dashboard")} className="flex flex-col items-center text-primary text-xs">
-              <HomeIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/dashboard")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/dashboard' || location.pathname === '/' 
+                  ? 'text-primary' 
+                  : 'text-gray-400'
+              }`}
+            >
+              <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
               <span>Home</span>
             </button>
-            <button onClick={() => navigate("/requests")} className="flex flex-col items-center text-gray-400 text-xs">
-              <RequestsIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/requests-approval")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/requests-approval' 
+                  ? 'text-primary' 
+                  : 'text-gray-400'
+              }`}
+            >
+              <RequestsIcon className={location.pathname === '/requests-approval' ? "text-primary" : "text-gray-400"} />
               <span>Requests</span>
             </button>
-            <button onClick={() => navigate("/members")} className="flex flex-col items-center text-gray-400 text-xs">
-              <MembersSettingsIcon className="text-primary" />
+            <button 
+              onClick={() => navigate("/members")} 
+              className={`flex flex-col items-center text-xs ${
+                location.pathname === '/members' 
+                  ? 'text-primary' 
+                  : 'text-gray-400'
+              }`}
+            >
+              <MembersSettingsIcon className={location.pathname === '/members' ? "text-primary" : "text-gray-400"} />
               <span>Members</span>
             </button>
           </nav>
-        )} */}
+        )}
       </>
     );
   }

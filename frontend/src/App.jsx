@@ -28,6 +28,7 @@ import ConfirmPay from './features/payments/ConfirmPayPage';
 import Receipt from './features/payments/ReceiptPage';
 import HelpSupport from './features/help-support/HelpSupportPage';
 import MemberNotification from './features/notifications/MemberNotificationPage';
+import MemberRequestApproval from './features/manager/MemberRequestApproval'
 
 const router = createBrowserRouter([
   {
@@ -72,6 +73,7 @@ const router = createBrowserRouter([
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},
       {path: 'member-notification', element: <MemberNotification />},
+      {path: 'requests-approval', element: <MemberRequestApproval />},
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
