@@ -8,7 +8,7 @@ import RecentActivity from "./RecentActivity";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import MemberPage from "../../features/members/MemberPage";
 
-const MemberDashboard = () => {
+const MemberDashboard = ({onLoan}) => {
   
   const isUseMobile = useIsMobile();
   if (isUseMobile) {
@@ -38,7 +38,7 @@ const MemberDashboard = () => {
           <ConsistencyStat />
         </div>
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl">
-          <DashboardBtns />
+          <DashboardBtns onLoan={onLoan}/>
         </div>
       </div>
     </main>

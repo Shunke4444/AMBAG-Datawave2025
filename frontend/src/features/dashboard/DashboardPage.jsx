@@ -8,17 +8,21 @@ import useIsMobile from "../../hooks/useIsMobile"; // ✅ import your hook
 
 const Dashboard = () => {
   const [isLoanOpen, setIsLoanOpen] = useState(false);
-  const authRole = "Member"; // Hard-coded for testing
+  const authRole = "Manager"; // Hard-coded for testing
   const isMobile = useIsMobile(); // ✅ detect mobile
 
   return (
     <>
-      {authRole === "Manager" && <ManagerDashboard />}
-      {authRole === "Member" && <MemberDashboard />}
+      {authRole === "Manager" && (
+        <ManagerDashboard onLoan={() => setIsLoanOpen(true)} />
+      )}
+      {authRole === "Member" && (
+        <MemberDashboard onLoan={() => setIsLoanOpen(true)} />
+      )}
       {authRole === "NewUser" && <NewUserDashboard />}
 
       {/* ✅ Only show buttons if NOT mobile */}
-      {!isMobile && <DashboardBtns onLoan={() => setIsLoanOpen(false)} />}
+      {!isMobile && <DashboardBtns onLoan={() => setIsLoanOpen(true)} />}
 
       <LoanRequestModal
         isOpen={isLoanOpen}

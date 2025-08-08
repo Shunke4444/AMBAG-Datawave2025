@@ -9,7 +9,7 @@ import RecentActivity from "./RecentActivity";
 import ActionButtons from "./ActionButtons";
 import MemberHeader from "../members/MemberHeader";
 
-const ManagerDashboard = () => {
+const ManagerDashboard = ({onLoan}) => {
   const isUseMobile = useIsMobile();
 
   if (isUseMobile) {
@@ -29,7 +29,7 @@ const ManagerDashboard = () => {
 
         {/* Dashboard Buttons */}
         <div className="p-4">
-          <ActionButtons />
+          <ActionButtons onLoan={onLoan}/>
         </div>
 
         {/* Contribution Summary */}
@@ -64,7 +64,7 @@ const ManagerDashboard = () => {
           <ConsistencyStat />
         </div>
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
-          <DashboardBtns />
+          <DashboardBtns onLoan={onLoan}/>
         </div>
       </div>
     </main>
