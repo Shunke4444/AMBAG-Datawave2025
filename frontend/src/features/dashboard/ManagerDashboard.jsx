@@ -7,6 +7,7 @@ import GoalCardGlassMobile from "../goals/GoalCardGlassMobile";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import RecentActivity from "./RecentActivity";
 import ActionButtons from "./ActionButtons";
+import MemberHeader from "../members/MemberHeader";
 
 const ManagerDashboard = () => {
   const isUseMobile = useIsMobile();
@@ -17,8 +18,7 @@ const ManagerDashboard = () => {
         {/* Header */}
         <div className="bg-primary text-white px-4 pt-6 pb-4 rounded-b-3xl">
           <div className="mt-2">
-            <p className="text-sm">Balance</p>
-            <h2 className="text-3xl font-bold">₱123,456</h2>
+            <MemberHeader />
           </div>
 
           {/* Goals (Mobile version of GoalCards) */}
