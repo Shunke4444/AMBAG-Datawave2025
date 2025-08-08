@@ -1,27 +1,42 @@
 import { createBrowserRouter, RouterProvider }  from 'react-router-dom';
-import { ChatProvider } from './contexts/ChatContext';
-import Layout from './pages/Layout';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Goals from './pages/Goals';
-import Settings from './pages/Settings';
-import AIAssistant from './pages/AIAssitant';
-import WhatIf from './pages/WhatIf'
-import Withdrawal from './pages/Withdrawal';
-import Deposit from './pages/Deposit';
-import TransactionHistory from './pages/TransactionHistory';
-import AuditLogs from './pages/AuditLogs';
-import WithdrawForm from './pages/WithdrawForm';
-import DepositForm from './pages/DepositForm';
-import ProfileTab from './components/ProfileTab';
-import AccountSecurityTab from './components/AccountSecurityTab';
-import PreferencesTab from './components/PreferencesTab';
-import PrivacyLegalTab from './components/PrivacyLegalTab';
-import NotificationsTab from './components/NotificationsTab';
+import ChatProvider from './contexts/ChatProvider';
+import  AuthRoleProvider  from './contexts/AuthRoleProvider';
+import Layout from './shared/layout/Layout';
+import Login from './features/auth/LoginPage';
+import Signup from './features/auth/SignupPage';
+import Dashboard from './features/dashboard/DashboardPage';
+import Goals from './features/goals/GoalsPage';
+import Settings from './features/settings/SettingsPage';
+import AIAssistant from './features/ai-assistant/AIAssistantPage';
+import WhatIf from './features/what-if/WhatIfPage'
+import Withdrawal from './features/transactions/WithdrawalPage';
+import Deposit from './features/transactions/DepositPage';
+import TransactionHistory from './features/transactions/TransactionHistoryPage';
+import MemberPage from './features/members/MemberPage';
+import ManagerNotifications from './features/notifications/ManagerNotificationPage';
+import AuditLogs from './features/transactions/AuditLogsPage';
+import WithdrawForm from './features/transactions/WithdrawForm';
+import DepositForm from './features/transactions/DepositForm';
+import ProfileTab from './features/settings/ProfileTab';
+import AccountSecurityTab from './features/settings/AccountSecurityTab';
+import PreferencesTab from './features/settings/PreferencesTab';
+import PrivacyLegalTab from './features/settings/PrivacyLegalTab';
+import NotificationsTab from './features/notifications/NotificationsTab';
+import Payment from './features/payments/PaymentPage';
+import Request from './features/members/RequestPage'
+import ConfirmPay from './features/payments/ConfirmPayPage';
+import Receipt from './features/payments/ReceiptPage';
+import HelpSupport from './features/help-support/HelpSupportPage';
+import MemberNotification from './features/notifications/MemberNotificationPage';
+import MemberRequestApproval from './features/manager/MemberRequestApproval'
+import MemberList from './features/manager/MemberList';
+import { OnboardingWrapper } from './features/on-boarding';
 
 const router = createBrowserRouter([
-  // Standalone Auth Pages (outside Layout)
+  {
+    path: '/',
+    element: <OnboardingWrapper />
+  },
   {
     path: '/login',
     element: <Login />
@@ -30,6 +45,16 @@ const router = createBrowserRouter([
     path: '/signup',
     element: <Signup />
   },
+  {
+    path: '/member',
+    element: <MemberPage />
+  },
+  {
+    path: '/payment',
+    element: <Payment />
+    // add children later
+  },
+
   // Main App with Layout
   { path: '/' , 
     element: <Layout />,
@@ -45,7 +70,17 @@ const router = createBrowserRouter([
       {path: 'transactions/audit', element: <AuditLogs /> },
       {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
       {path: 'transactions/depositProcess', element: <DepositForm /> },  
-      {path: ' ', element: <TransactionHistory />},
+      {path: 'transaction-history', element: <TransactionHistory />},
+      {path: 'manager-notifications', element: <ManagerNotifications />},
+      {path: 'member-requests', element: <Request />},
+      {path: 'requests', element: <Request />},
+      {path: 'payment', element: <Payment />},
+      {path: 'payment/confirm', element: <ConfirmPay />},
+      {path: 'receipt', element: <Receipt />},
+      {path: 'member-notification', element: <MemberNotification />},
+      {path: 'requests-approval', element: <MemberRequestApproval />},
+      {path: 'member-list', element: <MemberList />},
+
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
@@ -55,15 +90,19 @@ const router = createBrowserRouter([
           { path: "privacy-legal", element: <PrivacyLegalTab /> },
         ]
       },
+      {path: 'help-support', element: <HelpSupport /> },
     ],
   },
 ])
 
+
 const App = () => {
   return (
-    <ChatProvider>
-      <RouterProvider router={router} />
-    </ChatProvider>
+    <AuthRoleProvider> 
+      <ChatProvider>   
+        <RouterProvider router={router} />
+      </ChatProvider>
+    </AuthRoleProvider>
   )
 }
 export default App
