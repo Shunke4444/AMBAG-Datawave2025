@@ -16,7 +16,7 @@ router = APIRouter(
     tags=["groups"]
 )
 
-group_db: Dict[str, "Group"] = {} 
+# group_db: Dict[str, "Group"] = {} 
 
 class GroupBase(BaseModel):
     name: str
@@ -221,6 +221,7 @@ def update_member_role(group_id: str, firebase_uid: str, new_role: str, user=Dep
     )
     return {"message": f"Member role updated to {new_role}"}
 
+# We settle on one group per person so i dont think we need this route
 @router.get("/user/{user_id}", response_model=List[GroupResponse])
 def get_user_groups(user_id: str):
     """Get all groups where user is a member"""
@@ -228,14 +229,14 @@ def get_user_groups(user_id: str):
 
     user_groups = []
     
-    for group in group_db.values():
-        for member in group.members:
-            if member.user_id == user_id and member.is_active:
-                user_groups.append(GroupResponse(
-                    **group.model_dump(),
-                    member_count=len(group.members)
-                ))
-                break
+    # for group in group_db.values():
+    #     for member in group.members:
+    #         if member.user_id == user_id and member.is_active:
+    #             user_groups.append(GroupResponse(
+    #                 **group.model_dump(),
+    #                 member_count=len(group.members)
+    #             ))
+    #             break
     
     return user_groups
 

@@ -11,6 +11,7 @@ from .ai_client import get_ai_client
 
 from .goal import goals, pool_status
 from .groups import group_db
+from .mongo import goals_collection, pool_status_collection, groups_collection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,20 +19,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-tools", tags=["ai-tools"])
 
 def get_goal_by_id(goal_id: str):
-    return goals.get(goal_id)
+    return goals_collection.find_one({"goal_id": goal_id})
 
 def get_group_by_id(group_id: str):
-    return group_db.get(group_id)
+    return groups_collection.find_one({"group_id": group_id})
 
 def find_group_for_goal(goal_id: str):
-    for group_id, group in group_db.items():
-        goal = goals.get(goal_id)
-        if goal and hasattr(group, 'members'):
-            member_names = [member.user_id for member in group.members] if isinstance(group.members, list) else []
-            # Check if goal creator matches any member or manager
-            creator_user_id = f"user_{goal.creator_name.replace(' ', '_').lower()}"
-            if creator_user_id in member_names or goal.creator_name == group.manager_id:
-                return group
+    # for group_id, group in group_db.items():
+    #     goal = goals.get(goal_id)
+    #     if goal and hasattr(group, 'members'):
+    #         member_names = [member.user_id for member in group.members] if isinstance(group.members, list) else []
+    #         # Check if goal creator matches any member or manager
+    #         creator_user_id = f"user_{goal.creator_name.replace(' ', '_').lower()}"
+    #         if creator_user_id in member_names or goal.creator_name == group.manager_id:
+    #             return group
+    # return None
+    # Get the goal document from Mongo
+
+    goal = goals_collection.find_one({"goal_id": goal_id})
+    if not goal:
+        return None
+
+    creator_user_id = f"user_{goal['creator_name'].replace(' ', '_').lower()}"
+
+    for group in groups_collection.find():
+        members = group.get("members", [])
+
+        member_names = [member["user_id"] for member in members if isinstance(member, dict) and "user_id" in member]
+        if creator_user_id in member_names or goal["creator_name"] == group.get("manager_id"):
+            return group
+
     return None
 
 def convert_goal_to_group_format(goal_id: str):

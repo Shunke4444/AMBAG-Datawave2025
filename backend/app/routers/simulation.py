@@ -7,8 +7,9 @@ from uuid import uuid4
 
 # Import AI client and data sources
 from .ai_client import get_ai_client
-from .goal import goals, pool_status
-from .groups import group_db
+# from .goal import goals, pool_status
+from .mongo import goals_collection, pool_status_collection, groups_collection
+# from .groups import group_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
