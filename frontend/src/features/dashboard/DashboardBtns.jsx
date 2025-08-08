@@ -2,130 +2,57 @@
 // import { useAuthRole } from "../../contexts/AuthRoleContext";
 import {
   Addchart as AddGoalIcon,
-  NotificationsActive as NotifyIcon,
-  SettingsAccessibility as ManageMembersIcon,
-  RequestPage as SendRequestIcon,
-  Payments as DepositIcon,
-  PsychologyAlt as WithdrawIcon,
-  CreditScore as LoanIcon
+  SettingsAccessibility as MemberSettingsIcon,
+  Payments as PayShareIcon,
+  PsychologyAlt as RequestFundsIcon,
+  CreditScore as LoanIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
-import useIsMobile from '../../hooks/useIsMobile';
 
 
-const DashboardBtns = () => {
+const DashboardBtns = ({onLoan}) => {
   const authRole = "Manager"; // later replace with useAuthRole()
-  const isMobile = useIsMobile();
+;
+  const navigate = useNavigate();
 
-  const btnClass = `
-  ${isMobile ? "bg-accent" : "bg-primary"}
-  text-white hover:bg-primary/80
-  w-20 h-20 sm:w-24 sm:h-24 sm:
-  px-8 py-8 my-4
-  rounded-lg shadow cursor-pointer
-  flex flex-col items-center justify-center
-  text-sm sm:text-base
-`;
-
-  // Shared buttons (used in both arrays)
-  const sharedMobileButtons = [
-    {
-      icon: <DepositIcon />,
-      label: "Share Contribute",
-    },
-    {
-      icon: <WithdrawIcon />,
-      label: "Ask Funds",
-    },
-  ];
-
+  const handleLoan = () => {
+    if (onLoan) onLoan();
+  };
   // Role-specific buttons
-  const memberMobileButtons = [
-    {
-      icon: <SendRequestIcon />,
-      label: "Send Request",
-    },
-    ...sharedMobileButtons,
-  ];
-
-  const managerMobileButtons = [
-    ...sharedMobileButtons,
-    {
-      icon: <LoanIcon />, // ← Replace with your actual nudge/notify icon
-      label: "Loan",
-    },
-    
-  ];
-
-  // Role-based buttons (desktop only)
   const managerButtons = [
-    {
-      icon: <AddGoalIcon />,
-      label: "Add Goals",
-    },
-    {
-      icon: <NotifyIcon />,
-      label: "Notify Members",
-    },
-    {
-      icon: <ManageMembersIcon />,
-      label: "Manage Members",
-    },
+    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment") },
+    { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
+    { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
+    { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
 
   const memberButtons = [
-    {
-      icon: <SendRequestIcon />,
-      label: "Send Request",
-    },
-    {
-      icon: <DepositIcon />,
-      label: "Share Contribute",
-    },
-    {
-      icon: <WithdrawIcon />,
-      label: "Ask Funds",
-    },
+    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment")},
+    { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests")},
+    { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
 
-  // Define buttons for mobile and desktop
-  const mobileButtons = authRole === "Manager" 
-    ? managerMobileButtons 
-    : memberMobileButtons;
-
-  const desktopButtons = authRole === "Manager" 
-    ? managerButtons 
-    : memberButtons;
-
-  const selectedButtons = isMobile ? mobileButtons : desktopButtons;
-
-  // Render (only if isMobile is true)
-  if (isMobile) {
-    return (
-      <div className="flex gap-16 justify-center">
-        <div className="flex gap-8">
-          {selectedButtons.map(({ icon, label }, index) => (
-            <button key={index} className={btnClass}>
-              {icon}
-              <p>{label}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  // Select which set to use
+  const selectedButtons = authRole === "Manager" ? managerButtons : memberButtons;
+  
 
   return (
-    <div className='flex gap-16'>
+    <div className='flex w-full max-w-5xl mx-auto p-4'>
       <div>
         <h1 className='font-bold text-md p-8 text-primary'>
           {authRole === "Manager" ? "Current Members: 4" : "Current Members: 4"}
         </h1>
       </div>
-      <div className='flex gap-8'>
-        {selectedButtons.map(({ icon, label }, index) => (
-          <button key={index} className={btnClass}>
+      <div className='flex flex-wrap justify-center gap-6'>
+        {selectedButtons.map(({ icon, label, action }, index) => (
+          <button 
+          key={index} 
+          onClick={action}
+          className="bg-primary text-white hover:bg-primary/80
+                  w-24 h-24 rounded-lg shadow cursor-pointer
+                  flex flex-col items-center justify-center
+                  text-sm">
             {icon}
             <p>{label}</p>
           </button>

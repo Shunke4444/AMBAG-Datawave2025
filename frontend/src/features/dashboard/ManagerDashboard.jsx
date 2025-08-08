@@ -6,6 +6,7 @@ import useIsMobile from "../../hooks/useIsMobile";
 import GoalCardGlassMobile from "../goals/GoalCardGlassMobile";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import RecentActivity from "./RecentActivity";
+import ActionButtons from "./ActionButtons";
 
 const ManagerDashboard = () => {
   const isUseMobile = useIsMobile();
@@ -28,7 +29,7 @@ const ManagerDashboard = () => {
 
         {/* Dashboard Buttons */}
         <div className="p-4">
-          <DashboardBtns />
+          <ActionButtons />
         </div>
 
         {/* Contribution Summary */}
@@ -47,12 +48,9 @@ const ManagerDashboard = () => {
   // Desktop Layout
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-372 h-176 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4">
+      <div className="w-372 h-192 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4">
         {/* Member List - Tall Left Box */}
         <div className="bg-secondary rounded-2xl p-4 col-span-1">
-          <p className="text-md font-bold text-primary bg-gray-200 p-3 rounded-2xl shadow-gray-300 shadow">
-            Group Contribution Status
-          </p>
           <ContributionDiv />
         </div>
 

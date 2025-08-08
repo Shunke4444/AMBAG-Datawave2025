@@ -82,7 +82,7 @@ const ContributionDiv = () => {
 
   return (
     <div className="max-h-[550px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
-      <h1 className="flex justify-center text-md font-bold text-primary mt-8 ">
+      <h1 className="flex justify-center text-md font-bold text-primary mt-4 ">
             Group Contribution Status
           </h1>
         {contributionsList.length === 0 ? (

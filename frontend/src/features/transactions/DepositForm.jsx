@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   InputLabel,
   MenuItem,
@@ -10,10 +11,15 @@ import {
   OutlinedInput
 } from '@mui/material';
 
+import useIsMobile from '../../hooks/useIsMobile';
+
 
 const DepositForm = () => {
 
   const [methodOption, setMethodOption] = useState('');
+  const navigate = useNavigate();
+  const isUseMobile = useIsMobile();
+  
 
   const optionChange = (event) => {
     setMethodOption(event.target.value);
@@ -46,6 +52,89 @@ const DepositForm = () => {
     (option) => option.name === methodOption
   );
 
+  if (isUseMobile) {
+  return (
+    <main className="flex flex-col w-full min-h-screen p-4 bg-secondary">
+      <div className="bg-white rounded-2xl shadow flex flex-col gap-12 p-4 space-y-6">
+        {/* Payment Method Select */}
+        <FormControl
+          fullWidth
+          variant="outlined"
+          sx={{
+            backgroundColor: 'white',
+            borderRadius: 2
+          }}
+        >
+          <InputLabel id="payMethod">Payment Options</InputLabel>
+          <Select
+            labelId="payMethod"
+            id="payMethodOptions"
+            value={methodOption}
+            onChange={optionChange}
+            label="Payment Options"
+          >
+            <MenuItem value="Bank Card">Bank Card</MenuItem>
+            <MenuItem value="PayMaya">Maya Wallet</MenuItem>
+            <MenuItem value="GCash">GCash</MenuItem>
+            <MenuItem value="Gotyme">Gotyme</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Account Number */}
+        <TextField
+          fullWidth
+          required
+          id="accountNum"
+          label="Account Number"
+          variant="outlined"
+          sx={{
+            backgroundColor: 'white',
+            borderRadius: 2,
+            '& .MuiOutlinedInput-root': { borderRadius: 2 },
+          }}
+        />
+
+        {/* Amount Field */}
+        <FormControl
+          fullWidth
+          variant="outlined"
+          sx={{ backgroundColor: 'white', borderRadius: 2 }}
+        >
+          <InputLabel htmlFor="outlined-adornment-amount">Amount</InputLabel>
+          <OutlinedInput
+            id="outlined-adornment-amount"
+            startAdornment={<InputAdornment position="start">₱</InputAdornment>}
+            label="Amount"
+          />
+        </FormControl>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="bg-primary p-4 font-medium text-base rounded-lg text-white w-full cursor-pointer"
+          onClick={()=>navigate('receipt')}
+        >
+          Continue
+        </button>
+      </div>
+
+      {/* Payment Method Details */}
+      <div className="mt-6 bg-white rounded-2xl shadow p-4">
+        {selectedOption ? (
+          <>
+            <h2 className="text-lg font-semibold">{selectedOption.name}</h2>
+            <p className="text-sm">Processing Time: {selectedOption.payTime}</p>
+            <p className="text-sm">Fee: {selectedOption.fee}</p>
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Select a method to see details
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
@@ -103,6 +192,7 @@ const DepositForm = () => {
           <button type='submit'
             className='bg-primary p-4 font-medium text-xs rounded-md text-secondary cursor-pointer'
             fullWidth
+            onClick={()=>navigate('receipt')}
           >
             Continue
           </button>

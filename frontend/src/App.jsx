@@ -31,6 +31,7 @@ import MemberNotification from './features/notifications/MemberNotificationPage'
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -89,7 +90,7 @@ const router = createBrowserRouter([
           { path: "privacy-legal", element: <PrivacyLegalTab /> },
         ]
       },
-      {path: 'help-support', element: <HelpSupport /> }
+      {path: 'help-support', element: <HelpSupport /> },
     ],
   },
 ])

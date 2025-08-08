@@ -1,8 +1,8 @@
 
-import { ArrowBack, SmartToy, Notifications } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-export default function MobileHeader({ title = "Page Title", onNotifClick }) {
+export default function MobileHeader({ title = "Page Title" }) {
   const navigate = useNavigate();
 
   const handleGoBack = () => {
@@ -24,17 +24,6 @@ export default function MobileHeader({ title = "Page Title", onNotifClick }) {
       <h1 className="text-lg sm:text-xl font-bold text-textcolor truncate flex-1 text-center">
         {title}
       </h1>
-
-      {/* Icons */}
-      <div className="flex items-center gap-2">
-        <button onClick={()=>navigate('ai-assistant')} 
-        className="cursor-pointer text-primary hover:bg-primary hover:text-secondary rounded-3xl p-2">
-          <SmartToy />
-        </button>
-        <button onClick={onNotifClick} className="cursor-pointer text-primary hover:bg-primary hover:text-secondary rounded-3xl p-2">
-          <Notifications />
-        </button>
-      </div>
     </header>
   );
 }

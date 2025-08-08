@@ -8,8 +8,12 @@ import paymayaLogo from '../../assets/images/Maya_idX88ZrhHL_0.svg';
 import gotymeLogo from '../../assets/images/GoTyme Bank_idtt229khU_0.svg';
 import gcashLogo from '../../assets/images/GCash_idlCbQ7pNh_1.svg';
 
+import useIsMobile from '../../hooks/useIsMobile';
+
 const Deposit = () => {
   const navigate = useNavigate();
+  const isUseMobile = useIsMobile();
+
 
   const savedMethods = [
     { name: "Bank Card", type: "ATM", accNum: "**** **** **** 7890" },
@@ -22,6 +26,87 @@ const Deposit = () => {
     { name: "Maya Wallet", processTime: "5-10 mins", fee: "5%", limit: "0.00 - 10,000.00", logo: paymayaLogo },
     { name: "GoTyme", processTime: "5-10mins", fee: "6%", limit: "0.00 - 10,000.00", logo: gotymeLogo },
   ];
+
+  if (isUseMobile) {
+    return (
+      <main className="flex flex-col w-full min-h-screen bg-primary">
+      <div className="p-4">
+        
+        {/* Saved Methods */}
+        <h1 className="text-lg text-secondary font-light mb-3">
+          Saved Deposit Methods
+        </h1>
+        <div className="flex flex-col gap-4">
+          {savedMethods.map((saved, index) => (
+            <Card
+              key={index}
+              className="rounded-xl shadow-md overflow-hidden"
+            >
+              <CardActionArea onClick={() => navigate('/transactions/depositProcess')}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-textcolor">{saved.name}</h3>
+                      <img src={mastercardLogo} alt="Mastercard" className="h-4" />
+                      <img src={visaLogo} alt="Visa" className="h-4" />
+                    </div>
+                    <button>
+                      <MoreIcon />
+                    </button>
+                  </div>
+                  <div className="text-textcolor space-y-1">
+                    <p className="font-semibold">{saved.type}</p>
+                    <p className="font-medium">{saved.accNum}</p>
+                  </div>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          ))}
+        </div>
+
+        {/* Other Methods */}
+        <h3 className="text-lg text-secondary font-light mt-6 mb-3">
+          Other Payment Methods
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {otherMethods.map((method, index) => (
+            <Card
+              key={index}
+              className="rounded-xl shadow-md overflow-hidden"
+            >
+              <CardActionArea onClick={() => navigate('/transactions/depositProcess')}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-textcolor">{method.name}</h3>
+                      {method.name === 'Bank Card' ? (
+                        <>
+                          <img src={mastercardLogo} alt="Mastercard" className="h-4" />
+                          <img src={visaLogo} alt="Visa" className="h-4" />
+                        </>
+                      ) : (
+                        method.logo && (
+                          <img src={method.logo} alt={method.name} className="h-5" />
+                        )
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-textcolor space-y-1">
+                    <p className="font-light">Processing Time: {method.processTime}</p>
+                    <p className="font-light">Fee: {method.fee}</p>
+                    <p className="font-light">Limit: {method.limit}</p>
+                  </div>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          ))}
+        </div>
+
+      </div>
+    </main>
+
+    )
+  }
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">

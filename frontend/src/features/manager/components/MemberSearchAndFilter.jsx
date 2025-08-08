@@ -45,7 +45,7 @@ const MemberSearchAndFilter = ({
               filterStatus === status
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+            }cursor-pointer`}
             aria-pressed={filterStatus === status}
             aria-label={`Filter by ${formatStatusText(status)} status`}
           >

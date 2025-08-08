@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useMediaQuery } from '@mui/material';
 import { ArrowBack, CheckCircle } from '@mui/icons-material';
@@ -32,10 +32,14 @@ export default function Receipt() {
     })
   };
 
+  
   const handleGoHome = () => {
-    navigate('/member'); 
+    if (isMobile) {
+      navigate("/member"); // mobile route
+    } else {
+      navigate("/dashboard"); // desktop route
+    }
   };
-
   const desktopLayout = (
     <div className="min-h-screen bg-secondary overflow-hidden">
       {/* Global styles to disable scrolling */}
