@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Union
 from datetime import datetime, date, timedelta
-from .mongo import goals_collection, pool_status_collection, pending_goals_collection, auto_payment_queue_collection, virtual_balances_collection, notifications_collection
+from .mongo import users_collection, goals_collection, pool_status_collection, pending_goals_collection, auto_payment_queue_collection, virtual_balances_collection, notifications_collection
 from .verify_token import verify_token
 import uuid
 import logging
@@ -56,8 +56,8 @@ router = APIRouter(prefix="/goal", tags=["goals"])
 
 async def notify_contributors_of_completion(goal_id: str, confirmation: Dict):
     """Notify all contributors that goal is completed and paid"""
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
-    contributors = pool_status_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
+    contributors = await pool_status_collection.find_one({"goal_id": goal_id})
     contributors = contributors.get("contributors", [])
     
     notification = {
@@ -96,7 +96,7 @@ async def notify_contributors_of_completion(goal_id: str, confirmation: Dict):
                 "contributors_count": len(contributors)
             }
         }
-        notifications_collection.insert_one(ai_notification)
+        await notifications_collection.insert_one(ai_notification)
         logger.info(f"✅ Auto payment success notification sent to AI tools system for goal {goal_id}")
         
     except ImportError:
@@ -112,8 +112,6 @@ async def notify_contributors_of_completion(goal_id: str, confirmation: Dict):
 async def notify_manager_of_request(request_id: str, request_data: Dict):
     """Notify manager when a new request is submitted"""
     try:
-        from .ai_tools_clean import notifications_db
-        
         # Create notification for manager
         manager_notification = {
             "id": f"request_{request_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -136,7 +134,7 @@ async def notify_manager_of_request(request_id: str, request_data: Dict):
             }
         }
         
-        notifications_db.append(manager_notification)
+        await notifications_collection.insert_one(manager_notification)
         logger.info(f"📧 Manager notification sent for request {request_id}")
         
     except ImportError:
@@ -147,8 +145,6 @@ async def notify_manager_of_request(request_id: str, request_data: Dict):
 async def notify_member_of_request_response(request_id: str, response_data: Dict):
     """Notify member when manager responds to their request"""
     try:
-        from .ai_tools_clean import notifications_db
-        
         # Create notification for member
         member_notification = {
             "id": f"response_{request_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -170,7 +166,7 @@ async def notify_member_of_request_response(request_id: str, response_data: Dict
             }
         }
         
-        notifications_db.append(member_notification)
+        await notifications_collection.insert_one(member_notification)
         logger.info(f"💬 Member notification sent for request response {request_id}")
         
     except ImportError:
@@ -181,7 +177,7 @@ async def notify_member_of_request_response(request_id: str, response_data: Dict
 async def notify_goal_approval_decision(goal_id: str, approval_data: Dict):
     """Notify goal creator when manager approves or rejects their goal"""
     try:
-        pending_goal = pending_goals_collection.find_one({"goal_id": goal_id})
+        pending_goal = await pending_goals_collection.find_one({"goal_id": goal_id})
         if not pending_goal:
             return
         
@@ -211,7 +207,7 @@ async def notify_goal_approval_decision(goal_id: str, approval_data: Dict):
             }
         }
         
-        notifications_collection.insert_one(approval_notification)
+        await notifications_collection.insert_one(approval_notification)
         logger.info(f"🎯 Goal approval notification sent for goal {goal_id}: {approval_data['action']}")
         
     except ImportError:
@@ -222,17 +218,17 @@ async def notify_goal_approval_decision(goal_id: str, approval_data: Dict):
 async def notify_managers_of_pending_goal(goal_id: str, goal_data: Dict):
     """Notify managers when a new goal is submitted for approval"""
     try:
-        from .ai_tools_clean import notifications_db
-        from .users import users_db  # Import users to find managers
+        # from .ai_tools_clean import notifications_db
+        # from .users import users_db  # Import users to find managers
         
         # Find all managers
-        managers = [user for user in users_db.values() if user.role.role_type == "manager"]
+        managers = await users_collection.find({"role.role_type": "manager"}).to_list(length=None)
         
         for manager in managers:
             manager_notification = {
-                "id": f"pending_goal_{goal_id}_{manager.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "id": f"pending_goal_{goal_id}_{manager['firebase_uid']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 "type": "pending_goal_approval",
-                "recipient": manager.id,
+                "recipient": manager['firebase_uid'],
                 "group_id": goal_id,
                 "message": f"⏳ New Goal Pending Approval\n\n" +
                           f"Title: {goal_data['title']}\n" +
@@ -253,7 +249,7 @@ async def notify_managers_of_pending_goal(goal_id: str, goal_data: Dict):
                 }
             }
             
-            notifications_db.append(manager_notification)
+            await notifications_collection.insert_one(manager_notification)
         
         logger.info(f"⏳ Pending goal notifications sent to {len(managers)} managers for goal {goal_id}")
         
@@ -322,7 +318,7 @@ class pendingGoalResponse(BaseModel):
 
 # Bank-Free Auto Payment Functions
 async def process_bank_free_auto_payment(goal_id: str) -> Dict:
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         return {"error": "Goal not found or auto payment not configured"}
     
@@ -333,7 +329,7 @@ async def process_bank_free_auto_payment(goal_id: str) -> Dict:
     if not settings["enabled"]:
         return {"error": "Auto payment not enabled for this goal"}
     
-    pool_data = pool_status_collection.find_one({"goal_id": goal_id})
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
     amount = float(pool_data.get("current_amount", 0)) if pool_data else 0
 
     
@@ -362,14 +358,14 @@ async def process_bank_free_auto_payment(goal_id: str) -> Dict:
             "status": "awaiting_confirmation"
         }
 
-        auto_payment_queue_collection.insert_one(auto_payment_queue)
+        await auto_payment_queue_collection.insert_one(auto_payment_queue)
         
-        goals_collection.update_one(
+        await goals_collection.update_one(
             {"goal_id": goal_id},               
             {"$set": {"status": "awaiting_auto_payment"}} 
         )
 
-        pool_status_collection.update_one(
+        await pool_status_collection.update_one(
             {"goal_id": goal_id},               
             {"$set": {"status": "awaiting_auto_payment"}}
         )
@@ -385,8 +381,8 @@ async def process_bank_free_auto_payment(goal_id: str) -> Dict:
 
 async def process_virtual_balance_payment(goal_id: str) -> Dict:
     """Process payment using virtual balance system"""
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
-    amount = pool_status_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
+    amount = await pool_status_collection.find_one({"goal_id": goal_id})
     amount = amount.get("current_amount", 0)
     
     # Transfer to virtual payout balance
@@ -399,25 +395,25 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
         "created_at": datetime.now().isoformat()
     }
     
-    virtual_balances_collection.insert_one(virtual_balances)
+    await virtual_balances_collection.insert_one(virtual_balances)
     
     # Mark goal as completed immediately (virtual transfer)
 
-    goals_collection.update_one(
+    await goals_collection.update_one(
         {"goal_id": goal_id},               
         {"$set": {"status": "completed", "is_paid": True}} 
     )
 
-    pool_status_collection.update_one(
+    await pool_status_collection.update_one(
         {"goal_id": goal_id},               
         {"$set": {"status": "completed", "is_paid": True} }
     )
 
-    auto_payment_queue_collection.delete_one({"goal_id": goal_id})
+    await auto_payment_queue_collection.delete_one({"goal_id": goal_id})
 
     # Send success notification to AI tools system
     try:
-        contributors = pool_status_collection.find_one({"goal_id": goal_id})
+        await contributors = pool_status_collection.find_one({"goal_id": goal_id})
         contributors = contributors.get("contributors", [])
         
         # Add completion notification to AI tools system
@@ -446,7 +442,7 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
             }
         }
         
-        notifications_collection.insert_one(ai_notification)
+        await notifications_collection.insert_one(ai_notification)
         logger.info(f"✅ Auto payment success notification sent to AI tools system for goal {goal_id}")
         
     except ImportError:
@@ -480,8 +476,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
     goal_id = str(uuid.uuid4())
     current_time = datetime.now().isoformat()
 
-    goals_cursor = goals_collection.find()
-    goals = list(goals_cursor)
+    goals = await goals_collection.find().to_list(length=None)
 
     if not goals or goal_data.creator_role == "manager":
         new_goal = goal(
@@ -496,7 +491,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
             approved_at=current_time if goal_data.creator_role == "manager" else None, # how tf is ts getting approved if it doesnt get added in pending goals
             auto_payment_settings=goal_data.auto_payment_settings
         )
-        goals_collection.insert_one(new_goal.model_dump())
+        await goals_collection.insert_one(new_goal.model_dump())
         pool_status = {
             "goal_id": goal_id,
             "current_amount": 0.0,
@@ -505,7 +500,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
             "contributors": [] 
         }
 
-        pool_status_collection.insert_one(pool_status)
+        await pool_status_collection.insert_one(pool_status)
         
         if goal_data.auto_payment_settings and goal_data.auto_payment_settings.enabled:
             logger.info(f" Auto payment enabled for goal {goal_id}")
@@ -523,7 +518,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
             target_date=goal_data.target_date,
             created_at=current_time
         )
-        pending_goals_collection.insert_one(pending_goal.model_dump())
+        await pending_goals_collection.insert_one(pending_goal.model_dump())
         
         # Notify managers about pending goal
         await notify_managers_of_pending_goal(goal_id, {
@@ -542,9 +537,8 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
         )
 
 @router.get("/pending", response_model=List[pendingGoal])
-def get_pending_goals(user=Depends(verify_token)):
-    pendings_cursor = pending_goals_collection.find()
-    pendings = list(pendings_cursor)
+async def get_pending_goals(user=Depends(verify_token)):
+    pendings = await pending_goals_collection.find().to_list(length=None)
 
     return [pendingGoal(**pending) for pending in pendings]
 
@@ -553,7 +547,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
     if approval.action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
     
-    pending_goal = pending_goals_collection.find_one({"goal_id": goal_id})
+    pending_goal = await pending_goals_collection.find_one({"goal_id": goal_id})
 
     if not pending_goal or pending_goal["status"] != "pending":
         raise HTTPException(status_code=404, detail="Pending goal not found or already processed")
@@ -573,7 +567,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
                 approved_at=current_time
             )
             
-            goals_collection.insert_one(new_goal.model_dump())
+            await goals_collection.insert_one(new_goal.model_dump())
             
             pool_status = {
                 "goal_id": goal_id,
@@ -583,8 +577,8 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
                 "contributors": []
             }
             
-            pool_status_collection.insert_one(pool_status)
-            pending_goals_collection.update_one(
+            await pool_status_collection.insert_one(pool_status)
+            await pending_goals_collection.update_one(
                 {
                     "goal_id": goal_id
                 }, 
@@ -609,7 +603,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
             }
         
         elif approval.action == "reject":
-            pending_goals_collection.update_one(
+            await pending_goals_collection.update_one(
                 {
                     "goal_id": goal_id
                 }, 
@@ -640,15 +634,14 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/", response_model=List[goal])
-def get_all_goals(user=Depends(verify_token)):
-    goals_cursor = goals_collection.find()
-    goals = list(goals_cursor)
+async def get_all_goals(user=Depends(verify_token)):
+    goals = await goals_collection.find().to_list(length=None)
 
     return [goal(**goal) for goal in goals]
 
 @router.get("/{goal_id}", response_model=goal)
-def get_goal(goal_id: str, user=Depends(verify_token)):
-    goal = goals_collection.find_one({"goal_id": goal_id})
+async def get_goal(goal_id: str, user=Depends(verify_token)):
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     
@@ -662,19 +655,19 @@ class contributionData(BaseModel):
 
 @router.post("/{goal_id}/contribute")
 async def contribute_to_goal(goal_id: str, contribution: contributionData, user=Depends(verify_token)):
-    pool = pool_status_collection.find_one({"goal_id": goal_id})
+    pool = await pool_status_collection.find_one({"goal_id": goal_id})
     if not pool:
         raise HTTPException(status_code=404, detail="Goal not found")
     
     if contribution.amount <= 0:
         raise HTTPException(status_code=400, detail="Contribution amount must be positive")
     
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
     
     logger.info(f"Contribution received: {contribution.amount} from {contribution.contributor_name} for goal {goal_id}")
-    pool_status_collection.update_one(
+    await pool_status_collection.update_one(
     {"goal_id": goal_id},  # match the document
         {
             "$inc": {"current_amount": contribution.amount},  # increment the amount
@@ -691,7 +684,7 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
     )
     
     # Update goal completion status
-    updated_pool = pool_status_collection.find_one({"goal_id": goal_id})
+    updated_pool = await pool_status_collection.find_one({"goal_id": goal_id})
 
     progress_percentage = (updated_pool["current_amount"] / goal_item["goal_amount"]) * 100
     
@@ -704,18 +697,18 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
             logger.info(f"Triggering bank-free auto payment for goal {goal_id}")
             auto_payment_result = await process_bank_free_auto_payment(goal_id)
         else:
-            pool_status_collection.update_one(
+            await pool_status_collection.update_one(
                 {"goal_id": goal_id},
                 {"$set": {"status": "awaiting_payment"}}
             )
-            goals_collection.update_one(
+            await goals_collection.update_one(
                 {"goal_id": goal_id},
                 {"$set": {"status": "awaiting_payment"}}
             )
             logger.info(f"Goal {goal_id} reached target amount - status updated to awaiting_payment")
 
     # Keep goal in sync with pool status
-    goals_collection.update_one(
+    await goals_collection.update_one(
         {"goal_id": goal_id},
         {
             "$set": {
@@ -728,7 +721,7 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
 
     response = {
         "message": f"₱{contribution.amount} contributed by {contribution.contributor_name}",
-        "goal": goals_collection.find_one({"goal_id": goal_id}),
+        "goal": await goals_collection.find_one({"goal_id": goal_id}),
         "remaining_amount": max(0, goal_item["goal_amount"] - updated_pool["current_amount"]),
         "progress_percentage": min(100, progress_percentage)
     }
@@ -739,8 +732,8 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
     return response
 
 @router.get("/{goal_id}/contributors")
-def get_goal_contributors(goal_id: str, user=Depends(verify_token)):
-    pool = pool_status_collection.find_one({"goal_id": goal_id})
+async def get_goal_contributors(goal_id: str, user=Depends(verify_token)):
+    pool = await pool_status_collection.find_one({"goal_id": goal_id})
     if not pool:
         raise HTTPException(status_code=404, detail="Goal not found")
 
@@ -752,37 +745,37 @@ def get_goal_contributors(goal_id: str, user=Depends(verify_token)):
     }
 
 @router.put("/{goal_id}/status")
-def update_goal_status(goal_id: str, status: str, user=Depends(verify_token)):
+async def update_goal_status(goal_id: str, status: str, user=Depends(verify_token)):
     if status not in ["active", "completed", "cancelled"]:
         raise HTTPException(status_code=400, detail="Invalid status")
 
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
 
     # Update status in both collections
-    goals_collection.update_one({"goal_id": goal_id}, {"$set": {"status": status}})
-    pool_status_collection.update_one({"goal_id": goal_id}, {"$set": {"status": status}})
+    await goals_collection.update_one({"goal_id": goal_id}, {"$set": {"status": status}})
+    await pool_status_collection.update_one({"goal_id": goal_id}, {"$set": {"status": status}})
 
     return {"message": f"Goal '{goal_item['title']}' status updated to {status}"}
 
 @router.delete("/{goal_id}")
-def delete_goal(goal_id: str, user=Depends(verify_token)):
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+async def delete_goal(goal_id: str, user=Depends(verify_token)):
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
 
     # Delete from both collections
-    goals_collection.delete_one({"goal_id": goal_id})
-    pool_status_collection.delete_one({"goal_id": goal_id})
+    await goals_collection.delete_one({"goal_id": goal_id})
+    await pool_status_collection.delete_one({"goal_id": goal_id})
 
     return {"message": f"Goal '{goal_item['title']}' deleted successfully"}
 
 #add ai to ping manager for payment
 @router.post("/{goal_id}/payout")
-def payout_goal(goal_id: str, manager_approval: bool, user=Depends(verify_token)):
+async def payout_goal(goal_id: str, manager_approval: bool, user=Depends(verify_token)):
     # Find goal in MongoDB instead of in-memory
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
 
@@ -791,13 +784,13 @@ def payout_goal(goal_id: str, manager_approval: bool, user=Depends(verify_token)
 
     if manager_approval:
         # Update goals collection
-        goals_collection.update_one(
+        await goals_collection.update_one(
             {"goal_id": goal_id},
             {"$set": {"status": "completed", "is_paid": True}}
         )
 
         # Update pool_status_collection
-        pool_status_collection.update_one(
+        await pool_status_collection.update_one(
             {"goal_id": goal_id},
             {"$set": {"status": "completed", "is_paid": True}}
         )
@@ -805,13 +798,13 @@ def payout_goal(goal_id: str, manager_approval: bool, user=Depends(verify_token)
         return {"message": f"Goal '{goal_item['title']}' has been paid out."}
     else:
         # Update goals collection
-        goals_collection.update_one(
+        await goals_collection.update_one(
             {"goal_id": goal_id},
             {"$set": {"status": "active"}}
         )
 
         # Update pool_status_collection
-        pool_status_collection.update_one(
+        await pool_status_collection.update_one(
             {"goal_id": goal_id},
             {"$set": {"status": "active"}}
         )
@@ -821,9 +814,9 @@ def payout_goal(goal_id: str, manager_approval: bool, user=Depends(verify_token)
 # Bank-Free Auto Payment Management Endpoints
 
 @router.get("/auto-payment/queue")
-def get_auto_payment_queue(user=Depends(verify_token)):
+async def get_auto_payment_queue(user=Depends(verify_token)):
     """Get all goals awaiting auto payment confirmation"""
-    pending_auto_payments = list(auto_payment_queue_collection.find({}, {"_id": 0}))  
+    pending_auto_payments = await auto_payment_queue_collection.find({}, {"_id": 0}).to_list(length=None)
     # ^ {} means no filter, {"_id": 0} hides Mongo's internal ID
 
     return {
@@ -834,14 +827,14 @@ def get_auto_payment_queue(user=Depends(verify_token)):
 @router.post("/{goal_id}/auto-payment/confirm")
 async def confirm_auto_payment(goal_id: str, confirmation: AutoPaymentConfirmation, user=Depends(verify_token)):
     """Manager confirms or rejects auto payment"""
-    auto_payment_queue = auto_payment_queue_collection.find_one({"goal_id": goal_id})
+    auto_payment_queue = await auto_payment_queue_collection.find_one({"goal_id": goal_id})
     if not auto_payment_queue:
         raise HTTPException(status_code=404, detail="Goal not found in auto payment queue")
     
     if confirmation.goal_id != goal_id:
         raise HTTPException(status_code=400, detail="Goal ID mismatch")
     
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
     
@@ -857,11 +850,11 @@ async def confirm_auto_payment(goal_id: str, confirmation: AutoPaymentConfirmati
         }
     else:
         # Reject auto payment - revert to manual
-        goals_collection.update_one({"goal_id": goal_id}, {"$set": {"status": "awaiting_payment"}})
-        pool_status_collection.update_one({"goal_id": goal_id}, {"$set": {"status": "awaiting_payment"}})
+        await goals_collection.update_one({"goal_id": goal_id}, {"$set": {"status": "awaiting_payment"}})
+        await pool_status_collection.update_one({"goal_id": goal_id}, {"$set": {"status": "awaiting_payment"}})
         
         # Remove from queue
-        auto_payment_queue_collection.delete_one({"goal_id": goal_id})
+        await auto_payment_queue_collection.delete_one({"goal_id": goal_id})
         
         return {
             "message": f"Auto payment rejected by {confirmation.manager_name} - reverted to manual payment",
@@ -869,9 +862,9 @@ async def confirm_auto_payment(goal_id: str, confirmation: AutoPaymentConfirmati
         }
 
 @router.post("/{goal_id}/auto-payment/setup")
-def setup_bank_free_auto_payment(goal_id: str, settings: BankFreePaymentSettings, user=Depends(verify_token)):
+async def setup_bank_free_auto_payment(goal_id: str, settings: BankFreePaymentSettings, user=Depends(verify_token)):
     """Setup bank-free auto payment for a goal"""
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
     
@@ -886,12 +879,12 @@ def setup_bank_free_auto_payment(goal_id: str, settings: BankFreePaymentSettings
     }
 
 @router.get("/{goal_id}/auto-payment/status")
-def get_auto_payment_status(goal_id: str, user=Depends(verify_token)):
+async def get_auto_payment_status(goal_id: str, user=Depends(verify_token)):
     """Get auto payment status and settings for a goal"""
-    goal_item = goals_collection.find_one({"goal_id": goal_id})
+    goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
         raise HTTPException(status_code=404, detail="Goal not found")
-    auto_payment_queue = auto_payment_queue_collection.find_one({"goal_id": goal_id})
+    auto_payment_queue = await auto_payment_queue_collection.find_one({"goal_id": goal_id})
 
     return {
         "goal_id": goal_id,
@@ -904,9 +897,9 @@ def get_auto_payment_status(goal_id: str, user=Depends(verify_token)):
 
 
 @router.get("/virtual-balances")
-def get_virtual_balances():
+async def get_virtual_balances():
     """Get all virtual payout balances"""
-    virtual_balances = list(virtual_balances_collection.find())
+    virtual_balances = await virtual_balances_collection.find().to_list(length=None)
     return {
         "virtual_balances": virtual_balances,
         "total_balances": len(virtual_balances)

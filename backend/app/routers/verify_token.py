@@ -17,6 +17,6 @@ async def verify_token(request: Request):
     id_token = auth_header.split("Bearer ")[1]
     try:
         decoded_token = auth.verify_id_token(id_token)
-        return decoded_token  # includes "uid", "email", etc.
+        return decoded_token
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid Firebase token")

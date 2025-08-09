@@ -84,7 +84,7 @@ async def register_user(user_data: UserCreate, user=Depends(verify_token)):
         firebase_uid = user["uid"]
         email = user["email"]
 
-        if users_collection.find_one({"email": email}):
+        if await users_collection.find_one({"email": email}):
             raise HTTPException(status_code=400, detail="Email already registered")
         
         new_user = User(
@@ -94,7 +94,7 @@ async def register_user(user_data: UserCreate, user=Depends(verify_token)):
             created_at=datetime.now().isoformat(),
         )
 
-        users_collection.insert_one(new_user.model_dump())
+        await users_collection.insert_one(new_user.model_dump())
         
         logger.info(f"New user registered: {email} as {user_data.role.role_type}")
         
@@ -110,11 +110,11 @@ async def login_user(user=Depends(verify_token)):
         firebase_uid = user["uid"]
         email = user["email"]
 
-        user_data = users_collection.find_one({"firebase_uid": firebase_uid})
+        user_data = await users_collection.find_one({"firebase_uid": firebase_uid})
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found in database")
         
-        users_collection.update_one(
+        await users_collection.update_one(
             {"firebase_uid": firebase_uid},
             {"$set": {"last_login": datetime.now().isoformat()}}
         )
@@ -137,7 +137,7 @@ async def login_user(user=Depends(verify_token)):
 @router.get("/profile/{user_id}", response_model=UserResponse)
 async def get_user_profile(user=Depends(verify_token)):
     firebase_uid = user["uid"]
-    user_data = users_collection.find_one({"firebase_uid": firebase_uid})
+    user_data = await users_collection.find_one({"firebase_uid": firebase_uid})
     if not user:
         raise HTTPException(status_code=404, detail="User not found in database")
     
@@ -145,8 +145,7 @@ async def get_user_profile(user=Depends(verify_token)):
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users(user=Depends(verify_token)):
-    users_cursor = users_collection.find()
-    users = list(users_cursor)
+    users = await users_collection.find().to_list(length=None)
 
     return [UserResponse(**user) for user in users]
 
@@ -165,7 +164,7 @@ async def update_user_profile(update_data: UserUpdate, user=Depends(verify_token
     if not update_fields:
         raise HTTPException(status_code=400, detail="No update fields provided")
 
-    result = users_collection.update_one(
+    result = await users_collection.update_one(
         {"firebase_uid": firebase_uid},
         {"$set": update_fields}
     )
@@ -173,7 +172,7 @@ async def update_user_profile(update_data: UserUpdate, user=Depends(verify_token
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = users_collection.find_one({"firebase_uid": firebase_uid})
+    updated_user = await users_collection.find_one({"firebase_uid": firebase_uid})
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found after update")
 
@@ -183,7 +182,7 @@ async def update_user_profile(update_data: UserUpdate, user=Depends(verify_token
 @router.delete("/profile/{user_id}")
 async def delete_user(user=Depends(verify_token)):
     firebase_uid = user["uid"]
-    result = users_collection.delete_one({"firebase_uid": firebase_uid})
+    result = await users_collection.delete_one({"firebase_uid": firebase_uid})
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -193,8 +192,7 @@ async def delete_user(user=Depends(verify_token)):
 
 @router.get("/by-role/{role_type}", response_model=List[UserResponse])
 async def get_users_by_role(role_type: str, user=Depends(verify_token)):
-    users_cursor = users_collection.find({"role.role_type": role_type})
-    users = list(users_cursor)
+    users = await users_collection.find({"role.role_type": role_type}).to_list(length=None)
 
     return [UserResponse(**user) for user in users]
 
@@ -213,8 +211,8 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
     try:
         firebase_uid = user["uid"]
 
-        sender = users_collection.find_one({"firebase_uid": firebase_uid})
-        manager = users_collection.find_one({"firebase_uid": request_data.to_manager_id})
+        sender = await users_collection.find_one({"firebase_uid": firebase_uid})
+        manager = await users_collection.find_one({"firebase_uid": request_data.to_manager_id})
         
         if not manager:
             raise HTTPException(status_code=404, detail="Manager not found")
@@ -247,7 +245,7 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
         )
         
         # Store request
-        member_requests_collection.insert_one(new_request.model_dump())
+        await member_requests_collection.insert_one(new_request.model_dump())
         
         # Send notification to manager about new request
         await notify_manager_of_request(request_id, {
@@ -272,8 +270,7 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
 async def get_sent_requests(user_id: str, user=Depends(verify_token)):
     """Get all requests sent by a user"""
     try:
-        cursor = member_requests_collection.find({"from_user_id": user_id})
-        user_requests = list(cursor)
+        user_requests = await member_requests_collection.find({"from_user_id": user_id}).to_list(length=None)
 
         user_requests.sort(key=lambda x: x.get("created_at"), reverse=True)
 
@@ -285,8 +282,7 @@ async def get_sent_requests(user_id: str, user=Depends(verify_token)):
 @router.get("/requests/received/{manager_id}")
 async def get_received_requests(manager_id: str, user=Depends(verify_token)):
     """Get all requests received by a manager"""
-    cursor = member_requests_collection.find({"to_manager_id": manager_id})
-    manager_requests = list(cursor)
+    manager_requests = await member_requests_collection.find({"to_manager_id": manager_id}).to_list(length=None)
     
     manager_requests.sort(key=lambda x: x.get("created_at"), reverse=True)
     
@@ -295,7 +291,7 @@ async def get_received_requests(manager_id: str, user=Depends(verify_token)):
 @router.get("/requests/{request_id}")
 async def get_request_details(request_id: str, user=Depends(verify_token)):
     """Get specific request details"""
-    request = member_requests_collection.find_one({"id": request_id})
+    request = await member_requests_collection.find_one({"id": request_id})
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
@@ -306,7 +302,7 @@ class ManagerResponse(BaseModel):
 
 @router.post("/requests/{request_id}/respond")
 async def respond_to_request(request_id: str, response: ManagerResponse, manager_id: str, user=Depends(verify_token)):
-    request = member_requests_collection.find_one({"id": request_id})
+    request = await member_requests_collection.find_one({"id": request_id})
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
@@ -315,7 +311,7 @@ async def respond_to_request(request_id: str, response: ManagerResponse, manager
     
     # Update request with manager response
     manager_response = "Approved" if response.response_message else "Rejected"
-    member_requests_collection.update_one(
+    await member_requests_collection.update_one(
         {"id": request_id},
         {
             "$set": {

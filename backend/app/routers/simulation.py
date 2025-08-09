@@ -8,7 +8,7 @@ from uuid import uuid4
 # Import AI client and data sources
 from .ai_client import get_ai_client
 # from .goal import goals, pool_status
-from .mongo import goals_collection, pool_status_collection, groups_collection
+from .mongo import goals_collection, pool_status_collection, groups_collection, simulation_results_collection
 # from .groups import group_db
 
 # Configure logging
@@ -48,25 +48,25 @@ class DeadlineChangeScenario(BaseModel):
     reason: Optional[str] = None
 
 
-simulation_results_db = []
+# simulation_results_db = []
 
-def get_goal_baseline(goal_id: str) -> Optional[Dict]:
-    goal = goals.get(goal_id)
+async def get_goal_baseline(goal_id: str) -> Optional[Dict]:
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         return None
     
-    pool_data = pool_status.get(goal_id, {})
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
     
     return {
         "goal_id": goal_id,
-        "title": goal.title,
-        "current_goal_amount": goal.goal_amount,
+        "title": goal['title'],
+        "current_goal_amount": goal['goal_amount'],
         "current_amount": pool_data.get("current_amount", 0),
-        "target_date": goal.target_date.isoformat(),
-        "status": goal.status,
+        "target_date": goal['target_date'].isoformat(),
+        "status": goal['status'],
         "contributors": pool_data.get("contributors", []),
-        "creator": goal.creator_name,
-        "days_remaining": (goal.target_date - datetime.now().date()).days
+        "creator": goal['creator_name'],
+        "days_remaining": (goal['target_date'] - datetime.now().date()).days
     }
 
 def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
@@ -176,8 +176,8 @@ async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) 
             return {"error": "AI advisor not available"}
         
         # Analyze historical patterns (simplified for demo)
-        total_goals = len(goals)
-        completed_goals = len([g for g in goals.values() if g.status == "completed"])
+        total_goals = await goals_collection.count_documents({})
+        completed_goals = await goals_collection.count_documents({"status": "completed"})
         success_rate = (completed_goals / total_goals * 100) if total_goals > 0 else 0
         
         ai_prompt = f"""
@@ -231,7 +231,6 @@ async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) 
         logger.error(f"AI advisor error: {str(e)}")
         return {"error": f"Failed to generate advisor recommendations: {str(e)}"}
 
-
 @router.post("/what-if-analysis")
 async def what_if_analysis(request: SimulationRequest):
     """
@@ -239,7 +238,7 @@ async def what_if_analysis(request: SimulationRequest):
     """
     try:
         # Get baseline goal data
-        baseline = get_goal_baseline(request.goal_id)
+        baseline = await get_goal_baseline(request.goal_id)
         if not baseline:
             raise HTTPException(status_code=404, detail=f"Goal {request.goal_id} not found")
         
@@ -263,7 +262,7 @@ async def what_if_analysis(request: SimulationRequest):
             "timestamp": datetime.now().isoformat()
         }
         
-        simulation_results_db.append(simulation_result)
+        await simulation_results_collection.insert_one(simulation_result)
         
         response = {
             "simulation_id": simulation_result["id"],
@@ -292,7 +291,7 @@ async def what_if_analysis(request: SimulationRequest):
 async def get_goal_scenarios(goal_id: str):
     """Get all simulation results for a specific goal"""
     
-    goal_simulations = [s for s in simulation_results_db if s["goal_id"] == goal_id]
+    goal_simulations = await simulation_results_collection.find({"goal_id": goal_id}).to_list(length=None)
     
     return {
         "goal_id": goal_id,
@@ -356,20 +355,22 @@ async def create_test_goal():
 async def simulation_dashboard():
     """Get overview of all simulation activity"""
     
-    total_simulations = len(simulation_results_db)
-    unique_goals = len(set(s["goal_id"] for s in simulation_results_db))
+    total_simulations = await simulation_results_collection.count_documents({})
+    unique_goals = len(await simulation_results_collection.distinct("goal_id"))
     
     # Count scenario types
     scenario_types = {}
-    for sim in simulation_results_db:
-        for scenario in sim["scenarios"]:
-            scenario_type = scenario.scenario_type
+    async for sim in simulation_results_collection.find():  # Note: async for
+        for scenario in sim.get("scenarios", []):  # Safer .get() with default
+            scenario_type = scenario["scenario_type"]
             scenario_types[scenario_type] = scenario_types.get(scenario_type, 0) + 1
     
+    recent_simulations = await simulation_results_collection.find().sort("_id", -1).limit(5).to_list(length=None)
+
     return {
         "total_simulations": total_simulations,
         "unique_goals_analyzed": unique_goals,
         "scenario_type_breakdown": scenario_types,
-        "recent_simulations": simulation_results_db[-5:] if simulation_results_db else [],
+        "recent_simulations": recent_simulations,
         "generated_at": datetime.now().isoformat()
     }

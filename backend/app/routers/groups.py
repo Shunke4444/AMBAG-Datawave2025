@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from uuid import uuid4 #generate unique IDs
 from datetime import datetime
-from .mongo import users_collection, groups_collection, member_requests_collection
+from .mongo import users_collection, groups_collection
 from .verify_token import verify_token
 import logging
 
@@ -60,12 +60,12 @@ class GroupResponse(BaseModel):
     member_count: int
 
 @router.post("/", response_model=GroupResponse)
-def create_group(group: GroupCreate, user=Depends(verify_token)):
+async def create_group(group: GroupCreate, user=Depends(verify_token)):
     """Create a new group with manager"""
     try:
         group_id = str(uuid4())
         firebase_id = user["uid"]
-        users_collection.update_one(
+        await users_collection.update_one(
             {"firebase_uid": firebase_id},
             {
                 "$set": {
@@ -108,17 +108,16 @@ def create_group(group: GroupCreate, user=Depends(verify_token)):
         raise HTTPException(status_code=500, detail=f"Group creation failed: {str(e)}")
 
 @router.get("/", response_model=List[GroupResponse])
-def get_all_groups(user=Depends(verify_token)):
+async def get_all_groups(user=Depends(verify_token)):
     """Get all groups"""
-    groups_cursor = groups_collection.find()
-    groups = list(groups_cursor)
+    groups = await groups_collection.find().to_list(length=None)
 
     return [GroupResponse(**group) for group in groups]
 
 @router.get("/{group_id}", response_model=GroupResponse)
-def get_group(group_id: str, user=Depends(verify_token)):
+async def get_group(group_id: str, user=Depends(verify_token)):
     """Get specific group by ID"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -128,9 +127,9 @@ def get_group(group_id: str, user=Depends(verify_token)):
     )
 
 @router.post("/{group_id}/members", response_model=GroupResponse)
-def add_member_to_group(group_id: str, member_request: AddMemberRequest, user=Depends(verify_token)):
+async def add_member_to_group(group_id: str, member_request: AddMemberRequest, user=Depends(verify_token)):
     """Add a member to group"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -148,12 +147,12 @@ def add_member_to_group(group_id: str, member_request: AddMemberRequest, user=De
         is_active=True
     )
     
-    groups_collection.update_one(
+    await groups_collection.update_one(
         {"group_id": group_id},
         {"$push": {"members": new_member.model_dump()}}
     )
 
-    updated_group = groups_collection.find_one({"group_id": group_id})
+    updated_group = await groups_collection.find_one({"group_id": group_id})
     if not updated_group:
         raise HTTPException(status_code=500, detail="Failed to fetch updated group")
     
@@ -165,10 +164,10 @@ def add_member_to_group(group_id: str, member_request: AddMemberRequest, user=De
     )
 
 @router.delete("/{group_id}/members/{firebase_uid}")
-def remove_member_from_group(group_id: str, firebase_uid: str, user=Depends(verify_token)):
+async def remove_member_from_group(group_id: str, firebase_uid: str, user=Depends(verify_token)):
     """Remove a member from group"""
     # First check if group exists
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
@@ -178,7 +177,7 @@ def remove_member_from_group(group_id: str, firebase_uid: str, user=Depends(veri
         raise HTTPException(status_code=404, detail="Member not found in this group")
 
     # Remove the member using $pull
-    groups_collection.update_one(
+    await groups_collection.update_one(
         {"group_id": group_id},
         {"$pull": {"members": {"firebase_uid": firebase_uid}}}
     )
@@ -187,9 +186,9 @@ def remove_member_from_group(group_id: str, firebase_uid: str, user=Depends(veri
     return {"message": f"User {firebase_uid} removed from group successfully"}
 
 @router.get("/{group_id}/members", response_model=List[GroupMember])
-def get_group_members(group_id: str, user=Depends(verify_token)):
+async def get_group_members(group_id: str, user=Depends(verify_token)):
     """Get all members of a group"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -197,9 +196,9 @@ def get_group_members(group_id: str, user=Depends(verify_token)):
     return members
 
 @router.put("/{group_id}/members/{firebase_uid}/role")
-def update_member_role(group_id: str, firebase_uid: str, new_role: str, user=Depends(verify_token)):
+async def update_member_role(group_id: str, firebase_uid: str, new_role: str, user=Depends(verify_token)):
     """Update member role in group"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -208,7 +207,7 @@ def update_member_role(group_id: str, firebase_uid: str, new_role: str, user=Dep
     #     raise HTTPException(status_code=400, detail="Cannot change manager role")
     
     # Find and update member
-    groups_collection.update_one(
+    await groups_collection.update_one(
         {
             "group_id": group_id,
             "members.firebase_uid": firebase_uid
@@ -241,13 +240,13 @@ def get_user_groups(user_id: str):
     return user_groups
 
 @router.put("/{group_id}")
-def update_group(group_id: str, group_update: GroupBase):
+async def update_group(group_id: str, group_update: GroupBase):
     """Update group information"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    groups_collection.update_one(
+    await groups_collection.update_one(
         {"group_id": group_id},
         {
             "$set": {
@@ -267,13 +266,13 @@ def update_group(group_id: str, group_update: GroupBase):
     # )
 
 @router.delete("/{group_id}")
-def delete_group(group_id: str):
+async def delete_group(group_id: str):
     """Delete/deactivate a group"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    groups_collection.update_one(
+    await groups_collection.update_one(
         {"group_id": group_id},
         {
             "$set": {
@@ -287,9 +286,9 @@ def delete_group(group_id: str):
     return {"message": "Group deactivated successfully"}
 
 @router.get("/{group_id}/stats")
-def get_group_statistics(group_id: str):
+async def get_group_statistics(group_id: str):
     """Get group statistics"""
-    group = groups_collection.find_one({"group_id": group_id})
+    group = await groups_collection.find_one({"group_id": group_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
