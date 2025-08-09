@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from .goal import goals, pool_status, pending_goals  # Fixed relative import
 from .groups import group_db
 from .ai_client import get_ai_client
+from .mongo import goals_collection, pool_status_collection, pending_goals_collection, groups_collection    
 import json
 import logging
 import httpx
@@ -34,64 +35,76 @@ async def monitor_goals():
             now = datetime.now()
             logger.info(f"🔍 Running production goal monitoring at {now.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            active_goals = [goal for goal in goals.values() if goal.status in ["active", "awaiting_payment"]]
+            # Get active goals from MongoDB using goal_id
+            active_goals_cursor = goals_collection.find({
+                "status": {"$in": ["active", "awaiting_payment"]},
+                "goal_id": {"$exists": True}  # Ensure goal_id exists
+            })
+            active_goals = await active_goals_cursor.to_list(length=None)
             logger.info(f"Monitoring {len(active_goals)} active goals")
             
-            # Production: Process goals in batches to avoid overwhelming the system
+            # Process in batches
             batch_size = 5
-            for i in range(0, len(list(goals.items())), batch_size):
-                batch = list(goals.items())[i:i + batch_size]
+            for i in range(0, len(active_goals), batch_size):
+                batch = active_goals[i:i + batch_size]
                 
-                # Process batch concurrently
                 tasks = [
-                    analyze_single_goal_production(goal_id, goal, ai_client, now)
-                    for goal_id, goal in batch
+                    analyze_single_goal_production(
+                        goal["goal_id"],  # Using goal_id directly
+                        goal, 
+                        ai_client, 
+                        now
+                    )
+                    for goal in batch
+                    if "goal_id" in goal  # Safety check
                 ]
                 
                 await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # Small delay between batches
-                await asyncio.sleep(1)
+                await asyncio.sleep(1)  # Inter-batch delay
             
-            # Production: System-wide optimization analysis
             await perform_system_optimization(ai_client)
-            
-            # Production: Generate monitoring report
             await generate_monitoring_report()
             
-            logger.info(f"✅ Production goal monitoring cycle completed. Next check in {SCHEDULER_CONFIG['monitoring_interval']} seconds")
-            retry_count = 0  # Reset retry count on successful cycle
+            logger.info(f"✅ Monitoring cycle completed. Next check in {SCHEDULER_CONFIG['monitoring_interval']}s")
+            retry_count = 0
             
         except Exception as e:
             retry_count += 1
-            logger.error(f"❌ Production monitoring cycle failed (attempt {retry_count}/{max_retries}): {str(e)}")
+            logger.error(f"❌ Monitoring failed (attempt {retry_count}/{max_retries}): {str(e)}")
             
             if retry_count >= max_retries:
-                logger.critical("🚨 Maximum retry attempts reached. Scheduler will continue but with reduced functionality.")
+                logger.critical("🚨 Max retries reached")
                 retry_count = 0
             
-            # Exponential backoff for retries
             await asyncio.sleep(min(300, 30 * retry_count))
         
         await asyncio.sleep(SCHEDULER_CONFIG["monitoring_interval"])
 
-async def analyze_single_goal_production(goal_id: str, goal, ai_client, now: datetime):
+async def analyze_single_goal_production(goal_id: str, goal: dict, ai_client, now: datetime):
     """Production analysis for individual goals with comprehensive AI integration"""
     try:
-        status = pool_status.get(goal_id, {})
+        # Get pool status from MongoDB instead of local dict
+        status = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+        
+        # Safely extract values with defaults
         current_amount = status.get("current_amount", 0)
-        contributors = status.get("contributors", [])
         
-        # Calculate production metrics
-        days_remaining = (goal.target_date - now.date()).days
-        progress_percentage = (current_amount / goal.goal_amount) * 100 if goal.goal_amount > 0 else 0
+        # Calculate production metrics (using dict access instead of object attributes)
+        target_date = goal.get("target_date")
+        if not target_date:
+            logger.warning(f"Missing target_date for goal {goal_id}")
+            return
+            
+        days_remaining = (target_date - now.date()).days
+        goal_amount = goal.get("goal_amount", 0)
+        progress_percentage = (current_amount / goal_amount) * 100 if goal_amount > 0 else 0
         
-        logger.info(f"📊 Goal Analysis: {goal.title[:30]}... | Progress: {progress_percentage:.1f}% | Days: {days_remaining}")
+        logger.info(f"📊 Goal Analysis: {goal.get('title','')[:30]}... | Progress: {progress_percentage:.1f}% | Days: {days_remaining}")
         
         # Production: Risk-based AI analysis triggers
         risk_factors = await assess_goal_risk(goal_id, goal, status, days_remaining, progress_percentage)
         
-        if risk_factors["risk_level"] != "LOW":
+        if risk_factors.get("risk_level", "LOW") != "LOW":
             await trigger_ai_monitoring_call(goal_id, risk_factors, ai_client)
         
         # Production: Proactive milestone management
@@ -99,6 +112,7 @@ async def analyze_single_goal_production(goal_id: str, goal, ai_client, now: dat
         
     except Exception as e:
         logger.error(f"❌ Error in production analysis for goal {goal_id}: {str(e)}")
+        raise  # Re-raise if you want outer retry mechanism to catch it
 
 async def assess_goal_risk(goal_id: str, goal, status: dict, days_remaining: int, progress_percentage: float):
     """Production risk assessment algorithm"""
@@ -153,9 +167,9 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
     try:
         # Use the correct comprehensive analysis endpoint
         analysis_request = {
-            "group_id": goal_id,
+            "group_id": goal_id, 
             "analysis_types": ["progress_tracking", "risk_assessment"],
-            "auto_execute": True  # This enables autonomous actions
+            "auto_execute": True
         }
         
         async with httpx.AsyncClient() as client:
@@ -169,16 +183,22 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
                 monitoring_result = response.json()
                 logger.info(f"🤖 AI monitoring completed for goal {goal_id} - Risk: {monitoring_result.get('risk_level', 'UNKNOWN')}")
                 
-                # Store monitoring results for production analytics
-                if "scheduler_monitoring" not in pool_status.get(goal_id, {}):
-                    pool_status[goal_id]["scheduler_monitoring"] = []
-                
-                pool_status[goal_id]["scheduler_monitoring"].append({
-                    "timestamp": datetime.now().isoformat(),
+                # MongoDB update operation for storing monitoring results
+                monitoring_entry = {
+                    "timestamp": datetime.now(),
                     "risk_assessment": risk_factors,
                     "ai_monitoring_result": monitoring_result,
                     "triggered_by": "production_scheduler"
-                })
+                }
+                
+                await pool_status_collection.update_one(
+                    {"goal_id": goal_id},
+                    {
+                        "$push": {"scheduler_monitoring": monitoring_entry},
+                        "$setOnInsert": {"goal_id": goal_id}  # Create doc if doesn't exist
+                    },
+                    upsert=True
+                )
                 
             else:
                 logger.error(f"AI monitoring API call failed for goal {goal_id}: HTTP {response.status_code}")

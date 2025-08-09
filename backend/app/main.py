@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation, users, database  # Add users
+from routers import groups, goal, chatbot, scheduler_api, ai_tools_clean, simulation, users  # Add users
 from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
@@ -19,8 +19,7 @@ app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(goal.router)
 app.include_router(chatbot.router)
-app.include_router(scheduler_api.router) 
-app.include_router(database.router)
+app.include_router(scheduler_api.router)
 app.include_router(ai_tools_clean.router) 
 app.include_router(simulation.router)  
 

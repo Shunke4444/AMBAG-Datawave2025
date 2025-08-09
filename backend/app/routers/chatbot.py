@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
 from .ai_client import get_ai_client
+from pymongo import ReturnDocument
+from .mongo import conversations_collection
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List, Dict
 import uuid
@@ -36,23 +39,61 @@ Help users build financial stability through smart planning, shared goals, and c
 
 @router.post("/ask")
 async def ask_ai(chat_request: ChatRequest, ai_client=Depends(get_ai_client)):
+    # Get or create session ID
     session_id = chat_request.session_id or str(uuid.uuid4())
     
-    if session_id not in conversations:
-        conversations[session_id] = []
-        # Add system prompt only for new conversations
-        conversations[session_id].append({"role": "system", "content": SYSTEM_PROMPT})
-
-    conversations[session_id].append({"role": "user", "content": chat_request.prompt})
+    # Find or initialize conversation in MongoDB
+    conversation = await conversations_collection.find_one_and_update(
+        {"session_id": session_id},
+        {
+            "$setOnInsert": {  # Only set these fields if document doesn't exist
+                "session_id": session_id,
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}],
+                "created_at": datetime.now()
+            }
+        },
+        upsert=True,
+        return_document=ReturnDocument.AFTER
+    )
     
+    # Add user message
+    user_message = {
+        "role": "user", 
+        "content": chat_request.prompt,
+        "timestamp": datetime.utcnow()
+    }
+    
+    await conversations_collection.update_one(
+        {"session_id": session_id},
+        {"$push": {"messages": user_message}}
+    )
+    
+    # Get updated conversation with user message
+    updated_conversation = await conversations_collection.find_one(
+        {"session_id": session_id}
+    )
+    
+    # Generate AI response
     response = await ai_client.chat.completions.create(
         model="deepseek/deepseek-chat",
-        messages=conversations[session_id],  # Send full history including system prompt
+        messages=[{k: m[k] for k in ("role", "content")} for m in updated_conversation["messages"]],
         max_tokens=1000,
         temperature=0.3,
     )
     
-    ai_response = response.choices[0].message.content
-    conversations[session_id].append({"role": "assistant", "content": ai_response})
+    # Add AI response to conversation
+    ai_message = {
+        "role": "assistant",
+        "content": response.choices[0].message.content,
+        "timestamp": datetime.utcnow()
+    }
     
-    return {"response": ai_response, "session_id": session_id}
+    await conversations_collection.update_one(
+        {"session_id": session_id},
+        {"$push": {"messages": ai_message}}
+    )
+    
+    return {
+        "response": ai_message["content"],
+        "session_id": session_id
+    }
