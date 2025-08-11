@@ -1,15 +1,37 @@
-import { Line } from 'react-chartjs-2';
+import { Line, Bar, Pie } from 'react-chartjs-2';
 import { useState } from 'react';
 
 const ChartWidget = ({ 
   title, 
   chartData, 
   chartOptions, 
+  chartType = 'line',
+  chartjsConfig,
   legendItems = [],
   className = "",
   onDataChange
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  // If chartjsConfig is provided, use that for the chart
+  const finalChartData = chartjsConfig ? chartjsConfig.data : chartData;
+  const finalChartOptions = chartjsConfig ? chartjsConfig.options : chartOptions;
+  const finalChartType = chartjsConfig ? chartjsConfig.type : chartType;
+
+  // Select the appropriate Chart component
+  const getChartComponent = () => {
+    switch (finalChartType.toLowerCase()) {
+      case 'bar':
+        return Bar;
+      case 'pie':
+        return Pie;
+      case 'line':
+      default:
+        return Line;
+    }
+  };
+
+  const ChartComponent = getChartComponent();
 
   return (
     <div 
@@ -42,14 +64,14 @@ const ChartWidget = ({
       {/* Chart Container */}
       <div className="flex-1 min-h-0 relative">
         <div className="w-full h-full p-1">
-          <Line 
-            data={chartData} 
+          <ChartComponent 
+            data={finalChartData} 
             options={{
-              ...chartOptions,
+              ...finalChartOptions,
               maintainAspectRatio: false,
               responsive: true,
               plugins: {
-                ...chartOptions.plugins,
+                ...finalChartOptions?.plugins,
                 legend: {
                   display: false
                 }

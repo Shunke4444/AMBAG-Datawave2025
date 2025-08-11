@@ -5,6 +5,8 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -14,6 +16,7 @@ import { ArrowBack, Send, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import GridLayoutManager from './GridLayoutManager';
 import ChartWidget from './ChartWidget';
+import axios from 'axios';
 
 // Register Chart.js components
 ChartJS.register(
@@ -21,6 +24,8 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -35,6 +40,10 @@ export default function WhatIf() {
   const [chatInput, setChatInput] = useState('');
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
+  
+  // AI Chart State
+  const [aiCharts, setAiCharts] = useState([]);
+  const [aiNarrative, setAiNarrative] = useState('');
   
   // Grid Layout State
   const [gridDimensions] = useState({ cols: 12, rows: 6 });
@@ -198,7 +207,7 @@ export default function WhatIf() {
     return "I can help you explore different scenarios for your group payments. Try asking about:\n\n• Visual simulations of payment impacts\n• Timeline extensions or adjustments\n• Increasing or decreasing contribution amounts\n• Emergency backup plans\n\nWhat would you like to analyze first?";
   };
 
-  const handleMessageSubmit = (e) => {
+  const handleMessageSubmit = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
@@ -210,22 +219,84 @@ export default function WhatIf() {
     };
 
     setConversationMessages(prev => [...prev, userMessage]);
+    const currentPrompt = chatInput;
     setChatInput('');
     setIsAssistantTyping(true);
 
-    // Simulate assistant response delay
-    setTimeout(() => {
-      const assistantResponse = generateAssistantResponse(chatInput);
+    try {
+      // Ensure we have a goal_id (create test goal if needed)
+      let goalId = localStorage.getItem('test_goal_id');
+      if (!goalId) {
+        const baseURL = import.meta?.env?.VITE_API_URL || 'http://127.0.0.1:8000';
+        const testGoalResponse = await axios.post(`${baseURL}/simulation/create-test-goal`);
+        goalId = testGoalResponse.data.goal_id;
+        localStorage.setItem('test_goal_id', goalId);
+      }
+
+      // Call the generate-charts endpoint
+      const baseURL = import.meta?.env?.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await axios.post(`${baseURL}/simulation/generate-charts`, {
+        goal_id: goalId,
+        prompt: currentPrompt,
+        max_charts: 3
+      });
+
+      const { narrative, charts } = response.data;
+      
+      // Set AI narrative and charts
+      setAiNarrative(narrative);
+      setAiCharts(charts || []);
+
+      // Add assistant message with narrative
       const assistantMessage = {
         id: Date.now() + 1,
-        content: assistantResponse,
+        content: narrative,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString(),
       };
 
       setConversationMessages(prev => [...prev, assistantMessage]);
       setIsAssistantTyping(false);
-    }, 1500);
+
+    } catch (error) {
+      console.error('Failed to get AI response:', error);
+      
+      // Fallback response
+      const fallbackResponse = generateAssistantResponse(currentPrompt);
+      const assistantMessage = {
+        id: Date.now() + 1,
+        content: fallbackResponse,
+        sender: 'assistant',
+        timestamp: new Date().toLocaleTimeString(),
+      };
+
+      // Add fallback chart
+      setAiCharts([{
+        title: "Fallback Chart",
+        type: "bar",
+        chartjsConfig: {
+          type: "bar",
+          data: {
+            labels: ["Current", "Target"],
+            datasets: [{
+              label: "Amount",
+              data: [2500, 10000],
+              backgroundColor: ["#4CAF50", "#FF9800"]
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: true },
+              title: { display: true, text: "Goal Progress" }
+            }
+          }
+        }
+      }]);
+
+      setConversationMessages(prev => [...prev, assistantMessage]);
+      setIsAssistantTyping(false);
+    }
   };
 
   // Effects
@@ -380,123 +451,142 @@ export default function WhatIf() {
             onResize={handleChartResize}
             className="h-full w-full"
           >
-          {/* Main Payment Analysis Chart */}
-          <ChartWidget
-            id="mainChart"
-            gridX={chartLayout.mainChart.x}
-            gridY={chartLayout.mainChart.y}
-            gridWidth={chartLayout.mainChart.width}
-            gridHeight={chartLayout.mainChart.height}
-            minWidth={3}
-            minHeight={2}
-            title="Payment Analysis"
-            chartData={mainChartData}
-            chartOptions={chartOptions}
-            legendItems={[
-              { color: '#830000', label: 'Payment if not sent' },
-              { color: '#DDB440', label: 'Actual Payment' }
-            ]}
-          />
+          {/* Render AI Generated Charts or Default Charts */}
+          {aiCharts.length > 0 ? (
+            aiCharts.map((chart, index) => (
+              <ChartWidget
+                key={`ai-chart-${index}`}
+                id={`aiChart${index}`}
+                gridX={index === 0 ? 0 : index === 1 ? 6 : 0}
+                gridY={index === 0 ? 0 : index === 1 ? 0 : 3}
+                gridWidth={index === 2 ? 12 : 6}
+                gridHeight={3}
+                minWidth={3}
+                minHeight={2}
+                title={chart.title}
+                chartType={chart.type}
+                chartjsConfig={chart.chartjsConfig}
+              />
+            ))
+          ) : (
+            <>
+              {/* Default charts when no AI charts available */}
+              <ChartWidget
+                id="mainChart"
+                gridX={chartLayout.mainChart.x}
+                gridY={chartLayout.mainChart.y}
+                gridWidth={chartLayout.mainChart.width}
+                gridHeight={chartLayout.mainChart.height}
+                minWidth={3}
+                minHeight={2}
+                title="Payment Analysis"
+                chartData={mainChartData}
+                chartOptions={chartOptions}
+                legendItems={[
+                  { color: '#830000', label: 'Payment if not sent' },
+                  { color: '#DDB440', label: 'Actual Payment' }
+                ]}
+              />
 
-          {/* Payment Trends Chart */}
-          <ChartWidget
-            id="trendsChart"
-            gridX={chartLayout.trendsChart.x}
-            gridY={chartLayout.trendsChart.y}
-            gridWidth={chartLayout.trendsChart.width}
-            gridHeight={chartLayout.trendsChart.height}
-            minWidth={3}
-            minHeight={2}
-            title="Payment Trends"
-            chartData={{
-              labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-              datasets: [
-                {
-                  label: 'On-time Payments',
-                  data: [95, 87, 92, 88],
-                  borderColor: '#34A751',
-                  backgroundColor: 'rgba(52, 167, 81, 0.1)',
-                  tension: 0.4,
-                  pointBackgroundColor: '#34A751',
-                  pointBorderColor: '#34A751',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                },
-                {
-                  label: 'Late Payments',
-                  data: [5, 13, 8, 12],
-                  borderColor: '#DDB440',
-                  backgroundColor: 'rgba(221, 180, 64, 0.1)',
-                  tension: 0.4,
-                  pointBackgroundColor: '#DDB440',
-                  pointBorderColor: '#DDB440',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                }
-              ]
-            }}
-            chartOptions={{
-              ...chartOptions,
-              scales: {
-                ...chartOptions.scales,
-                y: { ...chartOptions.scales.y, max: 100 }
-              }
-            }}
-            legendItems={[
-              { color: '#34A751', label: 'On-time' },
-              { color: '#DDB440', label: 'Late' }
-            ]}
-          />
+              <ChartWidget
+                id="trendsChart"
+                gridX={chartLayout.trendsChart.x}
+                gridY={chartLayout.trendsChart.y}
+                gridWidth={chartLayout.trendsChart.width}
+                gridHeight={chartLayout.trendsChart.height}
+                minWidth={3}
+                minHeight={2}
+                title="Payment Trends"
+                chartData={{
+                  labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                  datasets: [
+                    {
+                      label: 'On-time Payments',
+                      data: [95, 87, 92, 88],
+                      borderColor: '#34A751',
+                      backgroundColor: 'rgba(52, 167, 81, 0.1)',
+                      tension: 0.4,
+                      pointBackgroundColor: '#34A751',
+                      pointBorderColor: '#34A751',
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    },
+                    {
+                      label: 'Late Payments',
+                      data: [5, 13, 8, 12],
+                      borderColor: '#DDB440',
+                      backgroundColor: 'rgba(221, 180, 64, 0.1)',
+                      tension: 0.4,
+                      pointBackgroundColor: '#DDB440',
+                      pointBorderColor: '#DDB440',
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    }
+                  ]
+                }}
+                chartOptions={{
+                  ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    y: { ...chartOptions.scales.y, max: 100 }
+                  }
+                }}
+                legendItems={[
+                  { color: '#34A751', label: 'On-time' },
+                  { color: '#DDB440', label: 'Late' }
+                ]}
+              />
 
-          {/* Group Performance Chart */}
-          <ChartWidget
-            id="performanceChart"
-            gridX={chartLayout.performanceChart.x}
-            gridY={chartLayout.performanceChart.y}
-            gridWidth={chartLayout.performanceChart.width}
-            gridHeight={chartLayout.performanceChart.height}
-            minWidth={3}
-            minHeight={2}
-            title="Group Performance"
-            chartData={{
-              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-              datasets: [
-                {
-                  label: 'Your Group',
-                  data: [85, 92, 78, 86, 94, 89],
-                  borderColor: '#830000',
-                  backgroundColor: 'rgba(131, 0, 0, 0.1)',
-                  tension: 0.4,
-                  pointBackgroundColor: '#830000',
-                  pointBorderColor: '#830000',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                },
-                {
-                  label: 'Average Groups',
-                  data: [75, 78, 72, 76, 80, 77],
-                  borderColor: '#690000',
-                  backgroundColor: 'rgba(105, 0, 0, 0.1)',
-                  tension: 0.4,
-                  pointBackgroundColor: '#690000',
-                  pointBorderColor: '#690000',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                }
-              ]
-            }}
-            chartOptions={{
-              ...chartOptions,
-              scales: {
-                ...chartOptions.scales,
-                y: { ...chartOptions.scales.y, max: 100 }
-              }
-            }}
-            legendItems={[
-              { color: '#830000', label: 'Your Group' },
-              { color: '#690000', label: 'Average' }
-            ]}
-          />
+              <ChartWidget
+                id="performanceChart"
+                gridX={chartLayout.performanceChart.x}
+                gridY={chartLayout.performanceChart.y}
+                gridWidth={chartLayout.performanceChart.width}
+                gridHeight={chartLayout.performanceChart.height}
+                minWidth={3}
+                minHeight={2}
+                title="Group Performance"
+                chartData={{
+                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                  datasets: [
+                    {
+                      label: 'Your Group',
+                      data: [85, 92, 78, 86, 94, 89],
+                      borderColor: '#830000',
+                      backgroundColor: 'rgba(131, 0, 0, 0.1)',
+                      tension: 0.4,
+                      pointBackgroundColor: '#830000',
+                      pointBorderColor: '#830000',
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    },
+                    {
+                      label: 'Average Groups',
+                      data: [75, 78, 72, 76, 80, 77],
+                      borderColor: '#690000',
+                      backgroundColor: 'rgba(105, 0, 0, 0.1)',
+                      tension: 0.4,
+                      pointBackgroundColor: '#690000',
+                      pointBorderColor: '#690000',
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    }
+                  ]
+                }}
+                chartOptions={{
+                  ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    y: { ...chartOptions.scales.y, max: 100 }
+                  }
+                }}
+                legendItems={[
+                  { color: '#830000', label: 'Your Group' },
+                  { color: '#690000', label: 'Average' }
+                ]}
+              />
+            </>
+          )}
         </GridLayoutManager>
         </article>
       </section>
