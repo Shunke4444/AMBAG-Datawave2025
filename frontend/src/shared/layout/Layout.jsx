@@ -35,6 +35,7 @@ const Layout = () => {
                         location.pathname.includes('/payment') || 
                         location.pathname.includes('/confirm') || 
                         location.pathname.includes('/receipt') ||
+                        location.pathname.includes('/what-if') ||
                         (location.pathname.includes('/request') && !location.pathname.includes('requests-approval')) ||
                         location.pathname.includes('member-requests') ||
                         location.pathname.includes('notification');

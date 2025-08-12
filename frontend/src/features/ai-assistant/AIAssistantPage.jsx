@@ -1,44 +1,41 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChatHistory } from "../../contexts/ChatContext";
 import ChatSidebar from "./ChatSidebar";
-import MessageList from "./components/MessageList";
-import MessageInput from "./components/MessageInput";
-import QuickActions from "./components/QuickActions";
-import { askChatbot } from "../../lib/api";
+import ChatArea from "./components/ChatArea";
+import ChatInput from "./components/ChatInput";
+import SuggestionButtons from "./components/SuggestionButtons";
 import {
   Menu as MenuIcon,
-  Image as ImageIcon,
-  PictureAsPdf as PdfIcon,
-  Description as DocumentIcon,
   ArrowBack as BackIcon,
 } from "@mui/icons-material";
 
-export default function AIAssistant() {
+export default function AIAssitant() {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [activeButton, setActiveButton] = useState(null);
   const [deepResearchActive, setDeepResearchActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSending, setIsSending] = useState(false);
   
   const { 
     currentChatId, 
     createNewChat, 
     updateChatMessages,
     getCurrentChat,
-    setChatSessionId,
+    setCurrentChatId,
   } = useChatHistory();
   
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   // Get current chat messages
   const currentChat = getCurrentChat();
-  const messages = useMemo(() => {
-    const msgs = currentChat?.messages || [];
-    return msgs;
-  }, [currentChat]);
+  const messages = currentChat?.messages || [];
+
+ const shouldShowSuggestions = messages.length === 0;
 
   // Create initial chat if none exists
   useEffect(() => {
@@ -47,8 +44,27 @@ export default function AIAssistant() {
     }
   }, [currentChatId, createNewChat]);
 
+  // When switching chats, reset AI session and any error state
+  useEffect(() => {
+    setSessionId(null);
+    setErrorMsg("");
+  }, [currentChatId]);
+
   const handleUserInput = async (input) => {
     if (!input.trim()) return;
+
+    // Ensure we have a chat to append to
+    const justCreated = !currentChatId;
+    const maybeNewChat = justCreated ? createNewChat() : null;
+    const targetChatId = currentChatId || maybeNewChat?.id;
+    
+    if (justCreated && targetChatId) {
+      setCurrentChatId(targetChatId);
+    }
+
+    // Get current messages for this chat
+    const currentChatObj = justCreated ? maybeNewChat : getCurrentChat();
+    const baseMessages = currentChatObj?.messages || [];
 
     const userMessage = {
       id: Date.now(),
@@ -57,48 +73,48 @@ export default function AIAssistant() {
       timestamp: new Date().toLocaleTimeString(),
     };
 
-    const updatedMessages = [...messages, userMessage];
-    updateChatMessages(currentChatId, updatedMessages);
+    const updatedMessages = [...baseMessages, userMessage];
+    updateChatMessages(targetChatId, updatedMessages);
+    
     setInputValue("");
     setIsTyping(true);
+    setIsSending(true);
+    setErrorMsg("");
 
     try {
-      const existingSession = currentChat?.sessionId || null;
-      const res = await askChatbot({ prompt: input, session_id: existingSession || undefined });
-      const { response, session_id } = res;
-      if (!existingSession && session_id) {
-        setChatSessionId(currentChatId, session_id);
+      const { askChatbot } = await import("../../lib/api");
+      const result = await askChatbot(input, sessionId);
+      if (result?.session_id && !sessionId) {
+        setSessionId(result.session_id);
       }
       const botMessage = {
         id: Date.now() + 1,
-        text: response || "No response received",
+        text: result?.response || "",
         sender: "bot",
         timestamp: new Date().toLocaleTimeString(),
       };
       const finalMessages = [...updatedMessages, botMessage];
-      updateChatMessages(currentChatId, finalMessages);
-    } catch (e) {
-      const errDetail = e?.response?.data?.detail
-        ? JSON.stringify(e.response.data.detail)
-        : e?.response?.data
-        ? JSON.stringify(e.response.data)
-        : e?.message;
-      const botMessage = {
-        id: Date.now() + 1,
-        text: `Sorry, I couldn't reach the assistant. ${errDetail ? `(${errDetail})` : ''}`.trim(),
-        sender: "bot",
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      const finalMessages = [...updatedMessages, botMessage];
-      updateChatMessages(currentChatId, finalMessages);
+      updateChatMessages(targetChatId, finalMessages);
+    } catch (err) {
+      console.error("Chatbot error:", err);
+      setErrorMsg("Chatbot is unavailable right now. Please try again.");
     } finally {
       setIsTyping(false);
+      setIsSending(false);
     }
   };
 
-  // Local helpers for files
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  // submit handled inline via MessageInput
+    // Create message with text and files
+    const messageText = inputValue.trim();
+    if (!messageText && uploadedFiles.length === 0) return;
+
+    // Use the same logic as handleUserInput for consistency
+    await handleUserInput(messageText);
+    setUploadedFiles([]); // Clear uploaded files
+  };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -109,54 +125,12 @@ export default function AIAssistant() {
 
   const handleQuickAction = (action) => {
     setActiveButton(action);
-    setTimeout(() => setActiveButton(null), 200); // Reset after 200ms
+    setTimeout(() => setActiveButton(null), 200);
 
     if (action === "deep-research") {
       setDeepResearchActive(true);
-      handleUserInput("Tell me about Deep Research");
     } else if (action === "what-if") {
       navigate("/what-if");
-    }
-  };
-
-  const handleFileUpload = (event) => {
-    const files = Array.from(event.target.files);
-
-    files.forEach((file) => {
-      const fileData = {
-        id: Date.now() + Math.random(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        file: file,
-      };
-
-      setUploadedFiles((prev) => [...prev, fileData]);
-    });
-
-    // Reset file input
-    event.target.value = "";
-  };
-
-  const removeFile = (fileId) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const getFileIcon = (fileType) => {
-    if (fileType.includes("image/")) {
-      return <ImageIcon className="w-4 h-4" />;
-    } else if (fileType.includes("pdf")) {
-      return <PdfIcon className="w-4 h-4" />;
-    } else {
-      return <DocumentIcon className="w-4 h-4" />;
     }
   };
 
@@ -172,59 +146,56 @@ export default function AIAssistant() {
         <header className="bg-white shadow-sm px-4 py-3 flex items-center space-x-3 justify-between">
           <div className="flex gap-4">
             <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-textcolor hover:text-opacity-80 transition-colors lg:hidden"
-            aria-label="Toggle chat history"
-          >
-            <MenuIcon className="w-6 h-6" />
-          </button>
-          <h1 className="text-lg font-medium text-textcolor">Ask 
-            <span className="font-bold text-primary ml-1">
-              BAYO
-            </span>
-          </h1>
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-textcolor hover:text-opacity-80 transition-colors lg:hidden"
+              aria-label="Toggle chat history"
+            >
+              <MenuIcon className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-medium text-textcolor">Ask 
+              <span className="font-bold text-primary ml-1">
+                BAYO
+              </span>
+            </h1>
           </div>
           
-          <button onClick={() => navigate(-1)} className="cursor-pointer hover:bg-gray-200 w-fit p-4 rounded-4xl" >
+          <button 
+            onClick={() => navigate(-1)} 
+            className="cursor-pointer hover:bg-gray-200 w-fit p-4 rounded-4xl"
+          >
             <BackIcon />
           </button>
         </header>
 
-    <section className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto lg:max-w-4xl">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-              <header className="text-center">
-                <h2 className="text-3xl font-light text-textcolor">
-                  Hello, <span className="text-primary font-medium">Johnny</span>
-                </h2>
-              </header>
-            </div>
-          )}
-      <MessageList messages={messages} isTyping={isTyping} />
-        </div>
-      </section>
+        <ChatArea 
+          messages={messages}
+          isTyping={isTyping}
+          errorMsg={errorMsg}
+        />
 
-      <footer className="bg-white px-4 py-6">
-        <div className="max-w-4xl mx-auto">
-          {messages.length === 0 && (
-            <QuickActions onPick={(text) => handleUserInput(text)} />
-          )}
-
-          <MessageInput
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            isTyping={isTyping}
-            onSubmit={(e) => { e.preventDefault(); handleUserInput(inputValue); }}
-            onKeyPress={handleKeyPress}
-            uploadedFiles={uploadedFiles.map(f => ({ id: f.id, icon: getFileIcon(f.type), name: f.name, sizeLabel: formatFileSize(f.size) }))}
-            onFileUpload={handleFileUpload}
-            onRemoveFile={removeFile}
-            onQuickAction={handleQuickAction}
-          />
-        </div>
-      </footer>
-    </main>
+        <footer className="bg-white px-4 py-6">
+          <div className="max-w-4xl mx-auto">
+            {shouldShowSuggestions && (
+              <SuggestionButtons onSuggestionClick={handleUserInput} />
+            )}
+            
+            <ChatInput
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              uploadedFiles={uploadedFiles}
+              setUploadedFiles={setUploadedFiles}
+              onSubmit={handleSubmit}
+              onKeyPress={handleKeyPress}
+              isTyping={isTyping}
+              activeButton={activeButton}
+              setActiveButton={setActiveButton}
+              deepResearchActive={deepResearchActive}
+              onQuickAction={handleQuickAction}
+            />
+          </div>
+        </footer>
+      </main>
     </>
   );
 }
+

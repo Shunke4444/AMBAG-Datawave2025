@@ -1,37 +1,16 @@
-import { Line, Bar, Pie } from 'react-chartjs-2';
+import { Line, Bar, Pie, Doughnut, Radar, PolarArea, Scatter, Bubble } from 'react-chartjs-2';
 import { useState } from 'react';
 
 const ChartWidget = ({ 
   title, 
   chartData, 
   chartOptions, 
-  chartType = 'line',
-  chartjsConfig,
+  type,
   legendItems = [],
   className = "",
   onDataChange
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-
-  // If chartjsConfig is provided, use that for the chart
-  const finalChartData = chartjsConfig ? chartjsConfig.data : chartData;
-  const finalChartOptions = chartjsConfig ? chartjsConfig.options : chartOptions;
-  const finalChartType = chartjsConfig ? chartjsConfig.type : chartType;
-
-  // Select the appropriate Chart component
-  const getChartComponent = () => {
-    switch (finalChartType.toLowerCase()) {
-      case 'bar':
-        return Bar;
-      case 'pie':
-        return Pie;
-      case 'line':
-      default:
-        return Line;
-    }
-  };
-
-  const ChartComponent = getChartComponent();
 
   return (
     <div 
@@ -64,20 +43,39 @@ const ChartWidget = ({
       {/* Chart Container */}
       <div className="flex-1 min-h-0 relative">
         <div className="w-full h-full p-1">
-          <ChartComponent 
-            data={finalChartData} 
-            options={{
-              ...finalChartOptions,
-              maintainAspectRatio: false,
-              responsive: true,
-              plugins: {
-                ...finalChartOptions?.plugins,
-                legend: {
-                  display: false
+          {/* Render chart based on type */}
+          {(() => {
+            const props = {
+              data: chartData,
+              options: {
+                ...chartOptions,
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: {
+                  ...chartOptions.plugins,
+                  legend: { display: false }
                 }
               }
-            }} 
-          />
+            };
+            switch (type) {
+              case 'bar':
+                return <Bar {...props} />;
+              case 'pie':
+                return <Pie {...props} />;
+              case 'doughnut':
+                return <Doughnut {...props} />;
+              case 'radar':
+                return <Radar {...props} />;
+              case 'polarArea':
+                return <PolarArea {...props} />;
+              case 'scatter':
+                return <Scatter {...props} />;
+              case 'bubble':
+                return <Bubble {...props} />;
+              default:
+                return <Line {...props} />;
+            }
+          })()}
         </div>
 
         {/* Hover Overlay for Interaction */}

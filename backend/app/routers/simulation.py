@@ -372,3 +372,160 @@ async def simulation_dashboard():
         "recent_simulations": simulation_results_db[-5:] if simulation_results_db else [],
         "generated_at": datetime.now().isoformat()
     }
+
+
+# ===== AI-Driven Chart Generation =====
+
+class ChartDataset(BaseModel):
+    label: str
+    data: List[float]
+    color: Optional[str] = None
+
+
+class ChartSpec(BaseModel):
+    title: str
+    type: str  # line | bar | pie
+    labels: List[str]
+    datasets: List[ChartDataset]
+    options: Optional[Dict] = None
+
+
+class ChartGenerationRequest(BaseModel):
+    goal_id: str
+    prompt: str
+    max_charts: int = 3
+
+
+@router.post("/generate-charts")
+async def generate_charts(req: ChartGenerationRequest):
+    """
+    Generate chart specifications from a natural language prompt using AI, grounded on the goal baseline.
+    Returns a narrative plus a small set of chart specs for the frontend to render.
+    """
+    baseline = get_goal_baseline(req.goal_id)
+    if not baseline:
+        raise HTTPException(status_code=404, detail=f"Goal {req.goal_id} not found")
+
+    # Guardrails
+    max_charts = max(1, min(req.max_charts, 5))
+
+    # Compose AI prompt
+    ai_instructions = f'''
+You are a financial data assistant. Based on the baseline goal data and the user's question, propose up to {max_charts} charts to visualize the situation and forecast.
+Respond ONLY in JSON with the following schema:
+{{
+  "narrative": "short, 2-4 sentences explaining the insight in Taglish",
+  "charts": [
+    {{
+      "title": "string",
+      "type": "line|bar|pie",
+      "labels": ["label1","label2",...],
+      "datasets": [
+        {{"label":"string","data":[number,...],"color":"#830000"}}
+      ]
+    }}
+  ]
+}}
+Constraints:
+- Keep labels and each dataset data length equal (3-8 points max).
+- Prefer line/bar for trends and pacing; pie only if showing composition.
+- Use hex colors if provided; else omit.
+- Be consistent with Philippine Peso context but return raw numbers (no currency symbols) in data.
+
+Baseline:
+- Title: {baseline['title']}
+- Goal Amount: {baseline['current_goal_amount']}
+- Collected: {baseline['current_amount']}
+- Days Remaining: {baseline['days_remaining']}
+- Contributors: {len(baseline['contributors'])}
+
+User question:
+"""
+{req.prompt}
+"""
+    '''
+
+    charts_payload: Dict[str, Union[str, List[Dict]]] = {"narrative": "", "charts": []}
+    try:
+        client = get_ai_client()
+        if client:
+            response = await client.chat.completions.create(
+                model="deepseek/deepseek-chat",
+                messages=[{"role": "user", "content": ai_instructions}],
+                max_tokens=1200,
+                temperature=0.5,
+            )
+            content = response.choices[0].message.content if response and response.choices else None
+            if content:
+                import json
+                charts_payload = json.loads(content)
+    except Exception as e:
+        logger.warning(f"AI chart generation failed, falling back. Error: {e}")
+
+    # Fallback if AI unavailable or malformed
+    def fallback_charts(baseline: Dict) -> Dict:
+        remaining = max(0.0, float(baseline["current_goal_amount"]) - float(baseline["current_amount"]))
+        days = max(1, int(baseline.get("days_remaining", 30)))
+        per_day_needed = remaining / days
+        labels = [f"Day {i}" for i in range(1, 7)]
+        required = [round(per_day_needed, 2)] * 6
+        pace = [round(per_day_needed * (0.9 + 0.05 * i), 2) for i in range(6)]
+        return {
+            "narrative": "Nag-forecast ako ng pacing: eto yung daily requirement vs. current pace mo para maabot ang goal on time.",
+            "charts": [
+                {
+                    "title": "Required vs Current Pace",
+                    "type": "line",
+                    "labels": labels,
+                    "datasets": [
+                        {"label": "Required per Day", "data": required, "color": "#830000"},
+                        {"label": "Current Pace", "data": pace, "color": "#DDB440"},
+                    ],
+                },
+                {
+                    "title": "Contribution Breakdown",
+                    "type": "pie",
+                    "labels": [c['name'] for c in baseline['contributors']],
+                    "datasets": [
+                        {"label": "Contribution", "data": [c['amount'] for c in baseline['contributors']], "color": ["#830000", "#DDB440", "#4B5320", "#C0C0C0"]},
+                    ],
+                },
+                {
+                    "title": "Remaining Amount",
+                    "type": "bar",
+                    "labels": ["Remaining"],
+                    "datasets": [
+                        {"label": "Remaining", "data": [remaining], "color": "#830000"},
+                    ],
+                }
+            ],
+        }
+
+    # Validate and normalize charts_payload
+    try:
+        # Basic structure
+        if not isinstance(charts_payload, dict) or "charts" not in charts_payload:
+            charts_payload = fallback_charts(baseline)
+        charts = charts_payload.get("charts", [])
+        if not isinstance(charts, list) or len(charts) == 0:
+            charts_payload = fallback_charts(baseline)
+            charts = charts_payload.get("charts", [])
+        # Truncate to max
+        charts_payload["charts"] = charts[:max_charts]
+    except Exception:
+        charts_payload = fallback_charts(baseline)
+
+    # Pydantic validation
+    try:
+        validated_charts = [ChartSpec(**c) for c in charts_payload.get("charts", [])]
+        charts_payload["charts"] = [c.model_dump() for c in validated_charts]
+    except Exception as e:
+        logger.warning(f"Chart spec validation failed, using fallback. Error: {e}")
+        charts_payload = fallback_charts(baseline)
+
+    return {
+        "baseline": baseline,
+        "narrative": charts_payload.get("narrative", ""),
+        "charts": charts_payload.get("charts", []),
+        "generated_at": datetime.now().isoformat(),
+    }

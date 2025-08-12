@@ -7,16 +7,25 @@ import {
   LineElement,
   BarElement,
   ArcElement,
+  RadarController,
+  RadialLinearScale,
+  PolarAreaController,
+  BubbleController,
+  ScatterController,
+  DoughnutController,
+  BarController,
+  PieController,
+  Filler,
   Title,
   Tooltip,
-  Legend,
-  Filler
+  Legend
 } from 'chart.js';
 import { ArrowBack, Send, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import GridLayoutManager from './GridLayoutManager';
 import ChartWidget from './ChartWidget';
-import axios from 'axios';
+import { createSimulationTestGoal, generateSimulationCharts } from '../../lib/api';
+import { useAuthRole } from '../../contexts/AuthRoleContext';
 
 // Register Chart.js components
 ChartJS.register(
@@ -26,6 +35,14 @@ ChartJS.register(
   LineElement,
   BarElement,
   ArcElement,
+  RadarController,
+  RadialLinearScale,
+  PolarAreaController,
+  BubbleController,
+  ScatterController,
+  DoughnutController,
+  BarController,
+  PieController,
   Title,
   Tooltip,
   Legend,
@@ -34,6 +51,7 @@ ChartJS.register(
 
 export default function WhatIf() {
   const navigate = useNavigate();
+  const { authRole } = useAuthRole() || {};
   
   // UI State
   const [activeTimePeriod, setActiveTimePeriod] = useState('Month');
@@ -41,18 +59,13 @@ export default function WhatIf() {
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   
-  // AI Chart State
-  const [aiCharts, setAiCharts] = useState([]);
-  const [aiNarrative, setAiNarrative] = useState('');
-  
   // Grid Layout State
   const [gridDimensions] = useState({ cols: 12, rows: 6 });
   const [layoutHistory, setLayoutHistory] = useState([]);
   const [chartLayout, setChartLayout] = useState({
-    mainChart: { x: 0, y: 0, width: 6, height: 3 },
-    trendsChart: { x: 6, y: 0, width: 6, height: 3 },
-    performanceChart: { x: 0, y: 3, width: 12, height: 3 }
+  c0: { x: 0, y: 0, width: 12, height: 6 },
   });
+
   
   // Chat State
   const [conversationMessages, setConversationMessages] = useState([
@@ -93,6 +106,14 @@ export default function WhatIf() {
   ]);
   
   const messagesEndRef = useRef(null);
+  const [goalId, setGoalId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const chartRefs = useRef({});
+
+  // Charts State (dynamic)
+  const [aiCharts, setAiCharts] = useState([]); // array of ChartSpec
+  const [aiNarrative, setAiNarrative] = useState('');
 
   // Layout Management Functions
   const updateChartLayout = (chartId, newLayout) => {
@@ -161,7 +182,6 @@ export default function WhatIf() {
         }
         break;
       default:
-        // Free resize - no additional constraints
         break;
     }
 
@@ -207,94 +227,73 @@ export default function WhatIf() {
     return "I can help you explore different scenarios for your group payments. Try asking about:\n\n• Visual simulations of payment impacts\n• Timeline extensions or adjustments\n• Increasing or decreasing contribution amounts\n• Emergency backup plans\n\nWhat would you like to analyze first?";
   };
 
+
   const handleMessageSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg("");
     if (!chatInput.trim()) return;
 
+    const prompt = chatInput;
     const userMessage = {
       id: Date.now(),
-      content: chatInput,
+      content: prompt,
       sender: 'user',
       timestamp: new Date().toLocaleTimeString(),
     };
 
     setConversationMessages(prev => [...prev, userMessage]);
-    const currentPrompt = chatInput;
     setChatInput('');
     setIsAssistantTyping(true);
 
     try {
-      // Ensure we have a goal_id (create test goal if needed)
-      let goalId = localStorage.getItem('test_goal_id');
-      if (!goalId) {
-        const baseURL = import.meta?.env?.VITE_API_URL || 'http://127.0.0.1:8000';
-        const testGoalResponse = await axios.post(`${baseURL}/simulation/create-test-goal`);
-        goalId = testGoalResponse.data.goal_id;
-        localStorage.setItem('test_goal_id', goalId);
+      // Always create a test goal and use its ID for chart generation
+      const created = await createSimulationTestGoal();
+      let useGoalId = created?.goal_id;
+      if (!useGoalId) {
+        throw new Error('Failed to create test goal.');
       }
+      setGoalId(useGoalId);
+      localStorage.setItem('whatif-goal-id', useGoalId);
 
-      // Call the generate-charts endpoint
-      const baseURL = import.meta?.env?.VITE_API_URL || 'http://127.0.0.1:8000';
-      const response = await axios.post(`${baseURL}/simulation/generate-charts`, {
-        goal_id: goalId,
-        prompt: currentPrompt,
-        max_charts: 3
+      // Use new helper for chart generation
+      const data = await generateSimulationCharts({
+        goal_id: useGoalId,
+        prompt,
+        max_charts: 3,
       });
-
-      const { narrative, charts } = response.data;
-      
-      // Set AI narrative and charts
+      const narrative = data?.narrative || '';
+      const charts = Array.isArray(data?.charts) ? data.charts : [];
       setAiNarrative(narrative);
-      setAiCharts(charts || []);
+      setAiCharts(charts);
 
-      // Add assistant message with narrative
+      // Update chart layout
+      const newChartLayout = {};
+      charts.forEach((chart, index) => {
+        const chartId = `c${index}`;
+        const x = (index % 2) * 6;
+        const y = Math.floor(index / 2) * 3;
+        newChartLayout[chartId] = { x, y, width: 6, height: 3 };
+      });
+      setChartLayout(newChartLayout);
       const assistantMessage = {
         id: Date.now() + 1,
-        content: narrative,
+        content: narrative || generateAssistantResponse(prompt),
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString(),
       };
-
-      setConversationMessages(prev => [...prev, assistantMessage]);
-      setIsAssistantTyping(false);
-
-    } catch (error) {
-      console.error('Failed to get AI response:', error);
-      
-      // Fallback response
-      const fallbackResponse = generateAssistantResponse(currentPrompt);
+      setConversationMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Error generating simulation charts:", err);
+      setErrorMsg("Sorry, there was a problem generating your chart. Please try again or check the backend.");
+      const fallback = generateAssistantResponse(prompt);
       const assistantMessage = {
         id: Date.now() + 1,
-        content: fallbackResponse,
+        content: fallback,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString(),
       };
-
-      // Add fallback chart
-      setAiCharts([{
-        title: "Fallback Chart",
-        type: "bar",
-        chartjsConfig: {
-          type: "bar",
-          data: {
-            labels: ["Current", "Target"],
-            datasets: [{
-              label: "Amount",
-              data: [2500, 10000],
-              backgroundColor: ["#4CAF50", "#FF9800"]
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: true },
-              title: { display: true, text: "Goal Progress" }
-            }
-          }
-        }
-      }]);
-
-      setConversationMessages(prev => [...prev, assistantMessage]);
+      setConversationMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setIsAssistantTyping(false);
     }
   };
@@ -305,6 +304,24 @@ export default function WhatIf() {
   }, [conversationMessages, isAssistantTyping]);
 
   useEffect(() => {
+    // Ensure we have a goal id for simulation (create a test goal if needed)
+    (async () => {
+      try {
+        const existing = localStorage.getItem('whatif-goal-id');
+        if (existing) {
+          setGoalId(existing);
+        } else {
+          const created = await createSimulationTestGoal();
+          if (created?.goal_id) {
+            localStorage.setItem('whatif-goal-id', created.goal_id);
+            setGoalId(created.goal_id);
+          }
+        }
+      } catch {
+        // ignore bootstrap errors
+      }
+    })();
+
     const savedLayoutData = localStorage.getItem('whatif-layout');
     if (savedLayoutData) {
       try {
@@ -313,45 +330,23 @@ export default function WhatIf() {
       } catch (error) {
         // Silently fail and use default layout
       }
+    } else {
+      // Default layout for up to 3 charts
+      setChartLayout({
+        c0: { x: 0, y: 0, width: 12, height: 3 },
+        c1: { x: 0, y: 3, width: 6, height: 3 },
+        c2: { x: 6, y: 3, width: 6, height: 3 },
+      });
     }
   }, []);
 
   // Chart Configuration
-  const mainChartData = {
-    labels: ['1 Oct', '3 Oct', '5 Oct', '7 Oct', '9 Oct', '10 Oct'],
-    datasets: [
-      {
-        label: 'Payment if not sent',
-        data: [2, 3, 4, 2, 1, 4],
-        borderColor: '#830000',
-        backgroundColor: 'rgba(131, 0, 0, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: '#830000',
-        pointBorderColor: '#830000',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      },
-      {
-        label: 'Actual Payment',
-        data: [1, 2, 2, 3, 2, 3],
-        borderColor: '#DDB440',
-        backgroundColor: 'rgba(221, 180, 64, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: '#DDB440',
-        pointBorderColor: '#DDB440',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      }
-    ],
-  };
-
+  // chartOptions stays constant
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
       tooltip: {
         backgroundColor: '#FBFAF9',
         titleColor: '#1B1C1E',
@@ -359,46 +354,20 @@ export default function WhatIf() {
         borderColor: '#830000',
         borderWidth: 1,
         cornerRadius: 8,
-        titleFont: {
-          size: 13,
-          weight: 'bold'
-        },
-        bodyFont: {
-          size: 12
-        }
+        titleFont: { size: 13, weight: 'bold' },
+        bodyFont: { size: 12 },
       },
     },
     scales: {
       x: {
-        grid: {
-          display: false,
-        },
-        border: {
-          display: false,
-        },
-        ticks: {
-          color: '#1B1C1E',
-          font: {
-            size: 12,
-            weight: '500'
-          },
-        },
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: '#1B1C1E', font: { size: 12, weight: '500' } },
       },
       y: {
-        grid: {
-          color: 'rgba(131, 0, 0, 0.1)',
-        },
-        border: {
-          display: false,
-        },
-        ticks: {
-          color: '#1B1C1E',
-          font: {
-            size: 12,
-            weight: '500'
-          },
-          stepSize: 1,
-        },
+        grid: { color: 'rgba(131, 0, 0, 0.1)' },
+        border: { display: false },
+        ticks: { color: '#1B1C1E', font: { size: 12, weight: '500' }, stepSize: 1 },
         min: 0,
         max: 5,
       },
@@ -406,9 +375,9 @@ export default function WhatIf() {
   };
 
   return (
-    <main className="min-h-screen bg-primary flex flex-col overflow-hidden px-6">
+    <main className="min-h-screen  flex flex-col ">
       {/* Header */}
-      <header className="flex items-center justify-between py-4 text-secondary flex-shrink-0 border-b border-shadow">
+      <header className=" flex bg-primary  items-center justify-between py-4 text-secondary flex-shrink-0 border-b border-shadow">
         <section className="flex items-center">
           <button 
             onClick={() => navigate(-1)}
@@ -441,158 +410,66 @@ export default function WhatIf() {
         </nav>
       </header>
 
-      {/* Main Content Area with Grid */}
-      <section className="h-[75vh] py-4 pb-24">
+  {/* Main Content Area with Grid */}
+  <section className="h-[75vh] py-4 pb-24 bg-white">
         <article className="w-[70vw] mx-auto h-full">
-          <GridLayoutManager
-            gridCols={gridDimensions.cols}
-            gridRows={gridDimensions.rows}
-            onLayoutChange={handleChartLayoutChange}
-            onResize={handleChartResize}
-            className="h-full w-full"
-          >
-          {/* Render AI Generated Charts or Default Charts */}
-          {aiCharts.length > 0 ? (
-            aiCharts.map((chart, index) => (
-              <ChartWidget
-                key={`ai-chart-${index}`}
-                id={`aiChart${index}`}
-                gridX={index === 0 ? 0 : index === 1 ? 6 : 0}
-                gridY={index === 0 ? 0 : index === 1 ? 0 : 3}
-                gridWidth={index === 2 ? 12 : 6}
-                gridHeight={3}
-                minWidth={3}
-                minHeight={2}
-                title={chart.title}
-                chartType={chart.type}
-                chartjsConfig={chart.chartjsConfig}
-              />
-            ))
-          ) : (
-            <>
-              {/* Default charts when no AI charts available */}
-              <ChartWidget
-                id="mainChart"
-                gridX={chartLayout.mainChart.x}
-                gridY={chartLayout.mainChart.y}
-                gridWidth={chartLayout.mainChart.width}
-                gridHeight={chartLayout.mainChart.height}
-                minWidth={3}
-                minHeight={2}
-                title="Payment Analysis"
-                chartData={mainChartData}
-                chartOptions={chartOptions}
-                legendItems={[
-                  { color: '#830000', label: 'Payment if not sent' },
-                  { color: '#DDB440', label: 'Actual Payment' }
-                ]}
-              />
-
-              <ChartWidget
-                id="trendsChart"
-                gridX={chartLayout.trendsChart.x}
-                gridY={chartLayout.trendsChart.y}
-                gridWidth={chartLayout.trendsChart.width}
-                gridHeight={chartLayout.trendsChart.height}
-                minWidth={3}
-                minHeight={2}
-                title="Payment Trends"
-                chartData={{
-                  labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                  datasets: [
-                    {
-                      label: 'On-time Payments',
-                      data: [95, 87, 92, 88],
-                      borderColor: '#34A751',
-                      backgroundColor: 'rgba(52, 167, 81, 0.1)',
-                      tension: 0.4,
-                      pointBackgroundColor: '#34A751',
-                      pointBorderColor: '#34A751',
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                    },
-                    {
-                      label: 'Late Payments',
-                      data: [5, 13, 8, 12],
-                      borderColor: '#DDB440',
-                      backgroundColor: 'rgba(221, 180, 64, 0.1)',
-                      tension: 0.4,
-                      pointBackgroundColor: '#DDB440',
-                      pointBorderColor: '#DDB440',
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                    }
-                  ]
-                }}
-                chartOptions={{
-                  ...chartOptions,
-                  scales: {
-                    ...chartOptions.scales,
-                    y: { ...chartOptions.scales.y, max: 100 }
-                  }
-                }}
-                legendItems={[
-                  { color: '#34A751', label: 'On-time' },
-                  { color: '#DDB440', label: 'Late' }
-                ]}
-              />
-
-              <ChartWidget
-                id="performanceChart"
-                gridX={chartLayout.performanceChart.x}
-                gridY={chartLayout.performanceChart.y}
-                gridWidth={chartLayout.performanceChart.width}
-                gridHeight={chartLayout.performanceChart.height}
-                minWidth={3}
-                minHeight={2}
-                title="Group Performance"
-                chartData={{
-                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                  datasets: [
-                    {
-                      label: 'Your Group',
-                      data: [85, 92, 78, 86, 94, 89],
-                      borderColor: '#830000',
-                      backgroundColor: 'rgba(131, 0, 0, 0.1)',
-                      tension: 0.4,
-                      pointBackgroundColor: '#830000',
-                      pointBorderColor: '#830000',
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                    },
-                    {
-                      label: 'Average Groups',
-                      data: [75, 78, 72, 76, 80, 77],
-                      borderColor: '#690000',
-                      backgroundColor: 'rgba(105, 0, 0, 0.1)',
-                      tension: 0.4,
-                      pointBackgroundColor: '#690000',
-                      pointBorderColor: '#690000',
-                      pointRadius: 4,
-                      pointHoverRadius: 6,
-                    }
-                  ]
-                }}
-                chartOptions={{
-                  ...chartOptions,
-                  scales: {
-                    ...chartOptions.scales,
-                    y: { ...chartOptions.scales.y, max: 100 }
-                  }
-                }}
-                legendItems={[
-                  { color: '#830000', label: 'Your Group' },
-                  { color: '#690000', label: 'Average' }
-                ]}
-              />
-            </>
+          {/* Dynamic AI charts */}
+          {aiNarrative && (
+            <p className="mb-3 text-sm text-textcolor/80">{aiNarrative}</p>
           )}
-        </GridLayoutManager>
+          {errorMsg && (
+            <div className="text-red-600 text-center my-4">{errorMsg}</div>
+          )}
+          {aiCharts.length === 0 && !errorMsg ? (
+            <div className="h-full flex items-center justify-center text-textcolor/60">
+              Ask a question below to generate charts.
+            </div>
+          ) : (
+            <GridLayoutManager
+              gridCols={gridDimensions.cols}
+              gridRows={gridDimensions.rows}
+              onLayoutChange={handleChartLayoutChange}
+              onResize={handleChartResize}
+              className="h-full w-full"
+            >
+              {aiCharts.map((c, idx) => (
+                <ChartWidget
+                  key={`c${idx}-${c.type}`}
+                  id={`c${idx}`}
+                  gridX={chartLayout[`c${idx}`]?.x || 0}
+                  gridY={chartLayout[`c${idx}`]?.y || 0}
+                  gridWidth={chartLayout[`c${idx}`]?.width || gridDimensions.cols}
+                  gridHeight={chartLayout[`c${idx}`]?.height || 3}
+                  minWidth={3}
+                  minHeight={2}
+                  title={c.title}
+                  type={c.type}
+                  chartData={{ labels: c.labels, datasets: (c.datasets || []).map(d => ({
+                    label: d.label,
+                    data: d.data,
+                    borderColor: d.color || '#830000',
+                    backgroundColor: (d.color || '#83000a') + '20',
+                    tension: 0.4,
+                    pointBackgroundColor: d.color || '#830000',
+                    pointBorderColor: d.color || '#830000',
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                  })) }}
+                  chartOptions={{
+                    ...chartOptions,
+                    // Only provide scales for non-pie charts
+                    ...(c.type === 'pie' ? { scales: undefined } : { scales: { ...chartOptions.scales } })
+                  }}
+                  legendItems={(c.datasets || []).map(d => ({ color: d.color || '#830000', label: d.label }))}
+                />
+              ))}
+            </GridLayoutManager>
+          )}
         </article>
       </section>
 
-      {/* Chat Interface - Fixed at bottom but respects layout */}
-      <aside className="fixed bottom-0 bg-secondary border-t border-primary/20 z-50 left-6 lg:left-70 right-6">
+  {/* Chat Interface - Fixed at bottom, full width */}
+  <aside className="fixed bottom-0 left-0 right-0 bg-secondary border-t border-primary/20 z-50">
         {/* Chat Header with Toggle */}
         <header className="px-4 py-3 flex items-center justify-between">
           <section className="flex items-center space-x-3">

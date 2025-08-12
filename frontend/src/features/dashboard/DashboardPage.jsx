@@ -5,11 +5,13 @@ import NewUserDashboard from "./NewUserDashboard";
 import LoanRequestModal from "../loan/LoanRequestModal";
 import DashboardBtns from "./DashboardBtns";
 import useIsMobile from "../../hooks/useIsMobile"; // ✅ import your hook
+import { useEffect } from "react";
 
 const Dashboard = () => {
   const [isLoanOpen, setIsLoanOpen] = useState(false);
-  const authRole = "Manager"; // Hard-coded for testing
+  const authRole = "Manager"; 
   const isMobile = useIsMobile(); // ✅ detect mobile
+
 
   return (
     <>

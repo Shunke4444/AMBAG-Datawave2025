@@ -31,7 +31,6 @@ const ChatProvider = ({ children }) => {
       id: Date.now(),
       title: 'New Chat',
       messages: [],
-  sessionId: null,
       createdAt: new Date().toISOString(),
       lastMessage: '',
     };
@@ -71,12 +70,6 @@ const ChatProvider = ({ children }) => {
     return chatHistory.find(chat => chat.id === currentChatId);
   };
 
-  const setChatSessionId = (chatId, sessionId) => {
-    setChatHistory(prev => prev.map(chat => (
-      chat.id === chatId ? { ...chat, sessionId } : chat
-    )));
-  };
-
   return (
     <ChatContext.Provider
       value={{
@@ -87,7 +80,6 @@ const ChatProvider = ({ children }) => {
         updateChatMessages,
         deleteChat,
         getCurrentChat,
-  setChatSessionId,
       }}
     >
       {children}
