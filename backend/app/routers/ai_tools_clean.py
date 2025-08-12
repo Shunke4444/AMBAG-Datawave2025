@@ -208,10 +208,8 @@ def create_fallback_actions(group_data: dict, analytics: dict):
     return actions
 
 #create test for backend
-def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
+async def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
     """Create a test goal with associated group for comprehensive testing"""
-    from .goal import goal 
-    from .groups import Group, GroupMember  
     
     goal_id = str(uuid4())
     
@@ -222,59 +220,69 @@ def create_test_goal_with_group(title: str, goal_amount: float, creator_name: st
     if creator_name not in member_names:
         member_names = [creator_name] + member_names
     
-    # Create the actual goal object and add it to goals dictionary
-    new_goal = goal(
-        id=goal_id,
-        title=title,
-        goal_amount=goal_amount,
-        current_amount=0.0,  # Add required field
-        creator_name=creator_name,
-        creator_role="manager",
-        description=f"Test goal for {title}",
-        target_date=(datetime.now() + timedelta(days=20)).date(),
-        created_at=datetime.now().isoformat(),
-        is_paid=False,  # Add required field
-        status="active"  # Add required field
-    )
-    goals[goal_id] = new_goal
+    # Create the goal document
+    new_goal = {
+        "goal_id": goal_id,
+        "title": title,
+        "goal_amount": goal_amount,
+        "creator_name": creator_name,
+        "creator_role": "manager",
+        "description": f"Test goal for {title}",
+        "target_date": (datetime.now() + timedelta(days=20)).date(),
+        "created_at": datetime.now().isoformat(),
+        "status": "active"
+    }
     
+    # Insert goal into MongoDB
+    await goals_collection.insert_one(new_goal)
+    
+    # Create group members data
     group_members = []
     for i, member_name in enumerate(member_names):
-        member = GroupMember(
-            user_id=f"user_{member_name.replace(' ', '_').lower()}_{i}",  # Generate user ID
-            role="manager" if member_name == creator_name else "contributor",
-            joined_at=datetime.now().isoformat(),
-            contribution_total=0.0,
-            is_active=True
-        )
+        member = {
+            "user_id": f"user_{member_name.replace(' ', '_').lower()}_{i}",
+            "role": "manager" if member_name == creator_name else "contributor",
+            "joined_at": datetime.now().isoformat(),
+            "contribution_total": 0.0,
+            "is_active": True
+        }
         group_members.append(member)
     
-    group = Group(
-        id=goal_id,  # Use same ID to link goal and group
-        name=f"Group for {title}",
-        description=f"Financial group for {title}",
-        manager_id=f"user_{creator_name.replace(' ', '_').lower()}_0",  # Manager's user ID
-        members=group_members,
-        created_at=datetime.now().isoformat(),
-        is_active=True,
-        total_goals=1,
-        total_contributions=0.0
-    )
-    group_db[goal_id] = group
+    # Create group document
+    group = {
+        "group_id": goal_id,  # Use same ID to link goal and group
+        "name": f"Group for {title}",
+        "description": f"Financial group for {title}",
+        "manager_id": f"user_{creator_name.replace(' ', '_').lower()}_0",
+        "members": group_members,
+        "created_at": datetime.now().isoformat(),
+        "is_active": True,
+        "total_goals": 1,
+        "total_contributions": 0.0
+    }
     
-    # Initialize pool status - THIS IS THE KEY FIX
-    pool_status[goal_id] = {
+    # Insert group into MongoDB
+    await groups_collection.insert_one(group)
+    
+    # Initialize pool status
+    pool_status = {
+        "goal_id": goal_id,
         "current_amount": 0.0,
         "is_paid": False,
         "status": "active",
-        "contributors": []  # Initialize empty contributors list
+        "contributors": []
     }
+    
+    # Insert pool status into MongoDB
+    await pool_status_collection.insert_one(pool_status)
     
     return goal_id, group
 
 async def add_realistic_test_contributions(goal_id: str, contribution_percentage: float = 0.6):
     """Add realistic test contributions to a goal for testing autonomous triggers"""
-    goal = goals.get(goal_id)
+    
+    # Get goal from MongoDB
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         return False
     
@@ -283,12 +291,15 @@ async def add_realistic_test_contributions(goal_id: str, contribution_percentage
         return False
     
     members = group_data.get("members", [])
-    target_amount = goal.goal_amount * contribution_percentage
+    target_amount = goal["goal_amount"] * contribution_percentage
     
     # Add contributions from some members (not all, to create pending members)
     contributing_members = members[:int(len(members) * 0.7)]  # 70% of members contribute
     
     contribution_per_member = target_amount / len(contributing_members)
+    
+    total_amount = 0
+    new_contributors = []
     
     for i, member in enumerate(contributing_members):
         # Vary contribution amounts slightly
@@ -302,8 +313,17 @@ async def add_realistic_test_contributions(goal_id: str, contribution_percentage
             "timestamp": (datetime.now() - timedelta(days=i)).isoformat()
         }
         
-        pool_status[goal_id]["contributors"].append(new_contribution)
-        pool_status[goal_id]["current_amount"] += amount
+        new_contributors.append(new_contribution)
+        total_amount += amount
+    
+    # Update pool status in MongoDB
+    await pool_status_collection.update_one(
+        {"goal_id": goal_id},
+        {
+            "$push": {"contributors": {"$each": new_contributors}},
+            "$set": {"current_amount": total_amount}
+        }
+    )
     
     return True
 
@@ -1040,7 +1060,7 @@ async def create_test_scenario_with_group():
     
     try:
         # Create test goal with group
-        goal_id, group = create_test_goal_with_group(
+        goal_id, group = await create_test_goal_with_group(
             title="Electric Bill Test Scenario",
             goal_amount=5000.0,
             creator_name="Maria Santos",
@@ -1056,19 +1076,26 @@ async def create_test_scenario_with_group():
             raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
         analytics = calculate_group_analytics(group_data)
         
+        # Get pool status to check contributors
+        pool_status = await pool_status_collection.find_one({"goal_id": goal_id})
+        contributor_names = [c["name"] for c in pool_status.get("contributors", [])]
+        
+        # Find pending members
+        pending_members = [
+            member["user_id"] for member in group["members"] 
+            if member["user_id"].replace('user_', '').replace('_', ' ').title() not in contributor_names
+        ]
+        
         return {
             "success": True,
             "goal_id": goal_id,
             "group_id": goal_id,
             "scenario": "Electric Bill Test Scenario",
-            "members": [member.user_id for member in group.members] if hasattr(group, 'members') else [],
+            "members": [member["user_id"] for member in group["members"]],
             "goal_amount": 5000.0,
             "current_amount": analytics.get("current_amount", 0),
             "progress_percentage": analytics.get("progress_percentage", 0),
-            "pending_members": [
-                member.user_id for member in group.members 
-                if member.user_id not in [c["name"] for c in pool_status[goal_id]["contributors"]]
-            ] if hasattr(group, 'members') else [],
+            "pending_members": pending_members,
             "message": "Test scenario created successfully! Use this goal_id for testing agentic features.",
             "next_steps": [
                 f"Check notifications: GET /ai-tools/notifications/{goal_id}",
@@ -1079,63 +1106,67 @@ async def create_test_scenario_with_group():
     except Exception as e:
         logger.error(f"Error creating test scenario: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create test scenario: {str(e)}")
-
 @router.post("/test-agentic-workflow")
 async def test_agentic_workflow(goal_id: str):
     """Test the complete agentic workflow with real goal and group data"""
     
-    # Verify goal exists
-    goal = goals.get(goal_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
-    
-    # Get group data
-    group_data = await convert_goal_to_group_format(goal_id)
-    if not group_data:
-        raise HTTPException(status_code=404, detail=f"Could not convert goal {goal_id} to group format")
-    
-    analytics = calculate_group_analytics(group_data)
-    
-    # Simulate AI analysis (removed comprehensive analysis endpoint)
-    ai_actions = create_fallback_actions(group_data, analytics)
-    
-    # Execute actions
-    action_results = []
-    for action in ai_actions:
-        if action.get("action_type") == "send_reminder":
-            result = await execute_autonomous_action(
-                action["action_type"],
-                goal_id,
-                action["action_data"],
-                action.get("target_members", [])
-            )
-            action_results.append({
-                "action": action["action_type"],
-                "result": result
-            })
-    
-    # Get resulting notifications
-    notifications = [n for n in notifications_db if n.get("group_id") == goal_id]
-    executed_actions = [a for a in executed_actions_db if a.get("group_id") == goal_id]
-    
-    return {
-        "agentic_workflow_test": "completed",
-        "goal_id": goal_id,
-        "goal_title": goal.title,
-        "group_analytics": analytics,
-        "ai_actions_triggered": len(ai_actions),
-        "notifications_created": len(notifications),
-        "actions_executed": len(executed_actions),
-        "action_results": action_results,
-        "pending_members_targeted": group_data.get("pending_members", []),
-        "workflow_status": "✅ Agentic features working with real goal/group data",
-        "recent_notifications": notifications[-3:] if notifications else [],
-        "test_summary": {
-            "goal_integration": "✅ Working",
-            "group_integration": "✅ Working", 
-            "ai_analysis": "✅ Working",
-            "autonomous_actions": "✅ Working",
-            "notification_system": "✅ Working"
+    try:
+        # Verify goal exists in MongoDB
+        goal = await goals_collection.find_one({"goal_id": goal_id})
+        if not goal:
+            raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
+        
+        # Get group data
+        group_data = await convert_goal_to_group_format(goal_id)
+        if not group_data:
+            raise HTTPException(status_code=404, detail=f"Could not convert goal {goal_id} to group format")
+        
+        analytics = calculate_group_analytics(group_data)
+        
+        # Simulate AI analysis (removed comprehensive analysis endpoint)
+        ai_actions = create_fallback_actions(group_data, analytics)
+        
+        # Execute actions
+        action_results = []
+        for action in ai_actions:
+            if action.get("action_type") == "send_reminder":
+                result = await execute_autonomous_action(
+                    action["action_type"],
+                    goal_id,
+                    action["action_data"],
+                    action.get("target_members", [])
+                )
+                action_results.append({
+                    "action": action["action_type"],
+                    "result": result
+                })
+        
+        # Get resulting notifications from MongoDB
+        notifications = await notifications_collection.find({"group_id": goal_id}).to_list(length=None)
+        executed_actions = await executed_actions_collection.find({"group_id": goal_id}).to_list(length=None)
+        
+        return {
+            "agentic_workflow_test": "completed",
+            "goal_id": goal_id,
+            "goal_title": goal.get("title", "Untitled Goal"),
+            "group_analytics": analytics,
+            "ai_actions_triggered": len(ai_actions),
+            "notifications_created": len(notifications),
+            "actions_executed": len(executed_actions),
+            "action_results": action_results,
+            "pending_members_targeted": group_data.get("pending_members", []),
+            "workflow_status": "✅ Agentic features working with real goal/group data",
+            "recent_notifications": notifications[-3:] if notifications else [],
+            "test_summary": {
+                "goal_integration": "✅ Working",
+                "group_integration": "✅ Working", 
+                "ai_analysis": "✅ Working",
+                "autonomous_actions": "✅ Working",
+                "notification_system": "✅ Working"
+            }
         }
-    }
+        
+    except Exception as e:
+        logger.error(f"Agentic workflow test error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workflow test failed: {str(e)}")
 

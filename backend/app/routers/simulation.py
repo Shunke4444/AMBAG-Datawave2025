@@ -304,47 +304,51 @@ async def get_goal_scenarios(goal_id: str):
 async def create_test_goal():
     """Create a test goal with sample data for simulation testing"""
     
-    test_goal_id = "test_goal_123"
+    test_goal_id = f"test_goal_{uuid4()}"
     
+    # Create goal document for MongoDB
     test_goal_data = {
-        "id": test_goal_id,
+        "goal_id": test_goal_id,
         "title": "Family Vacation Fund",
         "goal_amount": 50000.0,
-        "current_amount": 15000.0,
         "target_date": (datetime.now() + timedelta(days=90)).date(),
         "creator_name": "Juan Dela Cruz",
         "description": "Save for Boracay family trip",
         "creator_role": "manager",
         "status": "active",
-        "created_at": datetime.now().isoformat(),
-        "is_paid": False
+        "created_at": datetime.now().isoformat()
     }
     
-    from .goal import goal
-    test_goal = goal(**test_goal_data)
+    # Insert goal into MongoDB
+    await goals_collection.insert_one(test_goal_data)
     
-    goals[test_goal_id] = test_goal
-    
-    pool_status[test_goal_id] = {
+    # Create pool status document for MongoDB
+    pool_status_data = {
+        "goal_id": test_goal_id,
         "current_amount": 15000.0,
+        "is_paid": False,
+        "status": "active",
         "contributors": [
-            {"name": "Juan Dela Cruz", "amount": 5000.0, "date": "2025-07-15"},
-            {"name": "Maria Santos", "amount": 4000.0, "date": "2025-07-20"},
-            {"name": "Pedro Garcia", "amount": 3000.0, "date": "2025-07-25"},
-            {"name": "Ana Reyes", "amount": 3000.0, "date": "2025-07-30"}
+            {"name": "Juan Dela Cruz", "amount": 5000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-15T10:00:00"},
+            {"name": "Maria Santos", "amount": 4000.0, "payment_method": "gcash", "timestamp": "2025-07-20T14:30:00"},
+            {"name": "Pedro Garcia", "amount": 3000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-25T09:15:00"},
+            {"name": "Ana Reyes", "amount": 3000.0, "payment_method": "paymaya", "timestamp": "2025-07-30T16:45:00"}
         ],
         "last_updated": datetime.now().isoformat()
     }
+    
+    # Insert pool status into MongoDB
+    await pool_status_collection.insert_one(pool_status_data)
     
     return {
         "message": "Test goal created successfully",
         "goal_id": test_goal_id,
         "goal_details": {
-            "title": test_goal.title,
-            "goal_amount": test_goal.goal_amount,
+            "title": test_goal_data["title"],
+            "goal_amount": test_goal_data["goal_amount"],
             "current_amount": 15000.0,
-            "target_date": test_goal.target_date.isoformat(),
-            "days_remaining": (test_goal.target_date - datetime.now().date()).days,
+            "target_date": test_goal_data["target_date"].isoformat(),
+            "days_remaining": (test_goal_data["target_date"] - datetime.now().date()).days,
             "contributors": 4,
             "remaining_amount": 35000.0
         },
