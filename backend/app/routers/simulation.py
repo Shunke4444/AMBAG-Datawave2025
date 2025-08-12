@@ -446,6 +446,7 @@ User question:
     '''
 
     charts_payload: Dict[str, Union[str, List[Dict]]] = {"narrative": "", "charts": []}
+    ai_failed = False
     try:
         client = get_ai_client()
         if client:
@@ -461,6 +462,7 @@ User question:
                 charts_payload = json.loads(content)
     except Exception as e:
         logger.warning(f"AI chart generation failed, falling back. Error: {e}")
+        ai_failed = True
 
     # Fallback if AI unavailable or malformed
     def fallback_charts(baseline: Dict) -> Dict:
@@ -499,6 +501,7 @@ User question:
                     ],
                 }
             ],
+            "ai_failed": True
         }
 
     # Validate and normalize charts_payload
@@ -506,14 +509,17 @@ User question:
         # Basic structure
         if not isinstance(charts_payload, dict) or "charts" not in charts_payload:
             charts_payload = fallback_charts(baseline)
+            ai_failed = True
         charts = charts_payload.get("charts", [])
         if not isinstance(charts, list) or len(charts) == 0:
             charts_payload = fallback_charts(baseline)
+            ai_failed = True
             charts = charts_payload.get("charts", [])
         # Truncate to max
         charts_payload["charts"] = charts[:max_charts]
     except Exception:
         charts_payload = fallback_charts(baseline)
+        ai_failed = True
 
     # Pydantic validation
     try:
@@ -522,10 +528,16 @@ User question:
     except Exception as e:
         logger.warning(f"Chart spec validation failed, using fallback. Error: {e}")
         charts_payload = fallback_charts(baseline)
+        ai_failed = True
 
-    return {
+    result = {
         "baseline": baseline,
         "narrative": charts_payload.get("narrative", ""),
         "charts": charts_payload.get("charts", []),
         "generated_at": datetime.now().isoformat(),
     }
+    # Add ai_failed flag if fallback was used
+    if ai_failed or charts_payload.get("ai_failed"):
+        result["ai_failed"] = True
+        result["narrative"] = (result["narrative"] + " (AI failed, fallback charts shown)").strip()
+    return result

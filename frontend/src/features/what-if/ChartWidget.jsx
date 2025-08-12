@@ -1,5 +1,11 @@
+
 import { Line, Bar, Pie, Doughnut, Radar, PolarArea, Scatter, Bubble } from 'react-chartjs-2';
 import { useState } from 'react';
+
+// Color palette for charts
+const COLOR_PALETTE = [
+  '#830000', '#DDB440', '#008383', '#4B5320', '#C0C0C0', '#E4572E', '#17BEBB', '#FFC914', '#2E282A', '#76B041', '#A259F7', '#F76E11', '#3A6EA5', '#F9AFAE', '#F4D35E', '#EE964B', '#F95738'
+];
 
 const ChartWidget = ({ 
   title, 
@@ -11,6 +17,36 @@ const ChartWidget = ({
   onDataChange
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Helper to assign colors from palette if not provided or not enough
+  const getDatasetColors = (datasets, type, labels) => {
+    if (type === 'pie' || type === 'doughnut' || type === 'polarArea') {
+      // Pie/doughnut: assign color per data point
+      return datasets.map((d, i) => {
+        let colors = d.color;
+        if (!colors || !Array.isArray(colors) || colors.length < (d.data?.length || 0)) {
+          colors = labels.map((_, idx) => COLOR_PALETTE[idx % COLOR_PALETTE.length]);
+        }
+        return {
+          ...d,
+          backgroundColor: colors,
+          borderColor: colors,
+        };
+      });
+    } else {
+      // Line/bar: assign color per dataset
+      return datasets.map((d, i) => {
+        const color = d.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
+        return {
+          ...d,
+          borderColor: color,
+          backgroundColor: color + '20',
+          pointBackgroundColor: color,
+          pointBorderColor: color,
+        };
+      });
+    }
+  };
 
   return (
     <div 
@@ -45,8 +81,13 @@ const ChartWidget = ({
         <div className="w-full h-full p-1">
           {/* Render chart based on type */}
           {(() => {
+            // Assign colors for readability
+            const coloredDatasets = getDatasetColors(chartData.datasets || [], type, chartData.labels || []);
             const props = {
-              data: chartData,
+              data: {
+                ...chartData,
+                datasets: coloredDatasets
+              },
               options: {
                 ...chartOptions,
                 maintainAspectRatio: false,

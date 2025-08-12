@@ -7,7 +7,7 @@ from .routers import (
     scheduler_api,
     ai_tools_clean,
     simulation,
-    users,
+    users
     # database,
 )
 from .routers.scheduler import start_scheduler
@@ -50,4 +50,3 @@ def read_root():
     return Response("working na to")
 
 
-    
