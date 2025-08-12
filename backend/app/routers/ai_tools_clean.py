@@ -9,8 +9,8 @@ from uuid import uuid4
 
 from .ai_client import get_ai_client
 
-from .goal import goals, pool_status
-from .groups import group_db
+# from .goal import goals, pool_status
+# from .groups import group_db
 from .mongo import goals_collection, pool_status_collection, groups_collection, smart_reminders_collection, notifications_collection, executed_actions_collection
 
 logging.basicConfig(level=logging.INFO)
@@ -502,7 +502,7 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         
         # Log the notification creation for debugging
         logger.info(f"✅ Notification created and stored: {notification['id']} for {member} in group {group_id}")
-        await notifications_count = notifications_collection.count_documents({})
+        notifications_count = await notifications_collection.count_documents({})
         logger.info(f"📊 Total notifications in database: {notifications_count}")
     
     # Log the autonomous action

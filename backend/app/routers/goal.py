@@ -413,7 +413,7 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
 
     # Send success notification to AI tools system
     try:
-        await contributors = pool_status_collection.find_one({"goal_id": goal_id})
+        contributors = await pool_status_collection.find_one({"goal_id": goal_id})
         contributors = contributors.get("contributors", [])
         
         # Add completion notification to AI tools system

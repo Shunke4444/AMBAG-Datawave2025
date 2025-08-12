@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
-from .goal import goals, pool_status, pending_goals  # Fixed relative import
-from .groups import group_db
+# from .goal import goals, pool_status, pending_goals  # Fixed relative import
+# from .groups import group_db
 from .ai_client import get_ai_client
 from .mongo import goals_collection, pool_status_collection, pending_goals_collection, groups_collection    
 import json
