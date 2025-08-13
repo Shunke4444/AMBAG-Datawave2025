@@ -355,6 +355,8 @@ async def create_test_goal():
         "ready_for_simulation": True
     }
 
+
+
 @router.get("/dashboard")
 async def simulation_dashboard():
     """Get overview of all simulation activity"""
@@ -378,3 +380,185 @@ async def simulation_dashboard():
         "recent_simulations": recent_simulations,
         "generated_at": datetime.now().isoformat()
     }
+
+
+# ===== AI-Driven Chart Generation =====
+
+from typing import Union
+
+from pydantic import field_validator, model_validator
+from typing import Any
+
+class ChartDataset(BaseModel):
+    label: str
+    data: List[Any]
+    color: Optional[Union[str, List[str]]] = None
+
+    @field_validator('data')
+    @classmethod
+    def validate_data(cls, v):
+        # Accepts: list of numbers, list of dicts (for scatter/bubble), or list of lists (radar)
+        if not isinstance(v, list):
+            raise ValueError('data must be a list')
+        if len(v) == 0:
+            return v
+        # Accept if all numbers
+        if all(isinstance(i, (int, float)) for i in v):
+            return v
+        # Accept if all dicts with x/y (scatter) or x/y/r (bubble)
+        if all(isinstance(i, dict) and ('x' in i and 'y' in i) for i in v):
+            return v
+        # Accept if all lists (radar, etc)
+        if all(isinstance(i, list) for i in v):
+            return v
+        raise ValueError('data must be a list of numbers, dicts (with x/y), or lists')
+
+
+class ChartSpec(BaseModel):
+    title: str
+    type: str  # line | bar | pie
+    labels: List[str]
+    datasets: List[ChartDataset]
+    options: Optional[Dict] = None
+
+
+class ChartGenerationRequest(BaseModel):
+    goal_id: str
+    prompt: str
+    max_charts: int = 3
+
+
+@router.post("/generate-charts")
+async def generate_charts(req: ChartGenerationRequest):
+    """
+    Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations.
+    """
+    baseline = get_goal_baseline(req.goal_id)
+    if not baseline:
+        raise HTTPException(status_code=404, detail=f"Goal {req.goal_id} not found")
+
+    # Guardrails
+    max_charts = max(1, min(req.max_charts, 5))
+
+    # Compose AI prompt using the master prompt function
+    ai_instructions = create_master_prompt(baseline, req.prompt)
+
+    charts_payload: Dict[str, Union[str, List[Dict]]] = {"narrative": "", "charts": []}
+    ai_failed = False
+    try:
+        client = get_ai_client()
+        if client:
+            response = await client.chat.completions.create(
+                model="deepseek/deepseek-chat",
+                messages=[{"role": "user", "content": ai_instructions}],
+                max_tokens=1200,
+                temperature=0.5,
+            )
+            content = response.choices[0].message.content if response and response.choices else None
+            logger.info(f"Raw AI response: {content}")
+            # Strip markdown code block markers if present
+            cleaned = content
+            if cleaned:
+                cleaned = cleaned.strip()
+                if cleaned.startswith('```json'):
+                    cleaned = cleaned[7:]
+                if cleaned.startswith('```'):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith('```'):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
+            if cleaned and cleaned.startswith('{'):
+                import json
+                try:
+                    charts_payload = json.loads(cleaned)
+                except Exception as e:
+                    logger.warning(f"AI response could not be parsed as JSON. Error: {e}")
+                    ai_failed = True
+            else:
+                logger.warning("AI response was empty or not JSON. Using fallback.")
+                ai_failed = True
+        else:
+            logger.warning("AI client is not available.")
+            ai_failed = True
+    except Exception as e:
+        logger.warning(f"AI chart generation failed, falling back. Error: {e}")
+        ai_failed = True
+
+    # Fallback if AI unavailable or malformed
+    def fallback_charts(baseline: Dict) -> Dict:
+        remaining = max(0.0, float(baseline["current_goal_amount"]) - float(baseline["current_amount"]))
+        days = max(1, int(baseline.get("days_remaining", 30)))
+        per_day_needed = remaining / days
+        labels = [f"Day {i}" for i in range(1, 7)]
+        required = [round(per_day_needed, 2)] * 6
+        pace = [round(per_day_needed * (0.9 + 0.05 * i), 2) for i in range(6)]
+        return {
+            "narrative": "Nag-forecast ako ng pacing: eto yung daily requirement vs. current pace mo para maabot ang goal on time.",
+            "charts": [
+                {
+                    "title": "Required vs Current Pace",
+                    "type": "line",
+                    "labels": labels,
+                    "datasets": [
+                        {"label": "Required per Day", "data": required, "color": "#830000"},
+                        {"label": "Current Pace", "data": pace, "color": "#DDB440"},
+                    ],
+                },
+                {
+                    "title": "Contribution Breakdown",
+                    "type": "pie",
+                    "labels": [c['name'] for c in baseline['contributors']],
+                    "datasets": [
+                        {"label": "Contribution", "data": [c['amount'] for c in baseline['contributors']], "color": ["#830000", "#DDB440", "#4B5320", "#C0C0C0"]},
+                    ],
+                },
+                {
+                    "title": "Remaining Amount",
+                    "type": "bar",
+                    "labels": ["Remaining"],
+                    "datasets": [
+                        {"label": "Remaining", "data": [remaining], "color": "#830000"},
+                    ],
+                }
+            ],
+            "ai_failed": True
+        }
+
+    # Validate and normalize charts_payload
+    try:
+        # Basic structure
+        if not isinstance(charts_payload, dict) or "charts" not in charts_payload:
+            charts_payload = fallback_charts(baseline)
+            ai_failed = True
+        charts = charts_payload.get("charts", [])
+        if not isinstance(charts, list) or len(charts) == 0:
+            charts_payload = fallback_charts(baseline)
+            ai_failed = True
+            charts = charts_payload.get("charts", [])
+        # Truncate to max
+        charts_payload["charts"] = charts[:max_charts]
+    except Exception:
+        charts_payload = fallback_charts(baseline)
+        ai_failed = True
+
+    # Pydantic validation
+    try:
+        validated_charts = [ChartSpec(**c) for c in charts_payload.get("charts", [])]
+        charts_payload["charts"] = [c.model_dump() for c in validated_charts]
+    except Exception as e:
+        logger.warning(f"Chart spec validation failed, using fallback. Error: {e}")
+        charts_payload = fallback_charts(baseline)
+        ai_failed = True
+
+    result = {
+        "baseline": baseline,
+        "narrative": charts_payload.get("narrative", ""),
+        "charts": charts_payload.get("charts", []),
+        "recommendations": charts_payload.get("recommendations", []),
+        "generated_at": datetime.now().isoformat(),
+    }
+    # Add ai_failed flag if fallback was used
+    if ai_failed or charts_payload.get("ai_failed"):
+        result["ai_failed"] = True
+        result["narrative"] = (result["narrative"] + " (AI failed, fallback charts shown)").strip()
+    return result
