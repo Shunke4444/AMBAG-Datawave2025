@@ -397,7 +397,7 @@ async def analyze_single_goal(goal_id: str, ai_client, now: datetime):
     days_remaining = (goal["target_date"] - now.date()).days
     progress_percentage = (current_amount / goal["goal_amount"]) * 100 if goal["goal_amount"] > 0 else 0
     
-    print(f"📊 Goal: {goal["title"]} | Progress: {progress_percentage:.1f}% | Days left: {days_remaining}")
+    print(f"📊 Goal: {goal['title']} | Progress: {progress_percentage:.1f}% | Days left: {days_remaining}")
     
     # 1. DEADLINE MONITORING
     if days_remaining <= 7 and not goal["is_paid"]:
@@ -421,7 +421,7 @@ async def handle_deadline_approaching(goal_id: str, days_remaining: int, progres
     status = await pool_status_collection.find_one({"goal_id": goal_id})
     urgency_level = "CRITICAL" if days_remaining <= 1 else "HIGH" if days_remaining <= 3 else "MEDIUM"
     
-    print(f"🚨 {urgency_level} ALERT: Goal '{goal["title"]}' deadline in {days_remaining} days with {progress_percentage:.1f}% progress")
+    print(f"🚨 {urgency_level} ALERT: Goal '{goal['title']}' deadline in {days_remaining} days with {progress_percentage:.1f}% progress")
     
     if ai_client:
         try:
