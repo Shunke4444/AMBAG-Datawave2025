@@ -47,6 +47,8 @@ class DeadlineChangeScenario(BaseModel):
     reason: Optional[str] = None
 
 
+
+
 simulation_results_db = []
 
 def get_goal_baseline(goal_id: str) -> Optional[Dict]:
@@ -167,68 +169,122 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
     return impact
 
 
-async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) -> Dict:
-    """Generate AI advisor recommendations based on historical data and patterns"""
-    try:
-        client = get_ai_client()
-        if not client:
-            return {"error": "AI advisor not available"}
-        
-        # Analyze historical patterns (simplified for demo)
-        total_goals = len(goals)
-        completed_goals = len([g for g in goals.values() if g.status == "completed"])
-        success_rate = (completed_goals / total_goals * 100) if total_goals > 0 else 0
-        
-        ai_prompt = f"""
-        AMBAG Financial Advisor Analysis
-        
-        Current Situation:
-        - Goal: {baseline['title']} 
-        - Progress: ₱{baseline['current_amount']:,.2f} / ₱{baseline['current_goal_amount']:,.2f}
-        - Days Left: {baseline['days_remaining']}
-        - Contributors: {len(baseline['contributors'])}
-        
-        System Performance:
-        - Total Goals: {total_goals}
-        - Success Rate: {success_rate:.1f}%
-        
-        Scenarios Impact Summary:
-        {chr(10).join([f"• {impact['scenario_type']}: {impact.get('changes', {})}" for impact in impacts])}
-        
-        As a Filipino financial advisor, provide:
-        1. Optimal scenario recommendation with reasoning
-        2. Risk mitigation strategies
-        3. Cultural considerations for Filipino groups
-        4. Probability estimates for success
-        5. Alternative plans if primary scenario fails
+def create_master_prompt(baseline: Dict, user_prompt: str) -> str:
+    """Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations."""
+    return f'''
+You are AMBAG AI, an expert Filipino financial assistant. Your task is to analyze a user's savings goal based on their "what-if" question.
+Your entire response MUST be a single, valid JSON object. Do not include markdown like ```json or any text before or after the JSON object.
 
-        Use Filipino-English mix (Taglish) and be practical about Filipino financial habits.
-        Be practical, culturally aware, and focus on group harmony and financial success.
-        Format as JSON with recommendations, probabilities, and action_steps.
-        The maximum response should be 5 sentences.
-        """
+**Instructions:**
+1.  **Language:** Respond in conversational **Taglish** (a mix of Tagalog and English). Be encouraging and friendly, like a helpful tita or tito.
+2.  **Analyze the Scenario:** The user's goal is to save ₱{baseline['current_goal_amount']:,.2f}. They have ₱{baseline['current_amount']:,.2f} and {baseline['days_remaining']} days left. Their question is: "{user_prompt}".
+3.  **Generate Narrative:** Write a short narrative explaining the situation. Start with a friendly greeting. If the user's question sounds negative (e.g., "what if I can't pay?", "paano kung kapusin?", "what if we're short?"), you MUST include a markdown section titled "**Recommendations:**" with a list of practical tips. Your recommendations MUST always include:
+        - **Adjust your timeline:** Kung hindi kaya ng 90 days, extend mo ng konti para mas manageable yung daily savings mo.
+        - **Cut unnecessary expenses:** Tingnan mo yung mga luho or unnecessary spending, baka pwede mong bawasan para makapag-save ka ng mas malaki.
+        - **Find extra income:** Maghanap ng sideline or part-time work para dagdag sa savings mo.
+        - **Prioritize your goal:** Lagyan mo ng priority yung savings mo para hindi ka ma-distract sa ibang gastos. Kaya mo yan!
+        - **Loan options:** Suggest talking to group mates for help, or considering a formal loan (e.g., "You can also consider a personal loan. For example, a BPI Personal Loan can provide quick cash. This is a good option for urgent needs, but always check the interest rates and terms carefully.")
+        Use bold, italics, and lists for clarity and design. Place this markdown list inside the narrative field after your analysis.
+4.  **Generate Charts:** Create 1 to 4 charts that visualize the user's scenario. You may use any chart type supported by Chart.js (bar, line, pie, doughnut, radar, polarArea, scatter, bubble, etc.). For each chart, choose the type that best conveys the information. Try to use a variety of chart types (not just bar and pie) when appropriate. The charts should be simple and easy to understand.
+
+**Chart Type Guidance:**
+- **bar**: Compare values (e.g., goal vs. collected, contributors).
+- **line**: Show trends over time (e.g., savings progress).
+- **pie/doughnut/polarArea**: Show parts of a whole (e.g., contribution breakdown).
+- **radar**: Compare multiple variables for a group (e.g., member strengths).
+- **scatter/bubble**: Show relationships between two or three variables (e.g., amount vs. days, or amount vs. days vs. member).
+
+
+**Data Structure Guidance:**
+- For **scatter**: datasets should be arrays of objects with x and y (e.g., {{"x": 1, "y": 2}}).
+- For **bubble**: datasets should be arrays of objects with x, y, and r (e.g., {{"x": 1, "y": 2, "r": 5}}).
+- For **radar**: labels are axes, each dataset is a set of values for those axes.
+
+5.  **Format Output:** Respond ONLY in the valid JSON format specified below.
+
+**Required JSON Output Schema:**
+{{
+    "narrative": "A short, insightful analysis in Taglish. If recommendations are needed, include them as a markdown list in this field.",
+    "charts": [
+        {{
+            "title": "string",
+            "type": "bar|line|pie|doughnut|radar|polarArea|scatter|bubble",
+            "labels": ["string", ...],
+            "datasets": [
+                {{
+                    "label": "string",
+
+                    "data": [number, ...] or [{{x:number, y:number}}] or [{{x:number, y:number, r:number}}],
+                    "color": "#HEXCODE"
+                }}
+      ]
+    }}
+  ]
+}}
+'''
+
+# async def generate_advisor_recommendations(baseline: Dict, impacts: List[Dict]) -> Dict:
+#     """Generate AI advisor recommendations based on historical data and patterns"""
+#     try:
+#         client = get_ai_client()
+#         if not client:
+#             return {"error": "AI advisor not available"}
         
-        response = await client.chat.completions.create(
-            model="deepseek/deepseek-chat",
-            messages=[{"role": "user", "content": ai_prompt}],
-            max_tokens=2000,
-            temperature=0.6
-        )
+#         # Analyze historical patterns (simplified for demo)
+#         total_goals = len(goals)
+#         completed_goals = len([g for g in goals.values() if g.status == "completed"])
+#         success_rate = (completed_goals / total_goals * 100) if total_goals > 0 else 0
         
-        ai_response = response.choices[0].message.content
+#         ai_prompt = f"""
+#         AMBAG Financial Advisor Analysis
         
-        try:
-            import json
-            if ai_response:
-                return json.loads(ai_response)
-            else:
-                return {"error": "Empty AI response"}
-        except:
-            return {"advisor_feedback": ai_response or "No advisor feedback available", "type": "text"}
+#         Current Situation:
+#         - Goal: {baseline['title']} 
+#         - Progress: ₱{baseline['current_amount']:,.2f} / ₱{baseline['current_goal_amount']:,.2f}
+#         - Days Left: {baseline['days_remaining']}
+#         - Contributors: {len(baseline['contributors'])}
+        
+#         System Performance:
+#         - Total Goals: {total_goals}
+#         - Success Rate: {success_rate:.1f}%
+        
+#         Scenarios Impact Summary:
+#         {chr(10).join([f"• {impact['scenario_type']}: {impact.get('changes', {})}" for impact in impacts])}
+        
+#         As a Filipino financial advisor, provide:
+#         1. Optimal scenario recommendation with reasoning
+#         2. Risk mitigation strategies
+#         3. Cultural considerations for Filipino groups
+#         4. Probability estimates for success
+#         5. Alternative plans if primary scenario fails
+
+#         Use Filipino-English mix (Taglish) and be practical about Filipino financial habits.
+#         Be practical, culturally aware, and focus on group harmony and financial success.
+#         Format as JSON with recommendations, probabilities, and action_steps.
+#         The maximum response should be 5 sentences.
+#         """
+        
+#         response = await client.chat.completions.create(
+#             model="deepseek/deepseek-chat",
+#             messages=[{"role": "user", "content": ai_prompt}],
+#             max_tokens=2000,
+#             temperature=0.6
+#         )
+        
+#         ai_response = response.choices[0].message.content
+        
+#         try:
+#             import json
+#             if ai_response:
+#                 return json.loads(ai_response)
+#             else:
+#                 return {"error": "Empty AI response"}
+#         except:
+#             return {"advisor_feedback": ai_response or "No advisor feedback available", "type": "text"}
             
-    except Exception as e:
-        logger.error(f"AI advisor error: {str(e)}")
-        return {"error": f"Failed to generate advisor recommendations: {str(e)}"}
+#     except Exception as e:
+#         logger.error(f"AI advisor error: {str(e)}")
+#         return {"error": f"Failed to generate advisor recommendations: {str(e)}"}
 
 
 @router.post("/what-if-analysis")
@@ -351,6 +407,8 @@ async def create_test_goal():
         "ready_for_simulation": True
     }
 
+
+
 @router.get("/dashboard")
 async def simulation_dashboard():
     """Get overview of all simulation activity"""
@@ -376,10 +434,34 @@ async def simulation_dashboard():
 
 # ===== AI-Driven Chart Generation =====
 
+from typing import Union
+
+from pydantic import field_validator, model_validator
+from typing import Any
+
 class ChartDataset(BaseModel):
     label: str
-    data: List[float]
-    color: Optional[str] = None
+    data: List[Any]
+    color: Optional[Union[str, List[str]]] = None
+
+    @field_validator('data')
+    @classmethod
+    def validate_data(cls, v):
+        # Accepts: list of numbers, list of dicts (for scatter/bubble), or list of lists (radar)
+        if not isinstance(v, list):
+            raise ValueError('data must be a list')
+        if len(v) == 0:
+            return v
+        # Accept if all numbers
+        if all(isinstance(i, (int, float)) for i in v):
+            return v
+        # Accept if all dicts with x/y (scatter) or x/y/r (bubble)
+        if all(isinstance(i, dict) and ('x' in i and 'y' in i) for i in v):
+            return v
+        # Accept if all lists (radar, etc)
+        if all(isinstance(i, list) for i in v):
+            return v
+        raise ValueError('data must be a list of numbers, dicts (with x/y), or lists')
 
 
 class ChartSpec(BaseModel):
@@ -399,8 +481,7 @@ class ChartGenerationRequest(BaseModel):
 @router.post("/generate-charts")
 async def generate_charts(req: ChartGenerationRequest):
     """
-    Generate chart specifications from a natural language prompt using AI, grounded on the goal baseline.
-    Returns a narrative plus a small set of chart specs for the frontend to render.
+    Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations.
     """
     baseline = get_goal_baseline(req.goal_id)
     if not baseline:
@@ -409,41 +490,8 @@ async def generate_charts(req: ChartGenerationRequest):
     # Guardrails
     max_charts = max(1, min(req.max_charts, 5))
 
-    # Compose AI prompt
-    ai_instructions = f'''
-You are a financial data assistant. Based on the baseline goal data and the user's question, propose up to {max_charts} charts to visualize the situation and forecast.
-Respond ONLY in JSON with the following schema:
-{{
-  "narrative": "short, 2-4 sentences explaining the insight in Taglish",
-  "charts": [
-    {{
-      "title": "string",
-      "type": "line|bar|pie",
-      "labels": ["label1","label2",...],
-      "datasets": [
-        {{"label":"string","data":[number,...],"color":"#830000"}}
-      ]
-    }}
-  ]
-}}
-Constraints:
-- Keep labels and each dataset data length equal (3-8 points max).
-- Prefer line/bar for trends and pacing; pie only if showing composition.
-- Use hex colors if provided; else omit.
-- Be consistent with Philippine Peso context but return raw numbers (no currency symbols) in data.
-
-Baseline:
-- Title: {baseline['title']}
-- Goal Amount: {baseline['current_goal_amount']}
-- Collected: {baseline['current_amount']}
-- Days Remaining: {baseline['days_remaining']}
-- Contributors: {len(baseline['contributors'])}
-
-User question:
-"""
-{req.prompt}
-"""
-    '''
+    # Compose AI prompt using the master prompt function
+    ai_instructions = create_master_prompt(baseline, req.prompt)
 
     charts_payload: Dict[str, Union[str, List[Dict]]] = {"narrative": "", "charts": []}
     ai_failed = False
@@ -457,9 +505,31 @@ User question:
                 temperature=0.5,
             )
             content = response.choices[0].message.content if response and response.choices else None
-            if content:
+            logger.info(f"Raw AI response: {content}")
+            # Strip markdown code block markers if present
+            cleaned = content
+            if cleaned:
+                cleaned = cleaned.strip()
+                if cleaned.startswith('```json'):
+                    cleaned = cleaned[7:]
+                if cleaned.startswith('```'):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith('```'):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
+            if cleaned and cleaned.startswith('{'):
                 import json
-                charts_payload = json.loads(content)
+                try:
+                    charts_payload = json.loads(cleaned)
+                except Exception as e:
+                    logger.warning(f"AI response could not be parsed as JSON. Error: {e}")
+                    ai_failed = True
+            else:
+                logger.warning("AI response was empty or not JSON. Using fallback.")
+                ai_failed = True
+        else:
+            logger.warning("AI client is not available.")
+            ai_failed = True
     except Exception as e:
         logger.warning(f"AI chart generation failed, falling back. Error: {e}")
         ai_failed = True
@@ -534,6 +604,7 @@ User question:
         "baseline": baseline,
         "narrative": charts_payload.get("narrative", ""),
         "charts": charts_payload.get("charts", []),
+        "recommendations": charts_payload.get("recommendations", []),
         "generated_at": datetime.now().isoformat(),
     }
     # Add ai_failed flag if fallback was used

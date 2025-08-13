@@ -34,7 +34,7 @@ const ChartWidget = ({
         };
       });
     } else {
-      // Line/bar: assign color per dataset
+      // Line/bar/radar: assign color per dataset
       return datasets.map((d, i) => {
         const color = d.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
         return {
@@ -48,9 +48,36 @@ const ChartWidget = ({
     }
   };
 
+  // Validate and auto-fix chart data for line, bar, radar
+  const fixLineBarRadarDatasets = (labels, datasets) => {
+    if (!Array.isArray(labels) || labels.length === 0 || !Array.isArray(datasets) || datasets.length === 0) return [];
+    return datasets.map(ds => {
+      let data = Array.isArray(ds.data) ? ds.data.slice(0, labels.length) : [];
+      // Pad with nulls if too short
+      if (data.length < labels.length) {
+        data = [...data, ...Array(labels.length - data.length).fill(null)];
+      }
+      // Coerce to numbers or null
+      data = data.map(v => (typeof v === 'number' ? v : (v == null ? null : Number(v))));
+      return { ...ds, data };
+    });
+  };
+
+  // Validate chart data for scatter
+  const isValidScatter = (datasets) => {
+    if (!Array.isArray(datasets) || datasets.length === 0) return false;
+    return datasets.every(ds => Array.isArray(ds.data) && ds.data.every(point => point && typeof point.x === 'number' && typeof point.y === 'number'));
+  };
+
+  // Validate chart data for bubble
+  const isValidBubble = (datasets) => {
+    if (!Array.isArray(datasets) || datasets.length === 0) return false;
+    return datasets.every(ds => Array.isArray(ds.data) && ds.data.every(point => point && typeof point.x === 'number' && typeof point.y === 'number' && typeof point.r === 'number'));
+  };
+
   return (
     <div 
-      className={`w-full h-full flex flex-col p-2 ${className}`}
+      className={`w-full h-full min-h-0 min-w-0 flex flex-col p-2 ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -81,9 +108,10 @@ const ChartWidget = ({
         <div className="w-full h-full p-1">
           {/* Render chart based on type */}
           {(() => {
-            // Assign colors for readability
-            const coloredDatasets = getDatasetColors(chartData.datasets || [], type, chartData.labels || []);
-            const props = {
+            const labels = chartData.labels || [];
+            const datasets = chartData.datasets || [];
+            let coloredDatasets = getDatasetColors(datasets, type, labels);
+            let props = {
               data: {
                 ...chartData,
                 datasets: coloredDatasets
@@ -100,20 +128,53 @@ const ChartWidget = ({
             };
             switch (type) {
               case 'bar':
-                return <Bar {...props} />;
+              case 'line':
+              case 'radar': {
+                // Auto-fix datasets for line/bar/radar
+                const fixedDatasets = fixLineBarRadarDatasets(labels, datasets);
+                coloredDatasets = getDatasetColors(fixedDatasets, type, labels);
+                props = {
+                  ...props,
+                  data: { ...chartData, datasets: coloredDatasets }
+                };
+                // If still no valid data, show error
+                if (!coloredDatasets.length || coloredDatasets.every(ds => ds.data.every(v => v == null))) {
+                  console.warn(`Invalid or empty data for ${type} chart`, chartData);
+                  return <div className="text-xs text-red-500">No data for {type} chart</div>;
+                }
+                if (type === 'bar') return <Bar {...props} />;
+                if (type === 'radar') return <Radar {...props} />;
+                return <Line {...props} />;
+              }
               case 'pie':
-                return <Pie {...props} />;
               case 'doughnut':
-                return <Doughnut {...props} />;
-              case 'radar':
-                return <Radar {...props} />;
               case 'polarArea':
+                // Pie/doughnut/polarArea: labels and datasets.data should match
+                if (!Array.isArray(labels) || labels.length === 0 || !Array.isArray(datasets) || datasets.length === 0 || !Array.isArray(datasets[0].data) || datasets[0].data.length !== labels.length) {
+                  console.warn(`Invalid data for ${type} chart`, chartData);
+                  return <div className="text-xs text-red-500">Invalid data for {type} chart</div>;
+                }
+                if (type === 'pie') return <Pie {...props} />;
+                if (type === 'doughnut') return <Doughnut {...props} />;
                 return <PolarArea {...props} />;
               case 'scatter':
+                if (!isValidScatter(datasets)) {
+                  console.warn('Invalid data for scatter chart', chartData);
+                  return <div className="text-xs text-red-500">Invalid data for scatter chart</div>;
+                }
                 return <Scatter {...props} />;
               case 'bubble':
+                if (!isValidBubble(datasets)) {
+                  console.warn('Invalid data for bubble chart', chartData);
+                  return <div className="text-xs text-red-500">Invalid data for bubble chart</div>;
+                }
                 return <Bubble {...props} />;
               default:
+                // Default to line chart with validation
+                if (!isValidLineBarRadar(labels, datasets)) {
+                  console.warn('Invalid data for line chart (default)', chartData);
+                  return <div className="text-xs text-red-500">Invalid data for line chart</div>;
+                }
                 return <Line {...props} />;
             }
           })()}

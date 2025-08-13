@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -68,42 +69,7 @@ export default function WhatIf() {
 
   
   // Chat State
-  const [conversationMessages, setConversationMessages] = useState([
-    {
-      id: 1,
-      content: "What if I can't pay the ₱4,000 on time?",
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString(),
-    },
-    {
-      id: 2,
-      content: "Okay, let's walk through what could happen if you miss the ₱4,000 payment deadline:",
-      sender: 'assistant',
-      timestamp: new Date().toLocaleTimeString(),
-      details: [
-        {
-          icon: '⚠️',
-          text: 'Based on your cash flow, malili-hing ma-a-affect yung next contribution mo sa ₱5,000, due to the immediate financial strain.'
-        },
-        {
-          icon: '💡',
-          text: 'Your group might need to redistribute some might get a slightly delayed timeline (around 4%) which could cause stress if walang napaali na hindi makabayad on time.'
-        },
-        {
-          icon: '📊',
-          text: 'Alternatibo: Consider using kasunod, may need or supplies; baka kailangan mo ng adjustment sa long-range goal at may extra cash reserve na 2-3 months cushion.'
-        },
-        {
-          icon: '🔄',
-          text: 'I recommend considering a fallback plan—pwede mong i-delay some non-urgent expenses against yung particular ikaw-takuran para sa emergency extension or restructuring.'
-        },
-        {
-          icon: '💬',
-          text: 'Gusto mo bang makita a visual simulation ng impact sa budget mo for the next 3 months?'
-        }
-      ]
-    }
-  ]);
+  const [conversationMessages, setConversationMessages] = useState([]);
   
   const messagesEndRef = useRef(null);
   const [goalId, setGoalId] = useState(null);
@@ -200,7 +166,6 @@ export default function WhatIf() {
     }));
   };
 
-  // Chat Functions
   const scrollToLatestMessage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -255,24 +220,47 @@ export default function WhatIf() {
       setGoalId(useGoalId);
       localStorage.setItem('whatif-goal-id', useGoalId);
 
-      // Use new helper for chart generation
       const data = await generateSimulationCharts({
         goal_id: useGoalId,
         prompt,
-        max_charts: 3,
+        max_charts: 4, // Allow up to 4 charts
       });
       const narrative = data?.narrative || '';
       const charts = Array.isArray(data?.charts) ? data.charts : [];
       setAiNarrative(narrative);
       setAiCharts(charts);
 
-      // Update chart layout
+      // Update chart layout for up to 4 charts (2x2 grid)
       const newChartLayout = {};
       charts.forEach((chart, index) => {
-        const chartId = `c${index}`;
-        const x = (index % 2) * 6;
-        const y = Math.floor(index / 2) * 3;
-        newChartLayout[chartId] = { x, y, width: 6, height: 3 };
+        let x = 0, y = 0, width = 6, height = 3;
+        if (charts.length <= 2) {
+          // 1 or 2 charts: full width or split
+          x = index * 6;
+          y = 0;
+          width = 6;
+          height = 6;
+        } else if (charts.length === 3) {
+          // 3 charts: 2 on top, 1 full width below
+          if (index < 2) {
+            x = index * 6;
+            y = 0;
+            width = 6;
+            height = 3;
+          } else {
+            x = 0;
+            y = 3;
+            width = 12;
+            height = 3;
+          }
+        } else {
+          // 4 charts: 2x2 grid
+          x = (index % 2) * 6;
+          y = Math.floor(index / 2) * 3;
+          width = 6;
+          height = 3;
+        }
+        newChartLayout[`c${index}`] = { x, y, width, height };
       });
       setChartLayout(newChartLayout);
       const assistantMessage = {
@@ -318,7 +306,7 @@ export default function WhatIf() {
           }
         }
       } catch {
-        // ignore bootstrap errors
+        // ignore errors
       }
     })();
 
@@ -331,22 +319,21 @@ export default function WhatIf() {
         // Silently fail and use default layout
       }
     } else {
-      // Default layout for up to 3 charts
+      // Default layout for up to 4 charts
       setChartLayout({
         c0: { x: 0, y: 0, width: 12, height: 3 },
         c1: { x: 0, y: 3, width: 6, height: 3 },
         c2: { x: 6, y: 3, width: 6, height: 3 },
+        c3: { x: 0, y: 6, width: 12, height: 3 },
       });
     }
   }, []);
 
-  // Chart Configuration
-  // chartOptions stays constant
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: { display: true },
       tooltip: {
         backgroundColor: '#FBFAF9',
         titleColor: '#1B1C1E',
@@ -367,9 +354,8 @@ export default function WhatIf() {
       y: {
         grid: { color: 'rgba(131, 0, 0, 0.1)' },
         border: { display: false },
-        ticks: { color: '#1B1C1E', font: { size: 12, weight: '500' }, stepSize: 1 },
-        min: 0,
-        max: 5,
+        ticks: { color: '#1B1C1E', font: { size: 12, weight: '500' } },
+        beginAtZero: true
       },
     },
   };
@@ -414,9 +400,7 @@ export default function WhatIf() {
   <section className="h-[75vh] py-4 pb-24 bg-white">
         <article className="w-[70vw] mx-auto h-full">
           {/* Dynamic AI charts */}
-          {aiNarrative && (
-            <p className="mb-3 text-sm text-textcolor/80">{aiNarrative}</p>
-          )}
+          {/* AI narrative removed from above charts; will only show in chat */}
           {errorMsg && (
             <div className="text-red-600 text-center my-4">{errorMsg}</div>
           )}
@@ -432,44 +416,80 @@ export default function WhatIf() {
               onResize={handleChartResize}
               className="h-full w-full"
             >
-              {aiCharts.map((c, idx) => (
-                <ChartWidget
-                  key={`c${idx}-${c.type}`}
-                  id={`c${idx}`}
-                  gridX={chartLayout[`c${idx}`]?.x || 0}
-                  gridY={chartLayout[`c${idx}`]?.y || 0}
-                  gridWidth={chartLayout[`c${idx}`]?.width || gridDimensions.cols}
-                  gridHeight={chartLayout[`c${idx}`]?.height || 3}
-                  minWidth={3}
-                  minHeight={2}
-                  title={c.title}
-                  type={c.type}
-                  chartData={{ labels: c.labels, datasets: (c.datasets || []).map(d => ({
-                    label: d.label,
-                    data: d.data,
-                    borderColor: d.color || '#830000',
-                    backgroundColor: (d.color || '#83000a') + '20',
-                    tension: 0.4,
-                    pointBackgroundColor: d.color || '#830000',
-                    pointBorderColor: d.color || '#830000',
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                  })) }}
-                  chartOptions={{
-                    ...chartOptions,
-                    // Only provide scales for non-pie charts
-                    ...(c.type === 'pie' ? { scales: undefined } : { scales: { ...chartOptions.scales } })
-                  }}
-                  legendItems={(c.datasets || []).map(d => ({ color: d.color || '#830000', label: d.label }))}
-                />
-              ))}
+              {aiCharts.map((c, idx) => {
+                // Type-aware dataset mapping for Chart.js
+                const mapDataset = (d) => {
+                  const base = { label: d.label, data: d.data };
+                  const color = d.color || '#830000';
+                  switch (c.type) {
+                    case 'bar':
+                    case 'line':
+                      return {
+                        ...base,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        tension: 0.4,
+                        pointBackgroundColor: color,
+                        pointBorderColor: color,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                      };
+                    case 'radar':
+                      return {
+                        ...base,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        pointBackgroundColor: color,
+                        pointBorderColor: color,
+                      };
+                    case 'pie':
+                    case 'doughnut':
+                    case 'polarArea':
+                      return {
+                        ...base,
+                        backgroundColor: Array.isArray(d.color) ? d.color : [color],
+                        borderColor: Array.isArray(d.color) ? d.color : [color],
+                      };
+                    case 'scatter':
+                    case 'bubble':
+                      return {
+                        ...base,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                      };
+                    default:
+                      return base;
+                  }
+                };
+                return (
+                  <ChartWidget
+                    key={`c${idx}-${c.type}`}
+                    id={`c${idx}`}
+                    gridX={chartLayout[`c${idx}`]?.x || 0}
+                    gridY={chartLayout[`c${idx}`]?.y || 0}
+                    gridWidth={chartLayout[`c${idx}`]?.width || gridDimensions.cols}
+                    gridHeight={chartLayout[`c${idx}`]?.height || 3}
+                    minWidth={3}
+                    minHeight={2}
+                    title={c.title}
+                    type={c.type}
+                    chartData={{ labels: c.labels, datasets: (c.datasets || []).map(mapDataset) }}
+                    chartOptions={{
+                      ...chartOptions,
+                      // Only provide scales for non-pie/doughnut/polarArea charts
+                      ...(c.type === 'pie' || c.type === 'doughnut' || c.type === 'polarArea' ? { scales: undefined } : { scales: { ...chartOptions.scales } })
+                    }}
+                    legendItems={(c.datasets || []).map(d => ({ color: d.color || '#830000', label: d.label }))}
+                  />
+                );
+              })}
             </GridLayoutManager>
           )}
         </article>
       </section>
 
-  {/* Chat Interface - Fixed at bottom, full width */}
-  <aside className="fixed bottom-0 left-0 right-0 bg-secondary border-t border-primary/20 z-50">
+  {/* Chat Interface - Fixed at bottom, but aligned with main content */}
+  <aside className="fixed bottom-0 bg-secondary border-t border-primary/20 z-50 ml-64 w-[calc(100vw-16rem)] max-w-[calc(100vw-16rem)] left-auto right-0">
         {/* Chat Header with Toggle */}
         <header className="px-4 py-3 flex items-center justify-between">
           <section className="flex items-center space-x-3">
@@ -512,8 +532,20 @@ export default function WhatIf() {
                     ? 'bg-primary text-secondary'
                     : 'bg-secondary border border-primary/20 text-textcolor'
                 }`}>
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
-                  
+                  {message.sender === 'assistant' ? (
+                    <div className="text-sm leading-relaxed whitespace-pre-line">
+                      <ReactMarkdown
+                        components={{
+                          strong: ({node, ...props}) => <strong style={{ color: '#b91c1c' }} {...props} />,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
+                  )}
+
                   {message.details && (
                     <details className="mt-3 space-y-3" open>
                       <summary className="sr-only">Message Details</summary>
@@ -525,7 +557,7 @@ export default function WhatIf() {
                       ))}
                     </details>
                   )}
-                  
+
                   <time className={`text-xs mt-2 block ${
                     message.sender === 'user' ? 'text-secondary/70' : 'text-textcolor/60'
                   }`}>
@@ -582,7 +614,7 @@ export default function WhatIf() {
         )}
 
         {/* Input Area - Always visible */}
-        <footer className="p-4 border-t border-primary/20">
+  <footer className="p-4 border-t border-primary/20 max-w-[70vw] mx-auto">
           <form onSubmit={handleMessageSubmit} className="flex items-center space-x-3">
             <fieldset className="flex-1 relative">
               <legend className="sr-only">Message Input</legend>
