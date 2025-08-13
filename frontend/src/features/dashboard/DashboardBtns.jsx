@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 const DashboardBtns = ({onLoan}) => {
-  const authRole = "Manager"; // later replace with useAuthRole()
+  const authRole = "NewUser"; // later replace with useAuthRole()
 ;
   const navigate = useNavigate();
 
@@ -41,7 +41,7 @@ const DashboardBtns = ({onLoan}) => {
     <div className='flex w-full max-w-5xl mx-auto p-4'>
       <div>
         <h1 className='font-bold text-md p-8 text-primary'>
-          {authRole === "Manager" ? "Current Members: 4" : "Current Members: 4"}
+          {["Manager", "Member"].includes(authRole) ? "Current Members: 4" : ""}
         </h1>
       </div>
       <div className='flex flex-wrap justify-center gap-6'>

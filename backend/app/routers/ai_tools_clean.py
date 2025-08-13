@@ -9,45 +9,52 @@ from uuid import uuid4
 
 from .ai_client import get_ai_client
 
-from .goal import goals, pool_status
-from .groups import group_db
+# from .goal import goals, pool_status
+# from .groups import group_db
+from .mongo import goals_collection, pool_status_collection, groups_collection, smart_reminders_collection, notifications_collection, executed_actions_collection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai-tools", tags=["ai-tools"])
 
-def get_goal_by_id(goal_id: str):
-    return goals.get(goal_id)
+# Never used (idk)
+# async def get_goal_by_id(goal_id: str):
+#     return await goals_collection.find_one({"goal_id": goal_id})
 
-def get_group_by_id(group_id: str):
-    return group_db.get(group_id)
+# def get_group_by_id(group_id: str):
+#     return groups_collection.find_one({"group_id": group_id})
 
-def find_group_for_goal(goal_id: str):
-    for group_id, group in group_db.items():
-        goal = goals.get(goal_id)
-        if goal and hasattr(group, 'members'):
-            member_names = [member.user_id for member in group.members] if isinstance(group.members, list) else []
-            # Check if goal creator matches any member or manager
-            creator_user_id = f"user_{goal.creator_name.replace(' ', '_').lower()}"
-            if creator_user_id in member_names or goal.creator_name == group.manager_id:
-                return group
+async def find_group_for_goal(goal_id: str):
+    goal = await goals_collection.find_one({"goal_id": goal_id})
+    if not goal:
+        return None
+
+    creator_user_id = f"user_{goal['creator_name'].replace(' ', '_').lower()}"
+
+    async for group in groups_collection.find():
+        members = group.get("members", [])
+
+        member_names = [member["user_id"] for member in members if isinstance(member, dict) and "user_id" in member]
+        if creator_user_id in member_names or goal["creator_name"] == group.get("manager_id"):
+            return group
+
     return None
 
-def convert_goal_to_group_format(goal_id: str):
+async def convert_goal_to_group_format(goal_id: str):
     # Convert goal data for AI analysis with proper group integration
-    goal = goals.get(goal_id)
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         return None
     
-    pool_data = pool_status.get(goal_id, {})
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
     contributors_data = pool_data.get("contributors", [])
     
     # Try to find associated group first
-    associated_group = find_group_for_goal(goal_id)
+    associated_group = await find_group_for_goal(goal_id)
     
     if associated_group:
-        if hasattr(associated_group, 'members') and isinstance(associated_group.members, list):
+        if hasattr(associated_group, 'members') and isinstance(associated_group['members'], list):
             all_members = []
             for member in associated_group.members:
                 if hasattr(member, 'user_id'):
@@ -56,11 +63,11 @@ def convert_goal_to_group_format(goal_id: str):
                 else:
                     all_members.append(str(member))
         else:
-            all_members = [goal.creator_name]
+            all_members = [goal['creator_name']]
         group_description = getattr(associated_group, 'description', '') if hasattr(associated_group, 'description') else ''
     else:
         # Fallback to goal creator as the only member if no group found
-        all_members = [goal.creator_name]
+        all_members = [goal['creator_name']]
         
         # Add contributors who aren't already in the member list
         for contributor in contributors_data:
@@ -71,15 +78,16 @@ def convert_goal_to_group_format(goal_id: str):
         # MOCKED DATA
         realistic_members = ["Maria Santos", "John Cruz", "Jane Dela Cruz", "Mike Reyes", "Sarah Garcia", "Alex Rodriguez", "Lisa Wong", "Carlos Mendoza"]
         
-        # Add a few more members to make it realistic (up to 5 total)
-        while len(all_members) < min(5, len(realistic_members)):
-            for member in realistic_members:
-                if member not in all_members:
-                    all_members.append(member)
-                    break
-            break
+        # Add up to 4 additional members (to make 5 total including creator)
+        additional_needed = max(0, 4 - len(all_members))
+        for member in realistic_members:
+            if additional_needed <= 0:
+                break
+            if member not in all_members:
+                all_members.append(member)
+                additional_needed -= 1
         
-        group_description = goal.description or ""
+        group_description = goal['description']
     
     # Calculate pending members (those who haven't contributed yet)
     contributed_members = [c["name"] for c in contributors_data]
@@ -88,12 +96,12 @@ def convert_goal_to_group_format(goal_id: str):
     # Convert to group-like structure with enhanced data
     group_data = {
         "id": goal_id,
-        "title": goal.title,
-        "goal_amount": goal.goal_amount,
+        "title": goal['title'],
+        "goal_amount": goal['goal_amount'],
         "current_amount": pool_data.get("current_amount", 0.0),
-        "status": goal.status,
-        "creator": goal.creator_name,
-        "deadline": goal.target_date.isoformat(),
+        "status": goal['status'],
+        "creator": goal['creator_name'],
+        "deadline": goal['target_date'].isoformat(),
         "members": all_members,
         "contributions": [
             {
@@ -107,7 +115,7 @@ def convert_goal_to_group_format(goal_id: str):
             for c in contributors_data
         ],
         "pending_members": pending_members,
-        "created_at": goal.created_at,
+        "created_at": goal['created_at'],
         "description": group_description,
         "is_paid": pool_data.get("is_paid", False),
         "pool_status": pool_data.get("status", "active")
@@ -199,12 +207,9 @@ def create_fallback_actions(group_data: dict, analytics: dict):
     
     return actions
 
-
 #create test for backend
-def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
+async def create_test_goal_with_group(title: str, goal_amount: float, creator_name: str, member_names: Optional[List[str]] = None):
     """Create a test goal with associated group for comprehensive testing"""
-    from .goal import goal 
-    from .groups import Group, GroupMember  
     
     goal_id = str(uuid4())
     
@@ -215,73 +220,86 @@ def create_test_goal_with_group(title: str, goal_amount: float, creator_name: st
     if creator_name not in member_names:
         member_names = [creator_name] + member_names
     
-    # Create the actual goal object and add it to goals dictionary
-    new_goal = goal(
-        id=goal_id,
-        title=title,
-        goal_amount=goal_amount,
-        current_amount=0.0,  # Add required field
-        creator_name=creator_name,
-        creator_role="manager",
-        description=f"Test goal for {title}",
-        target_date=(datetime.now() + timedelta(days=20)).date(),
-        created_at=datetime.now().isoformat(),
-        is_paid=False,  # Add required field
-        status="active"  # Add required field
-    )
-    goals[goal_id] = new_goal
+    # Create the goal document
+    new_goal = {
+        "goal_id": goal_id,
+        "title": title,
+        "goal_amount": goal_amount,
+        "creator_name": creator_name,
+        "creator_role": "manager",
+        "description": f"Test goal for {title}",
+        "target_date": (datetime.now() + timedelta(days=20)).date(),
+        "created_at": datetime.now().isoformat(),
+        "status": "active"
+    }
     
+    # Insert goal into MongoDB
+    await goals_collection.insert_one(new_goal)
+    
+    # Create group members data
     group_members = []
     for i, member_name in enumerate(member_names):
-        member = GroupMember(
-            user_id=f"user_{member_name.replace(' ', '_').lower()}_{i}",  # Generate user ID
-            role="manager" if member_name == creator_name else "contributor",
-            joined_at=datetime.now().isoformat(),
-            contribution_total=0.0,
-            is_active=True
-        )
+        member = {
+            "user_id": f"user_{member_name.replace(' ', '_').lower()}_{i}",
+            "role": "manager" if member_name == creator_name else "contributor",
+            "joined_at": datetime.now().isoformat(),
+            "contribution_total": 0.0,
+            "is_active": True
+        }
         group_members.append(member)
     
-    group = Group(
-        id=goal_id,  # Use same ID to link goal and group
-        name=f"Group for {title}",
-        description=f"Financial group for {title}",
-        manager_id=f"user_{creator_name.replace(' ', '_').lower()}_0",  # Manager's user ID
-        members=group_members,
-        created_at=datetime.now().isoformat(),
-        is_active=True,
-        total_goals=1,
-        total_contributions=0.0
-    )
-    group_db[goal_id] = group
+    # Create group document
+    group = {
+        "group_id": goal_id,  # Use same ID to link goal and group
+        "name": f"Group for {title}",
+        "description": f"Financial group for {title}",
+        "manager_id": f"user_{creator_name.replace(' ', '_').lower()}_0",
+        "members": group_members,
+        "created_at": datetime.now().isoformat(),
+        "is_active": True,
+        "total_goals": 1,
+        "total_contributions": 0.0
+    }
     
-    # Initialize pool status - THIS IS THE KEY FIX
-    pool_status[goal_id] = {
+    # Insert group into MongoDB
+    await groups_collection.insert_one(group)
+    
+    # Initialize pool status
+    pool_status = {
+        "goal_id": goal_id,
         "current_amount": 0.0,
         "is_paid": False,
         "status": "active",
-        "contributors": []  # Initialize empty contributors list
+        "contributors": []
     }
+    
+    # Insert pool status into MongoDB
+    await pool_status_collection.insert_one(pool_status)
     
     return goal_id, group
 
-def add_realistic_test_contributions(goal_id: str, contribution_percentage: float = 0.6):
+async def add_realistic_test_contributions(goal_id: str, contribution_percentage: float = 0.6):
     """Add realistic test contributions to a goal for testing autonomous triggers"""
-    goal = goals.get(goal_id)
+    
+    # Get goal from MongoDB
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         return False
     
-    group_data = convert_goal_to_group_format(goal_id)
+    group_data = await convert_goal_to_group_format(goal_id)
     if not group_data:
         return False
     
     members = group_data.get("members", [])
-    target_amount = goal.goal_amount * contribution_percentage
+    target_amount = goal["goal_amount"] * contribution_percentage
     
     # Add contributions from some members (not all, to create pending members)
     contributing_members = members[:int(len(members) * 0.7)]  # 70% of members contribute
     
     contribution_per_member = target_amount / len(contributing_members)
+    
+    total_amount = 0
+    new_contributors = []
     
     for i, member in enumerate(contributing_members):
         # Vary contribution amounts slightly
@@ -295,16 +313,25 @@ def add_realistic_test_contributions(goal_id: str, contribution_percentage: floa
             "timestamp": (datetime.now() - timedelta(days=i)).isoformat()
         }
         
-        pool_status[goal_id]["contributors"].append(new_contribution)
-        pool_status[goal_id]["current_amount"] += amount
+        new_contributors.append(new_contribution)
+        total_amount += amount
+    
+    # Update pool status in MongoDB
+    await pool_status_collection.update_one(
+        {"goal_id": goal_id},
+        {
+            "$push": {"contributors": {"$each": new_contributors}},
+            "$set": {"current_amount": total_amount}
+        }
+    )
     
     return True
 
 
 # Database for AI analyses, reminders, notifications, and executed actions
-smart_reminders_db = []
-notifications_db = []
-executed_actions_db = []
+# smart_reminders_db = []
+# notifications_db = []
+# executed_actions_db = []
 
 # Enhanced request models for autonomous execution
 class SmartReminderRequest(BaseModel):
@@ -365,7 +392,7 @@ async def execute_autonomous_action(action_type: Optional[str], group_id: str, a
     try:
         # If action_type is None or 'auto', infer the best action(s) based on analytics and risks
         if not action_type or action_type == "auto":
-            group_data = convert_goal_to_group_format(group_id)
+            group_data = await convert_goal_to_group_format(group_id)
             
             # Check if group_data is None
             if not group_data:
@@ -489,15 +516,17 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
             "auto_generated": True  # Indicates this was generated by AI
         }
         
-        notifications_db.append(notification)
+        # notifications_db.append(notification)
+        await notifications_collection.insert_one(notification)
         notifications_sent.append(member)
         
         # Log the notification creation for debugging
         logger.info(f"✅ Notification created and stored: {notification['id']} for {member} in group {group_id}")
-        logger.info(f"📊 Total notifications in database: {len(notifications_db)}")
+        notifications_count = await notifications_collection.count_documents({})
+        logger.info(f"📊 Total notifications in database: {notifications_count}")
     
     # Log the autonomous action
-    executed_actions_db.append({
+    await executed_actions_collection.insert_one({
         "action_type": "send_reminder",
         "group_id": group_id,
         "targets": target_members,
@@ -564,9 +593,9 @@ async def escalate_to_manager(group_id: str, action_data: Dict):
         "auto_generated": True
     }
     
-    notifications_db.append(manager_notification)
+    await notifications_collection.insert_one(manager_notification)
     
-    executed_actions_db.append({
+    await executed_actions_collection.insert_one({
         "action_type": "escalate_manager",
         "group_id": group_id,
         "urgency": urgency,
@@ -618,7 +647,7 @@ async def send_fund_transfer_alert(group_id: str, action_data: Dict):
         "fund_amount": action_data.get('total_collected', 0)
     }
     
-    notifications_db.append(transfer_notification)
+    await notifications_collection.insert_one(transfer_notification)
     
     # Also notify contributors about completion
     completion_message = f"""
@@ -645,9 +674,9 @@ async def send_fund_transfer_alert(group_id: str, action_data: Dict):
             "timestamp": datetime.now().isoformat(),
             "auto_generated": True
         }
-        notifications_db.append(contributor_notification)
+        await notifications_collection.insert_one(contributor_notification)
     
-    executed_actions_db.append({
+    await executed_actions_collection.insert_one({
         "action_type": "fund_transfer_alert",
         "group_id": group_id,
         "amount": action_data.get('total_collected', 0),
@@ -703,9 +732,9 @@ async def suggest_redistribution(group_id: str, action_data: Dict):
         "redistribution_amount": per_member_additional
     }
     
-    notifications_db.append(redistribution_notification)
+    await notifications_collection.insert_one(redistribution_notification)
     
-    executed_actions_db.append({
+    await executed_actions_collection.insert_one({
         "action_type": "suggest_redistribution",
         "group_id": group_id,
         "shortage": shortage,
@@ -766,10 +795,10 @@ async def setup_payment_plan(group_id: str, action_data: Dict, target_members: L
             }
         }
         
-        notifications_db.append(plan_notification)
+        await notifications_collection.insert_one(plan_notification)
         plans_created.append(member)
     
-    executed_actions_db.append({
+    await executed_actions_collection.insert_one({
         "action_type": "setup_payment_plan",
         "group_id": group_id,
         "plans_created": len(plans_created),
@@ -794,7 +823,7 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
     
     try:
         # Get actual goal data from real database
-        group_data = convert_goal_to_group_format(request.group_id)
+        group_data = await convert_goal_to_group_format(request.group_id)
         
         if not group_data:
             raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
@@ -861,7 +890,7 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
             "auto_send": request.auto_send
         }
         
-        smart_reminders_db.append(reminder_result)
+        await smart_reminders_collection.insert_one(reminder_result)
         
         # AUTONOMOUS SENDING: If auto_send is enabled, send the reminder immediately
         send_results = []
@@ -913,7 +942,7 @@ async def trigger_agentic_action(group_id: str, background_tasks: BackgroundTask
     """
     try:
         # Get group data and analytics
-        group_data = convert_goal_to_group_format(group_id)
+        group_data = await convert_goal_to_group_format(group_id)
         if not group_data:
             raise HTTPException(status_code=404, detail=f"Goal {group_id} not found")
         
@@ -956,8 +985,7 @@ async def trigger_agentic_action(group_id: str, background_tasks: BackgroundTask
 async def get_notifications(group_id: str):
     """Get all notifications for a specific group"""
     
-    group_notifications = [n for n in notifications_db if n.get("group_id") == group_id]
-    
+    group_notifications = await notifications_collection.find({"group_id": group_id}).to_list(length=None)
     return {
         "group_id": group_id,
         "notifications": group_notifications,
@@ -968,7 +996,7 @@ async def get_notifications(group_id: str):
 async def get_executed_actions(group_id: str):
     """Get history of all autonomous actions executed for a group"""
     
-    group_actions = [a for a in executed_actions_db if a.get("group_id") == group_id]
+    group_actions = await executed_actions_collection.find({"group_id": group_id}).to_list(length=None)
     
     return {
         "group_id": group_id,
@@ -981,32 +1009,45 @@ async def get_dashboard_summary():
     """Get dashboard summary with all goals and system analytics"""
     
     summary = {
-        "total_goals": len(goals),
-        "active_goals": len([g for g in goals.values() if g.status == "active"]),
-        "completed_goals": len([g for g in goals.values() if g.status == "completed"]),
-        "awaiting_payment_goals": len([g for g in goals.values() if g.status == "awaiting_payment"]),
-        "total_notifications": len(notifications_db),
-        "total_executed_actions": len(executed_actions_db),
-        "total_reminders": len(smart_reminders_db),
+        "total_goals": await goals_collection.count_documents({}),
+        "active_goals": await goals_collection.count_documents({"status": "active"}),
+        "completed_goals": await goals_collection.count_documents({"status": "completed"}),
+        "awaiting_payment_goals": await goals_collection.count_documents({"status": "awaiting_payment"}),
+        "total_notifications": await notifications_collection.count_documents({}),
+        "total_executed_actions": await executed_actions_collection.count_documents({}),  
+        "total_reminders": await smart_reminders_collection.count_documents({}),      
         "goals": []
     }
     
     # Add analytics for each goal
-    for goal_id, goal in goals.items():
-        group_data = convert_goal_to_group_format(goal_id)
-        if group_data:
-            goal_analytics = calculate_group_analytics(group_data)
+    async for goal_doc in goals_collection.find():  # Iterate over all goals in the collection
+        try:
+            goal_id = str(goal_doc["goal_id"])  # Ensure goal_id is a string (ObjectId conversion)
+            
+            # Step 1: Convert goal to group format
+            group_data = await convert_goal_to_group_format(goal_id)
+            if not group_data:
+                continue  # Skip if conversion fails
+
+            # Step 2: Calculate analytics (with defaults for missing data)
+            goal_analytics = calculate_group_analytics(group_data) or {}
+            
+            # Step 3: Append structured summary (using .get() for safe access)
             summary["goals"].append({
                 "id": goal_id,
-                "title": goal.title,
-                "status": goal.status,
+                "title": goal_doc.get("title", "Untitled Goal"),
+                "status": goal_doc.get("status", "unknown"),
                 "progress_percentage": goal_analytics.get("progress_percentage", 0),
                 "days_remaining": goal_analytics.get("days_remaining", 0),
-                "members": len(group_data["members"]),
+                "members": len(group_data.get("members", [])),
                 "contributors": goal_analytics.get("contributors", 0),
-                "goal_amount": goal.goal_amount,
-                "current_amount": group_data["current_amount"]
+                "goal_amount": goal_doc.get("goal_amount", 0.0),
+                "current_amount": group_data.get("current_amount", 0.0)
             })
+
+        except Exception as e:
+            logger.error(f"Failed to process goal {goal_id}: {str(e)}")
+            continue  # Skip problematic goals
     
     return {
         "dashboard_summary": summary,
@@ -1019,7 +1060,7 @@ async def create_test_scenario_with_group():
     
     try:
         # Create test goal with group
-        goal_id, group = create_test_goal_with_group(
+        goal_id, group = await create_test_goal_with_group(
             title="Electric Bill Test Scenario",
             goal_amount=5000.0,
             creator_name="Maria Santos",
@@ -1027,27 +1068,34 @@ async def create_test_scenario_with_group():
         )
         
         # Add realistic contributions (60% completion)
-        add_realistic_test_contributions(goal_id, 0.6)
+        await add_realistic_test_contributions(goal_id, 0.6)
         
         # Get analytics for verification
-        group_data = convert_goal_to_group_format(goal_id)
+        group_data = await convert_goal_to_group_format(goal_id)
         if not group_data:
             raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
         analytics = calculate_group_analytics(group_data)
+        
+        # Get pool status to check contributors
+        pool_status = await pool_status_collection.find_one({"goal_id": goal_id})
+        contributor_names = [c["name"] for c in pool_status.get("contributors", [])]
+        
+        # Find pending members
+        pending_members = [
+            member["user_id"] for member in group["members"] 
+            if member["user_id"].replace('user_', '').replace('_', ' ').title() not in contributor_names
+        ]
         
         return {
             "success": True,
             "goal_id": goal_id,
             "group_id": goal_id,
             "scenario": "Electric Bill Test Scenario",
-            "members": [member.user_id for member in group.members] if hasattr(group, 'members') else [],
+            "members": [member["user_id"] for member in group["members"]],
             "goal_amount": 5000.0,
             "current_amount": analytics.get("current_amount", 0),
             "progress_percentage": analytics.get("progress_percentage", 0),
-            "pending_members": [
-                member.user_id for member in group.members 
-                if member.user_id not in [c["name"] for c in pool_status[goal_id]["contributors"]]
-            ] if hasattr(group, 'members') else [],
+            "pending_members": pending_members,
             "message": "Test scenario created successfully! Use this goal_id for testing agentic features.",
             "next_steps": [
                 f"Check notifications: GET /ai-tools/notifications/{goal_id}",
@@ -1058,63 +1106,67 @@ async def create_test_scenario_with_group():
     except Exception as e:
         logger.error(f"Error creating test scenario: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create test scenario: {str(e)}")
-
 @router.post("/test-agentic-workflow")
 async def test_agentic_workflow(goal_id: str):
     """Test the complete agentic workflow with real goal and group data"""
     
-    # Verify goal exists
-    goal = goals.get(goal_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
-    
-    # Get group data
-    group_data = convert_goal_to_group_format(goal_id)
-    if not group_data:
-        raise HTTPException(status_code=404, detail=f"Could not convert goal {goal_id} to group format")
-    
-    analytics = calculate_group_analytics(group_data)
-    
-    # Simulate AI analysis (removed comprehensive analysis endpoint)
-    ai_actions = create_fallback_actions(group_data, analytics)
-    
-    # Execute actions
-    action_results = []
-    for action in ai_actions:
-        if action.get("action_type") == "send_reminder":
-            result = await execute_autonomous_action(
-                action["action_type"],
-                goal_id,
-                action["action_data"],
-                action.get("target_members", [])
-            )
-            action_results.append({
-                "action": action["action_type"],
-                "result": result
-            })
-    
-    # Get resulting notifications
-    notifications = [n for n in notifications_db if n.get("group_id") == goal_id]
-    executed_actions = [a for a in executed_actions_db if a.get("group_id") == goal_id]
-    
-    return {
-        "agentic_workflow_test": "completed",
-        "goal_id": goal_id,
-        "goal_title": goal.title,
-        "group_analytics": analytics,
-        "ai_actions_triggered": len(ai_actions),
-        "notifications_created": len(notifications),
-        "actions_executed": len(executed_actions),
-        "action_results": action_results,
-        "pending_members_targeted": group_data.get("pending_members", []),
-        "workflow_status": "✅ Agentic features working with real goal/group data",
-        "recent_notifications": notifications[-3:] if notifications else [],
-        "test_summary": {
-            "goal_integration": "✅ Working",
-            "group_integration": "✅ Working", 
-            "ai_analysis": "✅ Working",
-            "autonomous_actions": "✅ Working",
-            "notification_system": "✅ Working"
+    try:
+        # Verify goal exists in MongoDB
+        goal = await goals_collection.find_one({"goal_id": goal_id})
+        if not goal:
+            raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
+        
+        # Get group data
+        group_data = await convert_goal_to_group_format(goal_id)
+        if not group_data:
+            raise HTTPException(status_code=404, detail=f"Could not convert goal {goal_id} to group format")
+        
+        analytics = calculate_group_analytics(group_data)
+        
+        # Simulate AI analysis (removed comprehensive analysis endpoint)
+        ai_actions = create_fallback_actions(group_data, analytics)
+        
+        # Execute actions
+        action_results = []
+        for action in ai_actions:
+            if action.get("action_type") == "send_reminder":
+                result = await execute_autonomous_action(
+                    action["action_type"],
+                    goal_id,
+                    action["action_data"],
+                    action.get("target_members", [])
+                )
+                action_results.append({
+                    "action": action["action_type"],
+                    "result": result
+                })
+        
+        # Get resulting notifications from MongoDB
+        notifications = await notifications_collection.find({"group_id": goal_id}).to_list(length=None)
+        executed_actions = await executed_actions_collection.find({"group_id": goal_id}).to_list(length=None)
+        
+        return {
+            "agentic_workflow_test": "completed",
+            "goal_id": goal_id,
+            "goal_title": goal.get("title", "Untitled Goal"),
+            "group_analytics": analytics,
+            "ai_actions_triggered": len(ai_actions),
+            "notifications_created": len(notifications),
+            "actions_executed": len(executed_actions),
+            "action_results": action_results,
+            "pending_members_targeted": group_data.get("pending_members", []),
+            "workflow_status": "✅ Agentic features working with real goal/group data",
+            "recent_notifications": notifications[-3:] if notifications else [],
+            "test_summary": {
+                "goal_integration": "✅ Working",
+                "group_integration": "✅ Working", 
+                "ai_analysis": "✅ Working",
+                "autonomous_actions": "✅ Working",
+                "notification_system": "✅ Working"
+            }
         }
-    }
+        
+    except Exception as e:
+        logger.error(f"Agentic workflow test error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workflow test failed: {str(e)}")
 

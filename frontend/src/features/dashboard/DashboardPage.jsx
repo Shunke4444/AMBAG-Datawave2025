@@ -9,7 +9,7 @@ import { useEffect } from "react";
 
 const Dashboard = () => {
   const [isLoanOpen, setIsLoanOpen] = useState(false);
-  const authRole = "Manager"; 
+  const authRole = "NewUser"; // Hard-coded for testing
   const isMobile = useIsMobile(); // ✅ detect mobile
 
 
