@@ -82,7 +82,7 @@ const NewUserDashboard = () => {
       <div className="w-372 h-176 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4">
         {/* Member List - Tall Left Box */}
         <div className="bg-shadow rounded-2xl p-4 col-span-1 flex items-center justify-center">
-          <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer" onClick={() => setIsGoalModalOpen(true)}>
+          <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer" onClick={() => setIsGroupModalOpen(true)}>
             <AddIcon className="text-textcolor text-sm sm:text-base" />
             <span>Create a Group</span>
           </button>
@@ -90,7 +90,7 @@ const NewUserDashboard = () => {
 
         {/* Top Right Boxes */}
         <div className="col-span-2 bg-shadow rounded-2xl p-4 h-120 flex items-center justify-center">
-          <button className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer" >
+          <button className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer"   onClick={() => setIsGoalModalOpen(true)}>
             <AddIcon className="text-white text-sm sm:text-base" />
             <span>Create a Goal</span>
           </button>
