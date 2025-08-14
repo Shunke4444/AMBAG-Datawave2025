@@ -7,14 +7,14 @@ from uuid import uuid4
 
 # Import AI client and data sources
 from .ai_client import get_ai_client
-from .goal import goals, pool_status
+# from .goal import goals, pool_status
 from .groups import group_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/simulation", tags=["simulation"])
+router = APIRouter(prefix="/simulation-old", tags=["simulation"])
 
 # Simulation Models
 class WhatIfScenario(BaseModel):
@@ -51,122 +51,122 @@ class DeadlineChangeScenario(BaseModel):
 
 simulation_results_db = []
 
-# def get_goal_baseline(goal_id: str) -> Optional[Dict]:
-#     goal = goals.get(goal_id)
-#     if not goal:
-#         return None
+def get_goal_baseline(goal_id: str) -> Optional[Dict]:
+    goal = goals.get(goal_id)
+    if not goal:
+        return None
     
-#     pool_data = pool_status.get(goal_id, {})
+    pool_data = pool_status.get(goal_id, {})
     
-#     return {
-#         "goal_id": goal_id,
-#         "title": goal.title,
-#         "current_goal_amount": goal.goal_amount,
-#         "current_amount": pool_data.get("current_amount", 0),
-#         "target_date": goal.target_date.isoformat(),
-#         "status": goal.status,
-#         "contributors": pool_data.get("contributors", []),
-#         "creator": goal.creator_name,
-#         "days_remaining": (goal.target_date - datetime.now().date()).days
-#     }
+    return {
+        "goal_id": goal_id,
+        "title": goal.title,
+        "current_goal_amount": goal.goal_amount,
+        "current_amount": pool_data.get("current_amount", 0),
+        "target_date": goal.target_date.isoformat(),
+        "status": goal.status,
+        "contributors": pool_data.get("contributors", []),
+        "creator": goal.creator_name,
+        "days_remaining": (goal.target_date - datetime.now().date()).days
+    }
 
-# def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
-#     """Calculate the impact of a specific scenario"""
-#     impact = {
-#         "scenario_type": scenario.scenario_type,
-#         "description": scenario.description,
-#         "baseline": baseline.copy(),
-#         "projected": baseline.copy(),
-#         "changes": {},
-#         "risks": [],
-#         "opportunities": []
-#     }
+def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
+    """Calculate the impact of a specific scenario"""
+    impact = {
+        "scenario_type": scenario.scenario_type,
+        "description": scenario.description,
+        "baseline": baseline.copy(),
+        "projected": baseline.copy(),
+        "changes": {},
+        "risks": [],
+        "opportunities": []
+    }
     
-#     if scenario.scenario_type == "goal_amount":
-#         # Simulate changing the goal amount
-#         new_amount = scenario.parameters.get("new_goal_amount", baseline["current_goal_amount"])
-#         difference = new_amount - baseline["current_goal_amount"]
+    if scenario.scenario_type == "goal_amount":
+        # Simulate changing the goal amount
+        new_amount = scenario.parameters.get("new_goal_amount", baseline["current_goal_amount"])
+        difference = new_amount - baseline["current_goal_amount"]
         
-#         impact["projected"]["current_goal_amount"] = new_amount
-#         impact["changes"]["goal_amount_change"] = difference
-#         impact["changes"]["new_per_member_target"] = new_amount / len(baseline["contributors"]) if baseline["contributors"] else new_amount
+        impact["projected"]["current_goal_amount"] = new_amount
+        impact["changes"]["goal_amount_change"] = difference
+        impact["changes"]["new_per_member_target"] = new_amount / len(baseline["contributors"]) if baseline["contributors"] else new_amount
         
-#         # Calculate risks and opportunities
-#         if difference > 0:
-#             impact["risks"].append("Higher goal may reduce participation")
-#             impact["risks"].append("More time needed to collect additional funds")
-#         else:
-#             impact["opportunities"].append("Lower goal easier to achieve")
-#             impact["opportunities"].append("Faster completion possible")
+        # Calculate risks and opportunities
+        if difference > 0:
+            impact["risks"].append("Higher goal may reduce participation")
+            impact["risks"].append("More time needed to collect additional funds")
+        else:
+            impact["opportunities"].append("Lower goal easier to achieve")
+            impact["opportunities"].append("Faster completion possible")
     
-#     elif scenario.scenario_type == "member_contribution":
-#         # Simulate changing a member's contribution
-#         member_name = scenario.parameters.get("member_name")
-#         new_amount = scenario.parameters.get("new_amount", 0)
+    elif scenario.scenario_type == "member_contribution":
+        # Simulate changing a member's contribution
+        member_name = scenario.parameters.get("member_name")
+        new_amount = scenario.parameters.get("new_amount", 0)
         
-#         # Find current contribution
-#         current_contrib = 0
-#         for contrib in baseline["contributors"]:
-#             if contrib["name"] == member_name:
-#                 current_contrib = contrib["amount"]
-#                 break
+        # Find current contribution
+        current_contrib = 0
+        for contrib in baseline["contributors"]:
+            if contrib["name"] == member_name:
+                current_contrib = contrib["amount"]
+                break
         
-#         difference = new_amount - current_contrib
-#         impact["projected"]["current_amount"] = baseline["current_amount"] + difference
-#         impact["changes"]["member"] = member_name
-#         impact["changes"]["contribution_change"] = difference
-#         impact["changes"]["new_remaining"] = baseline["current_goal_amount"] - impact["projected"]["current_amount"]
+        difference = new_amount - current_contrib
+        impact["projected"]["current_amount"] = baseline["current_amount"] + difference
+        impact["changes"]["member"] = member_name
+        impact["changes"]["contribution_change"] = difference
+        impact["changes"]["new_remaining"] = baseline["current_goal_amount"] - impact["projected"]["current_amount"]
         
-#         if difference < 0:
-#             shortage = abs(difference)
-#             other_members = len(baseline["contributors"]) - 1
-#             if other_members > 0:
-#                 additional_per_member = shortage / other_members
-#                 impact["changes"]["additional_per_member"] = additional_per_member
-#                 impact["risks"].append(f"Other members need to pay ₱{additional_per_member:.2f} more each")
+        if difference < 0:
+            shortage = abs(difference)
+            other_members = len(baseline["contributors"]) - 1
+            if other_members > 0:
+                additional_per_member = shortage / other_members
+                impact["changes"]["additional_per_member"] = additional_per_member
+                impact["risks"].append(f"Other members need to pay ₱{additional_per_member:.2f} more each")
         
-#     elif scenario.scenario_type == "add_member":
-#         # Simulate adding a new member
-#         new_member = scenario.parameters.get("member_name")
-#         expected_contrib = scenario.parameters.get("expected_contribution", 0)
+    elif scenario.scenario_type == "add_member":
+        # Simulate adding a new member
+        new_member = scenario.parameters.get("member_name")
+        expected_contrib = scenario.parameters.get("expected_contribution", 0)
         
-#         impact["projected"]["current_amount"] = baseline["current_amount"] + expected_contrib
-#         impact["changes"]["new_member"] = new_member
-#         impact["changes"]["additional_contribution"] = expected_contrib
+        impact["projected"]["current_amount"] = baseline["current_amount"] + expected_contrib
+        impact["changes"]["new_member"] = new_member
+        impact["changes"]["additional_contribution"] = expected_contrib
         
-#         # Recalculate per-member amounts
-#         new_member_count = len(baseline["contributors"]) + 1
-#         remaining_after_new = baseline["current_goal_amount"] - impact["projected"]["current_amount"]
-#         if remaining_after_new > 0:
-#             new_per_member = remaining_after_new / new_member_count
-#             impact["changes"]["new_per_member_amount"] = new_per_member
+        # Recalculate per-member amounts
+        new_member_count = len(baseline["contributors"]) + 1
+        remaining_after_new = baseline["current_goal_amount"] - impact["projected"]["current_amount"]
+        if remaining_after_new > 0:
+            new_per_member = remaining_after_new / new_member_count
+            impact["changes"]["new_per_member_amount"] = new_per_member
         
-#         impact["opportunities"].append("Additional member reduces individual burden")
-#         impact["opportunities"].append("Faster goal completion possible")
+        impact["opportunities"].append("Additional member reduces individual burden")
+        impact["opportunities"].append("Faster goal completion possible")
     
-#     elif scenario.scenario_type == "deadline_change":
-#         # Simulate changing the deadline
-#         new_deadline = scenario.parameters.get("new_deadline")
-#         if new_deadline:
-#             try:
-#                 new_date = datetime.fromisoformat(new_deadline).date()
-#                 old_date = datetime.fromisoformat(baseline["target_date"]).date()
+    elif scenario.scenario_type == "deadline_change":
+        # Simulate changing the deadline
+        new_deadline = scenario.parameters.get("new_deadline")
+        if new_deadline:
+            try:
+                new_date = datetime.fromisoformat(new_deadline).date()
+                old_date = datetime.fromisoformat(baseline["target_date"]).date()
                 
-#                 impact["projected"]["target_date"] = new_deadline
-#                 impact["changes"]["deadline_change_days"] = (new_date - old_date).days
+                impact["projected"]["target_date"] = new_deadline
+                impact["changes"]["deadline_change_days"] = (new_date - old_date).days
                 
-#                 if new_date > old_date:
-#                     impact["opportunities"].append("More time to collect contributions")
-#                     impact["opportunities"].append("Reduced pressure on members")
-#                 else:
-#                     impact["risks"].append("Less time to collect remaining amount")
-#                     impact["risks"].append("Increased urgency may stress members")
-#             except:
-#                 impact["risks"].append("Invalid date format")
-#         else:
-#             impact["risks"].append("No deadline provided")
+                if new_date > old_date:
+                    impact["opportunities"].append("More time to collect contributions")
+                    impact["opportunities"].append("Reduced pressure on members")
+                else:
+                    impact["risks"].append("Less time to collect remaining amount")
+                    impact["risks"].append("Increased urgency may stress members")
+            except:
+                impact["risks"].append("Invalid date format")
+        else:
+            impact["risks"].append("No deadline provided")
     
-#     return impact
+    return impact
 
 
 def create_master_prompt(baseline: Dict, user_prompt: str) -> str:
@@ -350,7 +350,6 @@ class ChartSpec(BaseModel):
     labels: List[str]
     datasets: List[ChartDataset]
     options: Optional[Dict] = None
-
 
 class ChartGenerationRequest(BaseModel):
     goal_id: str

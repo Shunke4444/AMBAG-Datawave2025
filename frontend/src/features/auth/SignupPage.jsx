@@ -81,6 +81,11 @@ export default function Signup() {
         profile: {
           first_name: formData.firstName,
           last_name: formData.lastName
+        },
+        role: {
+          role_type: null,
+          permissions: [],
+          group_id: null
         }
       };
       const res = await fetch('http://localhost:8000/users/register', {

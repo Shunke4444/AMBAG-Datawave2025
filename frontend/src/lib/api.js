@@ -1,3 +1,38 @@
+
+import axios from "axios";
+import { getAuth } from "firebase/auth";
+const auth = getAuth();
+const user = auth.currentUser;
+const token = user && await user.getIdToken();
+
+const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
+
+export const api = axios.create({
+  baseURL,
+  withCredentials: true,
+});
+
+export async function pingApi() {
+  const res = await api.get("/");
+  return res.data;
+}
+
+export async function createGroup({ name, description, manager_id }) {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  const token = user && await user.getIdToken();
+
+  const res = await api.post("/groups/", {
+    name,
+    description,
+    manager_id,
+  }, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    }
+  });
+  return res.data;
+}
 // Generate AI-driven charts for What-If (debug helper)
 export async function generateSimulationCharts({ goal_id, prompt, max_charts = 3 }) {
   // Ensure goal_id is provided
@@ -18,42 +53,28 @@ export async function generateSimulationCharts({ goal_id, prompt, max_charts = 3
     throw error;
   }
 }
-// Minimal Axios client for FastAPI backend (JS)
-import axios from "axios";
 
-const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
-
-export const api = axios.create({
-  baseURL,
-  withCredentials: true,
-});
-
-export async function pingApi() {
-  const res = await api.get("/");
-  return res.data;
-}
 
 export async function askChatbot(prompt, sessionId) {
   const res = await api.post("/chatbot/ask", {
     prompt,
     session_id: sessionId || undefined,
   });
-  return res.data; // { response, session_id }
+  return res.data; 
 }
 
 // Simulation API (backend routers/simulation.py)
 export async function runWhatIfAnalysis(payload) {
-  // payload shape: { goal_id, scenarios: [{scenario_type, description, parameters}], explain_outcomes?, advisor_mode? }
   const res = await api.post("/simulation/what-if-analysis", payload);
   return res.data;
 }
 
 export async function createSimulationTestGoal() {
   const res = await api.post("/simulation/create-test-goal");
-  return res.data; // { goal_id, ready_for_simulation, ... }
+  return res.data; 
 }
 
 export async function getGoalSimulations(goalId) {
   const res = await api.get(`/simulation/scenarios/${goalId}`);
-  return res.data; // { simulations, count }
+  return res.data; 
 }

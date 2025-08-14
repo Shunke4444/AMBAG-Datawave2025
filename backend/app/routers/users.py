@@ -22,14 +22,14 @@ class UserRole(BaseModel):
 class UserProfile(BaseModel):
     first_name: str
     last_name: str
-    contact_number: str
-    address: Optional[str] = None
-    emergency_contact: Optional[str] = None
-    emergency_contact_number: Optional[str] = None
+    # contact_number: str
+    # address: Optional[str] = None
+    # emergency_contact: Optional[str] = None
+    # emergency_contact_number: Optional[str] = None
 
 class UserCreate(BaseModel):
     profile: UserProfile
-    role: UserRole
+    role: Optional[UserRole] = None
 
 class User(BaseModel):
     firebase_uid: str

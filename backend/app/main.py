@@ -8,7 +8,6 @@ from routers import (
     ai_tools_clean,
     simulation,
     users,
-    # database,
 )
 from routers.scheduler import start_scheduler
 from typing import List
@@ -34,7 +33,6 @@ app.include_router(groups.router)
 app.include_router(goal.router)
 app.include_router(chatbot.router)
 app.include_router(scheduler_api.router)
-# app.include_router(database.router)
 app.include_router(ai_tools_clean.router)
 app.include_router(simulation.router)
 
