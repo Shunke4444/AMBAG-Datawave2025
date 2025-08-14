@@ -429,11 +429,7 @@ const GridLayoutManager = ({
                     Moving
                   </div>
                 )}
-                {shadowPreview.swapInfo && (
-                  <div className="text-xs opacity-75 mt-1">
-                    Swap with {shadowPreview.swapInfo.targetId}
-                  </div>
-                )}
+``
               </span>
             </div>
           </div>
@@ -443,7 +439,7 @@ const GridLayoutManager = ({
         {gridItems.map(item => (
           <div
             key={item.id}
-            className={`absolute bg-secondary border border-primary/20 rounded-lg shadow-lg transition-all duration-200 group cursor-move ${
+            className={`absolute bg-secondary border border-primary/20 rounded-lg shadow-lg transition-all duration-200 group cursor-move h-full w-full ${
               isDragging && draggedItem?.id === item.id ? 'opacity-60 scale-105 shadow-2xl border-primary' : 'opacity-100'
             }`}
             style={{

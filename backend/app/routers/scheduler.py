@@ -1,8 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta
-from .goal import goals, pool_status, pending_goals  # Fixed relative import
-from .groups import group_db
+# from .goal import goals, pool_status, pending_goals  # Fixed relative import
+# from .groups import group_db
 from .ai_client import get_ai_client
+from .mongo import goals_collection, pool_status_collection, pending_goals_collection, groups_collection    
 import json
 import logging
 import httpx
@@ -34,71 +35,84 @@ async def monitor_goals():
             now = datetime.now()
             logger.info(f"🔍 Running production goal monitoring at {now.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            active_goals = [goal for goal in goals.values() if goal.status in ["active", "awaiting_payment"]]
+            # Get active goals from MongoDB using goal_id
+            active_goals_cursor = goals_collection.find({
+                "status": {"$in": ["active", "awaiting_payment"]},
+                "goal_id": {"$exists": True}  # Ensure goal_id exists
+            })
+            active_goals = await active_goals_cursor.to_list(length=None)
             logger.info(f"Monitoring {len(active_goals)} active goals")
             
-            # Production: Process goals in batches to avoid overwhelming the system
+            # Process in batches
             batch_size = 5
-            for i in range(0, len(list(goals.items())), batch_size):
-                batch = list(goals.items())[i:i + batch_size]
+            for i in range(0, len(active_goals), batch_size):
+                batch = active_goals[i:i + batch_size]
                 
-                # Process batch concurrently
                 tasks = [
-                    analyze_single_goal_production(goal_id, goal, ai_client, now)
-                    for goal_id, goal in batch
+                    analyze_single_goal_production(
+                        goal["goal_id"],  # Using goal_id directly
+                        goal, 
+                        ai_client, 
+                        now
+                    )
+                    for goal in batch
+                    if "goal_id" in goal  # Safety check
                 ]
                 
                 await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # Small delay between batches
-                await asyncio.sleep(1)
+                await asyncio.sleep(1)  # Inter-batch delay
             
-            # Production: System-wide optimization analysis
             await perform_system_optimization(ai_client)
-            
-            # Production: Generate monitoring report
             await generate_monitoring_report()
             
-            logger.info(f"✅ Production goal monitoring cycle completed. Next check in {SCHEDULER_CONFIG['monitoring_interval']} seconds")
-            retry_count = 0  # Reset retry count on successful cycle
+            logger.info(f"✅ Monitoring cycle completed. Next check in {SCHEDULER_CONFIG['monitoring_interval']}s")
+            retry_count = 0
             
         except Exception as e:
             retry_count += 1
-            logger.error(f"❌ Production monitoring cycle failed (attempt {retry_count}/{max_retries}): {str(e)}")
+            logger.error(f"❌ Monitoring failed (attempt {retry_count}/{max_retries}): {str(e)}")
             
             if retry_count >= max_retries:
-                logger.critical("🚨 Maximum retry attempts reached. Scheduler will continue but with reduced functionality.")
+                logger.critical("🚨 Max retries reached")
                 retry_count = 0
             
-            # Exponential backoff for retries
             await asyncio.sleep(min(300, 30 * retry_count))
         
         await asyncio.sleep(SCHEDULER_CONFIG["monitoring_interval"])
 
-async def analyze_single_goal_production(goal_id: str, goal, ai_client, now: datetime):
+async def analyze_single_goal_production(goal_id: str, goal: dict, ai_client, now: datetime):
     """Production analysis for individual goals with comprehensive AI integration"""
     try:
-        status = pool_status.get(goal_id, {})
+        # Get pool status from MongoDB instead of local dict
+        status = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+        
+        # Safely extract values with defaults
         current_amount = status.get("current_amount", 0)
-        contributors = status.get("contributors", [])
         
-        # Calculate production metrics
-        days_remaining = (goal.target_date - now.date()).days
-        progress_percentage = (current_amount / goal.goal_amount) * 100 if goal.goal_amount > 0 else 0
+        # Calculate production metrics (using dict access instead of object attributes)
+        target_date = goal.get("target_date")
+        if not target_date:
+            logger.warning(f"Missing target_date for goal {goal_id}")
+            return
+            
+        days_remaining = (target_date - now.date()).days
+        goal_amount = goal.get("goal_amount", 0)
+        progress_percentage = (current_amount / goal_amount) * 100 if goal_amount > 0 else 0
         
-        logger.info(f"📊 Goal Analysis: {goal.title[:30]}... | Progress: {progress_percentage:.1f}% | Days: {days_remaining}")
+        logger.info(f"📊 Goal Analysis: {goal.get('title','')[:30]}... | Progress: {progress_percentage:.1f}% | Days: {days_remaining}")
         
         # Production: Risk-based AI analysis triggers
         risk_factors = await assess_goal_risk(goal_id, goal, status, days_remaining, progress_percentage)
         
-        if risk_factors["risk_level"] != "LOW":
+        if risk_factors.get("risk_level", "LOW") != "LOW":
             await trigger_ai_monitoring_call(goal_id, risk_factors, ai_client)
         
         # Production: Proactive milestone management
-        await handle_milestone_events(goal_id, goal, status, progress_percentage, ai_client)
+        await handle_milestone_events(goal_id, progress_percentage, ai_client)
         
     except Exception as e:
         logger.error(f"❌ Error in production analysis for goal {goal_id}: {str(e)}")
+        raise  # Re-raise if you want outer retry mechanism to catch it
 
 async def assess_goal_risk(goal_id: str, goal, status: dict, days_remaining: int, progress_percentage: float):
     """Production risk assessment algorithm"""
@@ -153,9 +167,9 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
     try:
         # Use the correct comprehensive analysis endpoint
         analysis_request = {
-            "group_id": goal_id,
+            "group_id": goal_id, 
             "analysis_types": ["progress_tracking", "risk_assessment"],
-            "auto_execute": True  # This enables autonomous actions
+            "auto_execute": True
         }
         
         async with httpx.AsyncClient() as client:
@@ -169,16 +183,22 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
                 monitoring_result = response.json()
                 logger.info(f"🤖 AI monitoring completed for goal {goal_id} - Risk: {monitoring_result.get('risk_level', 'UNKNOWN')}")
                 
-                # Store monitoring results for production analytics
-                if "scheduler_monitoring" not in pool_status.get(goal_id, {}):
-                    pool_status[goal_id]["scheduler_monitoring"] = []
-                
-                pool_status[goal_id]["scheduler_monitoring"].append({
-                    "timestamp": datetime.now().isoformat(),
+                # MongoDB update operation for storing monitoring results
+                monitoring_entry = {
+                    "timestamp": datetime.now(),
                     "risk_assessment": risk_factors,
                     "ai_monitoring_result": monitoring_result,
                     "triggered_by": "production_scheduler"
-                })
+                }
+                
+                await pool_status_collection.update_one(
+                    {"goal_id": goal_id},
+                    {
+                        "$push": {"scheduler_monitoring": monitoring_entry},
+                        "$setOnInsert": {"goal_id": goal_id}  # Create doc if doesn't exist
+                    },
+                    upsert=True
+                )
                 
             else:
                 logger.error(f"AI monitoring API call failed for goal {goal_id}: HTTP {response.status_code}")
@@ -188,7 +208,7 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
     except Exception as e:
         logger.error(f"AI monitoring call failed for goal {goal_id}: {str(e)}")
 
-async def handle_milestone_events(goal_id: str, goal, status: dict, progress_percentage: float, ai_client):
+async def handle_milestone_events(goal_id: str, progress_percentage: float, ai_client):
     """Production milestone event handling with AI integration"""
     
     # Define production milestones
@@ -199,6 +219,8 @@ async def handle_milestone_events(goal_id: str, goal, status: dict, progress_per
         if progress_percentage >= milestone:
             current_milestone = milestone
     
+    status = await pool_status_collection.find_one({"goal_id": goal_id})
+
     # Check if milestone was recently achieved
     last_milestone = status.get("last_milestone_reached", 0)
     
@@ -206,13 +228,21 @@ async def handle_milestone_events(goal_id: str, goal, status: dict, progress_per
         logger.info(f"🎯 Milestone achieved for goal {goal_id}: {current_milestone}%")
         
         # Update milestone tracking
-        status["last_milestone_reached"] = current_milestone
-        status["milestone_history"] = status.get("milestone_history", [])
-        status["milestone_history"].append({
+        milestone_entry = {
             "milestone": current_milestone,
             "timestamp": datetime.now().isoformat(),
             "progress_percentage": progress_percentage
-        })
+        }
+        
+        await pool_status_collection.update_one(
+            {"goal_id": goal_id},
+            {
+                "$set": {"last_milestone_reached": current_milestone},
+                "$push": {"milestone_history": milestone_entry},
+                "$setOnInsert": {"goal_id": goal_id} 
+            },
+            upsert=True
+        )
         
         # Trigger appropriate AI analysis based on milestone
         if current_milestone == 75:
@@ -223,7 +253,7 @@ async def handle_milestone_events(goal_id: str, goal, status: dict, progress_per
 async def trigger_optimization_call(goal_id: str, ai_client):
     """Production: Trigger optimization analysis via internal API"""
     try:
-        goal_item = goals.get(goal_id)
+        goal_item = await goals_collection.find_one({"goal_id": goal_id})
         if not goal_item:
             logger.warning(f"Goal {goal_id} not found for optimization trigger")
             return
@@ -280,22 +310,39 @@ async def trigger_completion_workflow(goal_id: str, ai_client):
 async def perform_system_optimization(ai_client):
     """Production: System-wide optimization and analytics"""
     try:
-        # System-wide metrics
-        total_goals = len(goals)
-        active_goals = len([g for g in goals.values() if g.status == "active"])
-        completed_goals = len([g for g in goals.values() if g.status == "completed"])
+        # Get goals from MongoDB collections
+        total_goals_cursor = goals_collection.find({})
+        total_goals = await total_goals_cursor.to_list(length=None)
+        
+        active_goals = [g for g in total_goals if g.get("status") == "active"]
+        completed_goals = [g for g in total_goals if g.get("status") == "completed"]
         at_risk_goals = 0
         
-        # Count at-risk goals
-        for goal_id, goal in goals.items():
-            status = pool_status.get(goal_id, {})
-            progress = (status.get("current_amount", 0) / goal.goal_amount) * 100
-            days_remaining = (goal.target_date - datetime.now().date()).days
+        # Count at-risk goals using MongoDB data
+        for goal in active_goals:
+            goal_id = goal.get("goal_id")
+            if not goal_id:
+                continue
+                
+            # Get pool status from MongoDB
+            status = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
             
-            if days_remaining <= 7 and progress < 50:
-                at_risk_goals += 1
+            current_amount = status.get("current_amount", 0)
+            goal_amount = goal.get("goal_amount", 0)
+            target_date = goal.get("target_date")
+            
+            if target_date and goal_amount > 0:
+                progress = (current_amount / goal_amount) * 100
+                days_remaining = (target_date - datetime.now().date()).days
+                
+                if days_remaining <= 7 and progress < 50:
+                    at_risk_goals += 1
         
-        logger.info(f"📈 System Stats - Total: {total_goals}, Active: {active_goals}, Completed: {completed_goals}, At Risk: {at_risk_goals}")
+        total_goals_count = len(total_goals)
+        active_goals_count = len(active_goals)
+        completed_goals_count = len(completed_goals)
+        
+        logger.info(f"📈 System Stats - Total: {total_goals_count}, Active: {active_goals_count}, Completed: {completed_goals_count}, At Risk: {at_risk_goals}")
         
         # System-wide AI optimization if needed
         if at_risk_goals > (active_goals * 0.3):  # More than 30% at risk
@@ -308,17 +355,24 @@ async def perform_system_optimization(ai_client):
 async def generate_monitoring_report():
     """Production: Generate comprehensive monitoring report"""
     try:
+        # Get all goals from MongoDB
+        total_goals_cursor = goals_collection.find({})
+        total_goals = await total_goals_cursor.to_list(length=None)
+        
         report = {
             "timestamp": datetime.now().isoformat(),
-            "total_goals_monitored": len(goals),
+            "total_goals_monitored": len(total_goals),
             "ai_interventions_triggered": 0,
             "risk_assessments_performed": 0,
             "system_health": "HEALTHY"
         }
         
         # Count AI interventions from this monitoring cycle
-        for goal_id, status in pool_status.items():
-            monitoring_entries = status.get("scheduler_monitoring", [])
+        pool_status_cursor = pool_status_collection.find({})
+        pool_status_docs = await pool_status_cursor.to_list(length=None)
+        
+        for status_doc in pool_status_docs:
+            monitoring_entries = status_doc.get("scheduler_monitoring", [])
             recent_entries = [
                 entry for entry in monitoring_entries
                 if (datetime.now() - datetime.fromisoformat(entry["timestamp"])).seconds < SCHEDULER_CONFIG["monitoring_interval"]
@@ -331,39 +385,43 @@ async def generate_monitoring_report():
     except Exception as e:
         logger.error(f"Monitoring report generation failed: {str(e)}")
 
-async def analyze_single_goal(goal_id: str, goal, ai_client, now: datetime):
+async def analyze_single_goal(goal_id: str, ai_client, now: datetime):
     """Analyze individual goal and trigger AI suggestions"""
-    status = pool_status.get(goal_id, {})
+    status = await pool_status_collection.find_one({"goal_id": goal_id})
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     current_amount = status.get("current_amount", 0)
     contributors = status.get("contributors", [])
+
     
     # Calculate key metrics
-    days_remaining = (goal.target_date - now.date()).days
-    progress_percentage = (current_amount / goal.goal_amount) * 100 if goal.goal_amount > 0 else 0
+    days_remaining = (goal["target_date"] - now.date()).days
+    progress_percentage = (current_amount / goal["goal_amount"]) * 100 if goal["goal_amount"] > 0 else 0
     
-    print(f"📊 Goal: {goal.title} | Progress: {progress_percentage:.1f}% | Days left: {days_remaining}")
+    print(f"📊 Goal: {goal['title']} | Progress: {progress_percentage:.1f}% | Days left: {days_remaining}")
     
     # 1. DEADLINE MONITORING
-    if days_remaining <= 7 and not goal.is_paid:
-        await handle_deadline_approaching(goal_id, goal, status, days_remaining, progress_percentage, ai_client)
+    if days_remaining <= 7 and not goal["is_paid"]:
+        await handle_deadline_approaching(goal_id, days_remaining, progress_percentage, ai_client)
     
     # 2. CONTRIBUTION PATTERN ANALYSIS
     if len(contributors) > 0:
-        await analyze_contribution_patterns(goal_id, goal, contributors, ai_client)
+        await analyze_contribution_patterns(goal_id, contributors, ai_client)
     
     # 3. PROGRESS MILESTONE CHECKS
     if progress_percentage >= 75 and progress_percentage < 100:
-        await handle_near_completion(goal_id, goal, status, ai_client)
+        await handle_near_completion(goal_id, ai_client)
     
     # 4. AWAITING PAYMENT STATUS
     if goal.status == "awaiting_payment":
-        await handle_awaiting_payment(goal_id, goal, ai_client)
+        await handle_awaiting_payment(goal_id, ai_client)
 
-async def handle_deadline_approaching(goal_id: str, goal, status: dict, days_remaining: int, progress_percentage: float, ai_client):
+async def handle_deadline_approaching(goal_id: str, days_remaining: int, progress_percentage: float, ai_client):
     """Handle goals with approaching deadlines"""
+    goal = await goals_collection.find_one({"goal_id": goal_id})
+    status = await pool_status_collection.find_one({"goal_id": goal_id})
     urgency_level = "CRITICAL" if days_remaining <= 1 else "HIGH" if days_remaining <= 3 else "MEDIUM"
     
-    print(f"🚨 {urgency_level} ALERT: Goal '{goal.title}' deadline in {days_remaining} days with {progress_percentage:.1f}% progress")
+    print(f"🚨 {urgency_level} ALERT: Goal '{goal['title']}' deadline in {days_remaining} days with {progress_percentage:.1f}% progress")
     
     if ai_client:
         try:
@@ -371,8 +429,8 @@ async def handle_deadline_approaching(goal_id: str, goal, status: dict, days_rem
             analysis_prompt = f"""
             URGENT GOAL ANALYSIS NEEDED:
             
-            Goal: {goal.title}
-            Target Amount: ₱{goal.goal_amount}
+            Goal: {goal['title']}
+            Target Amount: ₱{goal['goal_amount']}
             Current Amount: ₱{status.get("current_amount", 0)}
             Progress: {progress_percentage:.1f}%
             Days Remaining: {days_remaining}
@@ -393,24 +451,32 @@ async def handle_deadline_approaching(goal_id: str, goal, status: dict, days_rem
             )
             
             ai_suggestion = response.choices[0].message.content
-            print(f"🤖 AI URGENT SUGGESTION for {goal.title}:")
+            print(f"🤖 AI URGENT SUGGESTION for {goal['title']}:")
             print(ai_suggestion)
             
             # Store suggestion for later retrieval
-            if "ai_suggestions" not in status:
-                status["ai_suggestions"] = []
-            status["ai_suggestions"].append({
+            suggestion_entry = {
                 "type": "deadline_alert",
                 "urgency": urgency_level,
                 "suggestion": ai_suggestion,
                 "timestamp": datetime.now().isoformat()
-            })
+            }
+            
+            await pool_status_collection.update_one(
+                {"goal_id": goal_id},
+                {
+                    "$push": {"ai_suggestions": suggestion_entry},
+                    "$setOnInsert": {"goal_id": goal_id}
+                },
+                upsert=True
+            )
             
         except Exception as e:
             print(f"❌ AI analysis failed for deadline alert: {e}")
 
-async def analyze_contribution_patterns(goal_id: str, goal, contributors: list, ai_client):
+async def analyze_contribution_patterns(goal_id: str, contributors: list, ai_client):
     """Analyze contribution patterns and detect issues"""
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not ai_client or len(contributors) < 2:
         return
     
@@ -420,11 +486,11 @@ async def analyze_contribution_patterns(goal_id: str, goal, contributors: list, 
     
     if len(recent_contributions) == 0 and len(contributors) > 0:
         # No recent contributions - potential stagnation
-        print(f"⚠️  No recent contributions for goal '{goal.title}' in past 7 days")
+        print(f"⚠️  No recent contributions for goal '{goal['title']}' in past 7 days")
         
         try:
             pattern_prompt = f"""
-            Analyze this contribution pattern for goal '{goal.title}':
+            Analyze this contribution pattern for goal '{goal['title']}':
             
             Total Contributors: {len(contributors)}
             Recent Contributors (7 days): {len(recent_contributions)}
@@ -446,26 +512,28 @@ async def analyze_contribution_patterns(goal_id: str, goal, contributors: list, 
                 temperature=0.3,
             )
             
-            print(f"🔍 CONTRIBUTION PATTERN ANALYSIS for {goal.title}:")
+            print(f"🔍 CONTRIBUTION PATTERN ANALYSIS for {goal['title']}:")
             print(response.choices[0].message.content)
             
         except Exception as e:
             print(f"❌ Contribution pattern analysis failed: {e}")
 
-async def handle_near_completion(goal_id: str, goal, status: dict, ai_client):
+async def handle_near_completion(goal_id: str, ai_client):
     """Handle goals that are near completion (75%+)"""
+    goal = await goals_collection.find_one({"goal_id": goal_id})
+    status = await pool_status_collection.find_one({"goal_id": goal_id})
     if not ai_client:
         return
     
-    print(f"🎯 Goal '{goal.title}' is near completion - triggering final push analysis")
+    print(f"🎯 Goal '{goal['title']}' is near completion - triggering final push analysis")
     
     try:
         completion_prompt = f"""
-        Goal '{goal.title}' is near completion:
+        Goal '{goal['title']}' is near completion:
         
         Progress: 75%+ achieved
-        Remaining Amount: ₱{goal.goal_amount - status.get("current_amount", 0)}
-        Target Date: {goal.target_date}
+        Remaining Amount: ₱{goal['goal_amount'] - status.get("current_amount", 0)}
+        Target Date: {goal['target_date']}
         
         Provide final push strategies:
         1. How to secure the remaining amount quickly
@@ -479,22 +547,23 @@ async def handle_near_completion(goal_id: str, goal, status: dict, ai_client):
             temperature=0.3,
         )
         
-        print(f"🚀 FINAL PUSH STRATEGY for {goal.title}:")
+        print(f"🚀 FINAL PUSH STRATEGY for {goal['title']}:")
         print(response.choices[0].message.content)
         
     except Exception as e:
         print(f"❌ Final push analysis failed: {e}")
 
-async def handle_awaiting_payment(goal_id: str, goal, ai_client):
+async def handle_awaiting_payment(goal_id: str, ai_client):
     """Handle goals that reached target and await payment"""
+    goal = await goals_collection.find_one({"goal_id": goal_id})
     if not ai_client:
         return
     
-    print(f"💰 Goal '{goal.title}' awaiting payment - triggering manager notification")
+    print(f"💰 Goal '{goal['title']}' awaiting payment - triggering manager notification")
     
     try:
         payment_prompt = f"""
-        Goal '{goal.title}' has reached its target and is awaiting manager payment approval.
+        Goal '{goal['title']}' has reached its target and is awaiting manager payment approval.
         
         Generate:
         1. Professional notification message for the manager
@@ -510,7 +579,7 @@ async def handle_awaiting_payment(goal_id: str, goal, ai_client):
             temperature=0.3,
         )
         
-        print(f"📋 PAYMENT PROCESSING GUIDE for {goal.title}:")
+        print(f"📋 PAYMENT PROCESSING GUIDE for {goal['title']}:")
         print(response.choices[0].message.content)
         
     except Exception as e:
@@ -518,27 +587,47 @@ async def handle_awaiting_payment(goal_id: str, goal, ai_client):
 
 async def check_goal_optimization_needs(ai_client):
     """Check if any goals need optimization based on overall patterns"""
-    if not ai_client or len(goals) == 0:
-        return
-    
-    # Analyze overall goal performance
-    active_goals = [g for g in goals.values() if g.status == "active"]
-    struggling_goals = []
-    
-    for goal in active_goals:
-        status = pool_status.get(goal.id, {})
-        progress = (status.get("current_amount", 0) / goal.goal_amount) * 100 if goal.goal_amount > 0 else 0
-        days_remaining = (goal.target_date - datetime.now().date()).days
+    try:
+        # Check if goals collection has any documents
+        total_goals_count = await goals_collection.count_documents({})
+        if not ai_client or total_goals_count == 0:
+            return
         
-        # Identify struggling goals
-        if days_remaining > 0 and progress < (100 - (days_remaining * 5)):  # Expected progress formula
-            struggling_goals.append(goal.title)
-    
-    if struggling_goals:
-        print(f"📈 OPTIMIZATION CHECK: {len(struggling_goals)} goals may need optimization")
-        print(f"Goals needing attention: {', '.join(struggling_goals)}")
+        # Get active goals from MongoDB
+        active_goals_cursor = goals_collection.find({"status": "active"})
+        active_goals = await active_goals_cursor.to_list(length=None)
         
-        # This could trigger more detailed AI analysis for optimization
+        struggling_goals = []
+        
+        for goal in active_goals:
+            goal_id = goal.get("goal_id")
+            if not goal_id:
+                continue
+                
+            # Get pool status from MongoDB
+            status = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+            
+            current_amount = status.get("current_amount", 0)
+            goal_amount = goal.get("goal_amount", 0)
+            target_date = goal.get("target_date")
+            title = goal.get("title", "Untitled Goal")
+            
+            if target_date and goal_amount > 0:
+                progress = (current_amount / goal_amount) * 100
+                days_remaining = (target_date - datetime.now().date()).days
+                
+                # Identify struggling goals - Expected progress formula
+                if days_remaining > 0 and progress < (100 - (days_remaining * 5)):
+                    struggling_goals.append(title)
+        
+        if struggling_goals:
+            print(f"📈 OPTIMIZATION CHECK: {len(struggling_goals)} goals may need optimization")
+            print(f"Goals needing attention: {', '.join(struggling_goals)}")
+            
+            # This could trigger more detailed AI analysis for optimization
+            
+    except Exception as e:
+        logger.error(f"Goal optimization check failed: {str(e)}")
 
 def start_scheduler():
     """Start the AI-powered goal monitoring scheduler"""
@@ -556,18 +645,33 @@ def start_scheduler():
 async def trigger_manual_goal_analysis(goal_id: str):
     """Manually trigger AI analysis for a specific goal"""
     ai_client = get_ai_client()
-    if goal_id in goals:
-        goal = goals[goal_id]
-        await analyze_single_goal(goal_id, goal, ai_client, datetime.now())
+    goal = await goals_collection.find_one({"goal_id": goal_id})
+    if goal:
+        await analyze_single_goal(goal_id, ai_client, datetime.now())
         return f"AI analysis triggered for goal {goal_id}"
-    return f"Goal {goal_id} not found"
+    else:
+        return f"Goal {goal_id} not found"
 
-def get_scheduler_status():
+async def get_scheduler_status():
     """Get current scheduler status and statistics"""
-    return {
-        "status": "running",
-        "total_goals": len(goals),
-        "active_goals": len([g for g in goals.values() if g.status == "active"]),
-        "goals_awaiting_payment": len([g for g in goals.values() if g.status == "awaiting_payment"]),
-        "last_check": datetime.now().isoformat()
-    }
+    try:
+        total_goals_cursor = goals_collection.find({})
+        total_goals = await total_goals_cursor.to_list(length=None)
+        
+        active_goals = [g for g in total_goals if g.get("status") == "active"]
+        awaiting_payment_goals = [g for g in total_goals if g.get("status") == "awaiting_payment"]
+        
+        return {
+            "status": "running",
+            "total_goals": len(total_goals),
+            "active_goals": len(active_goals),
+            "goals_awaiting_payment": len(awaiting_payment_goals),
+            "last_check": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get scheduler status: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "last_check": datetime.now().isoformat()
+        }

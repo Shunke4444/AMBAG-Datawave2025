@@ -1,0 +1,47 @@
+{
+    "goals": {
+        "test_goal_123": {
+            "id": "test_goal_123",
+            "title": "Family Vacation Fund",
+            "description": "Save for Boracay family trip",
+            "goal_amount": 50000.0,
+            "current_amount": 0.0,
+            "creator_role": "manager",
+            "creator_name": "Juan Dela Cruz",
+            "target_date": "2025-11-10",
+            "is_paid": false,
+            "status": "active",
+            "created_at": "2025-08-12T16:50:52.934967",
+            "approved_at": null,
+            "auto_payment_settings": null
+        }
+    },
+    "pool_status": {
+        "test_goal_123": {
+            "current_amount": 15000.0,
+            "contributors": [
+                {
+                    "name": "Juan Dela Cruz",
+                    "amount": 5000.0,
+                    "date": "2025-07-15"
+                },
+                {
+                    "name": "Maria Santos",
+                    "amount": 4000.0,
+                    "date": "2025-07-20"
+                },
+                {
+                    "name": "Pedro Garcia",
+                    "amount": 3000.0,
+                    "date": "2025-07-25"
+                },
+                {
+                    "name": "Ana Reyes",
+                    "amount": 3000.0,
+                    "date": "2025-07-30"
+                }
+            ],
+            "last_updated": "2025-08-12T16:50:52.935011"
+        }
+    }
+}

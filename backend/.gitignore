@@ -7,3 +7,5 @@ db.sqlite3
 .env
 venv/
 ambag-auth.json
+commands_note.txt
+register_payload.json
