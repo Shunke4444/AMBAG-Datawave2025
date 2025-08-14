@@ -31,6 +31,7 @@ import MemberNotification from './features/notifications/MemberNotificationPage'
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
+import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { useEffect } from 'react';
 
 const router = createBrowserRouter([
@@ -53,7 +54,10 @@ const router = createBrowserRouter([
   {
     path: '/payment',
     element: <Payment />
-    // add children later
+  },
+  {
+    path: '/new-user-dashboard',
+    element: <NewUserDashboard/>
   },
 
   // Main App with Layout

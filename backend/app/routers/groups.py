@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-from uuid import uuid4 #generate unique IDs
 from datetime import datetime
 import logging
+import random, string #simple ids for invite code for now
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -61,7 +61,10 @@ class GroupResponse(BaseModel):
 def create_group(group: GroupCreate):
     """Create a new group with manager"""
     try:
-        group_id = str(uuid4())
+        def generate_group_code(length=6):
+            chars = string.ascii_uppercase + string.digits
+            return ''.join(random.choices(chars, k=length))
+        group_id = generate_group_code()
         
         # Create manager member entry
         manager_member = GroupMember(

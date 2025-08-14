@@ -38,10 +38,10 @@ export default function SimpleOnboarding({ onComplete }) {
         <>
           <span className="text-yellow-400">Assign</span>.<br/>
           <span className="text-yellow-400">Remind</span>.<br/>
-          <span className="text-yellow-400">Collect</span>. All in one tap
+          <span className="text-yellow-400">Collect</span>. <br/>All in one tap
         </>
       ),
-      buttonText: "Next",
+      buttonText: "Find your new AMBAG-Pals!",
       image: image3 
     }
   ];
@@ -53,6 +53,8 @@ export default function SimpleOnboarding({ onComplete }) {
       onComplete && onComplete();
     }
   };
+
+
 
   const currentStepData = onboardingSteps[currentStep];
 
@@ -113,7 +115,7 @@ export default function SimpleOnboarding({ onComplete }) {
         </nav>
 
         {/* Action button */}
-        <footer className="pb-8">
+        <footer className="pb-8 flex flex-col items-center gap-4">
           <Button
             onClick={handleNext}
             variant="contained"
@@ -121,7 +123,7 @@ export default function SimpleOnboarding({ onComplete }) {
             endIcon={<ChevronRight />}
             aria-label={
               currentStep === onboardingSteps.length - 1 
-                ? "Complete onboarding and continue to login" 
+                ? "Find your new AMBAG Pals!" 
                 : `Continue to step ${currentStep + 2} of ${onboardingSteps.length}`
             }
             sx={{
@@ -138,7 +140,7 @@ export default function SimpleOnboarding({ onComplete }) {
               minWidth: 200
             }}
           >
-            {currentStepData.buttonText}
+            {currentStep === onboardingSteps.length - 1 ? 'Find your new AMBAG Pals!' : currentStepData.buttonText}
           </Button>
         </footer>
       </section>
