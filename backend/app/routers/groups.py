@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-from uuid import uuid4 #generate unique IDs
 from datetime import datetime
 from .mongo import users_collection, groups_collection
 from .verify_token import verify_token
 import logging
+import random, string
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,8 +15,6 @@ router = APIRouter(
     prefix="/groups",
     tags=["groups"]
 )
-
-# group_db: Dict[str, "Group"] = {} 
 
 class GroupBase(BaseModel):
     name: str
@@ -63,7 +61,7 @@ class GroupResponse(BaseModel):
 async def create_group(group: GroupCreate, user=Depends(verify_token)):
     """Create a new group with manager"""
     try:
-        group_id = str(uuid4())
+        group_id = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
         firebase_id = user["uid"]
         await users_collection.update_one(
             {"firebase_uid": firebase_id},
@@ -74,7 +72,6 @@ async def create_group(group: GroupCreate, user=Depends(verify_token)):
                 }
             }
         )
-        
         # Create manager member entry
         manager_member = GroupMember(
             firebase_uid=group.manager_id,
@@ -83,7 +80,6 @@ async def create_group(group: GroupCreate, user=Depends(verify_token)):
             contribution_total=0.0,
             is_active=True
         )
-        
         new_group = Group(
             group_id=group_id,
             name=group.name,
@@ -95,14 +91,12 @@ async def create_group(group: GroupCreate, user=Depends(verify_token)):
             total_goals=0,
             total_contributions=0.0
         )
-        
+        await groups_collection.insert_one(new_group.model_dump())
         logger.info(f"New group created: {group.name} by manager {group.manager_id}")
-        
         return GroupResponse(
             **new_group.model_dump(),
             member_count=len(new_group.members)
         )
-        
     except Exception as e:
         logger.error(f"Group creation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Group creation failed: {str(e)}")
@@ -160,7 +154,7 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
     
     return GroupResponse(
         **updated_group,
-        member_count=len(group.members)
+        member_count=len(updated_group["members"])
     )
 
 @router.delete("/{group_id}/members/{firebase_uid}")

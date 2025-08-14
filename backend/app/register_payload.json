@@ -1,0 +1,15 @@
+{
+  "profile": {
+    "first_name": "skibidi",
+    "last_name": "neckhurts",
+    "contact_number": "09171234567",
+    "address": "123 Subsequent Street",
+    "emergency_contact": "Etits",
+    "emergency_contact_number": "09181234567"
+  },
+  "role": {
+    "role_type": null,
+    "permissions": null,
+    "group_id": null
+  }
+}

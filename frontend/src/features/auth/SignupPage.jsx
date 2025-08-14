@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { signupWithFirebase } from '../../lib/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 import {
   Visibility,
@@ -15,11 +16,13 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
+  email: '',
+  password: '',
+  confirmPassword: '',
+  firstName: '',
+  lastName: ''
   });
   const [errors, setErrors] = useState({});
 
@@ -32,11 +35,15 @@ export default function Signup() {
 
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.fullName) {
-      newErrors.fullName = 'Full name is required';
-    } else if (formData.fullName.length < 2) {
-      newErrors.fullName = 'Full name must be at least 2 characters';
+    if (!formData.firstName) {
+      newErrors.firstName = 'First name is required';
+    } else if (formData.firstName.length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters';
+    }
+    if (!formData.lastName) {
+      newErrors.lastName = 'Last name is required';
+    } else if (formData.lastName.length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters';
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,18 +71,39 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-
     setIsLoading(true);
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // just navigate to dashboard
-      navigate('/dashboard');
+      const { token, user } = await signupWithFirebase(formData.email, formData.password);
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+        profile: {
+          first_name: formData.firstName,
+          last_name: formData.lastName
+        },
+        role: {
+          role_type: null,
+          permissions: [],
+          group_id: null
+        }
+      };
+      const res = await fetch('http://localhost:8000/users/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+  let responseText = await res.text();
+      if (!res.ok) {
+        throw new Error('Backend registration failed: ' + responseText);
+      }
+      // Registration successful, navigate to dashboard
+  setShowSuccessModal(true);
     } catch (error) {
-      setErrors({ submit: 'Account creation failed. Please try again.' });
+      setErrors({ submit: error.message || 'Account creation failed. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +125,18 @@ export default function Signup() {
 
   return (
     <main className="h-screen bg-gradient-to-br from-primary via-shadow to-primary flex items-center justify-center p-4 overflow-hidden">
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <h2 className="text-xl font-bold text-primary mb-4">Successfully Signed Up!</h2>
+            <p className="mb-6 text-textcolor">Your account has been created. You can now log in.</p>
+            <button
+              className="bg-primary text-secondary font-semibold py-2 px-6 rounded-lg hover:bg-shadow transition-colors"
+              onClick={() => navigate('/login')}
+            >Go to Login</button>
+          </div>
+        </div>
+      )}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
           backgroundImage: `radial-gradient(circle at 25% 25%, rgba(251, 250, 249, 0.1) 0%, transparent 50%),
@@ -145,26 +185,49 @@ export default function Signup() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label htmlFor="fullName" className="block text-xs font-medium text-textcolor">
-              Full Name
+            <label htmlFor="firstName" className="block text-xs font-medium text-textcolor">
+              First Name
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Person className="w-4 h-4 text-textcolor/40" />
               </div>
               <input
-                id="fullName"
+                id="firstName"
                 type="text"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
+                value={formData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
                 className={`w-full pl-10 pr-3 py-2.5 border rounded-lg text-sm text-textcolor placeholder-textcolor/50 bg-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ${
-                  errors.fullName ? 'border-primary' : 'border-textcolor/20'
+                  errors.firstName ? 'border-primary' : 'border-textcolor/20'
                 }`}
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
               />
             </div>
-            {errors.fullName && (
-              <p className="text-primary text-xs mt-1">{errors.fullName}</p>
+            {errors.firstName && (
+              <p className="text-primary text-xs mt-1">{errors.firstName}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="lastName" className="block text-xs font-medium text-textcolor">
+              Last Name
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Person className="w-4 h-4 text-textcolor/40" />
+              </div>
+              <input
+                id="lastName"
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                className={`w-full pl-10 pr-3 py-2.5 border rounded-lg text-sm text-textcolor placeholder-textcolor/50 bg-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ${
+                  errors.lastName ? 'border-primary' : 'border-textcolor/20'
+                }`}
+                placeholder="Enter your last name"
+              />
+            </div>
+            {errors.lastName && (
+              <p className="text-primary text-xs mt-1">{errors.lastName}</p>
             )}
           </div>
 

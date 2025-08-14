@@ -7,6 +7,8 @@ import image3 from '../../assets/images/3.png';
 
 export default function SimpleOnboarding({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const GroupEntryModal = React.lazy(() => import('./GroupEntryModal'));
 
   const onboardingSteps = [
     {
@@ -38,10 +40,10 @@ export default function SimpleOnboarding({ onComplete }) {
         <>
           <span className="text-yellow-400">Assign</span>.<br/>
           <span className="text-yellow-400">Remind</span>.<br/>
-          <span className="text-yellow-400">Collect</span>. All in one tap
+          <span className="text-yellow-400">Collect</span>. <br/>All in one tap
         </>
       ),
-      buttonText: "Next",
+      buttonText: "Find your new AMBAG-Pals!",
       image: image3 
     }
   ];
@@ -50,14 +52,26 @@ export default function SimpleOnboarding({ onComplete }) {
     if (currentStep < onboardingSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete && onComplete();
+      setShowGroupModal(true);
     }
   };
+
+
 
   const currentStepData = onboardingSteps[currentStep];
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-red-900 to-red-700 flex flex-col p-6 text-white relative overflow-hidden">
+      <React.Suspense fallback={null}>
+        {showGroupModal && (
+          <GroupEntryModal
+            open={showGroupModal}
+            onClose={() => setShowGroupModal(false)}
+            onCreate={() => {/* handle create group */}}
+            onJoin={() => {/* handle join group */}}
+          />
+        )}
+      </React.Suspense>
       {/* Background decorative elements */}
       <div className="absolute inset-0 opacity-10" aria-hidden="true">
         <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400 rounded-full"></div>
@@ -113,33 +127,54 @@ export default function SimpleOnboarding({ onComplete }) {
         </nav>
 
         {/* Action button */}
-        <footer className="pb-8">
-          <Button
-            onClick={handleNext}
-            variant="contained"
-            size="large"
-            endIcon={<ChevronRight />}
-            aria-label={
-              currentStep === onboardingSteps.length - 1 
-                ? "Complete onboarding and continue to login" 
-                : `Continue to step ${currentStep + 2} of ${onboardingSteps.length}`
-            }
-            sx={{
-              backgroundColor: '#FFD700',
-              color: '#000',
-              fontWeight: 'bold',
-              fontSize: '1.1rem',
-              py: 2,
-              px: 4,
-              borderRadius: 3,
-              '&:hover': {
-                backgroundColor: '#FFC107',
-              },
-              minWidth: 200
-            }}
-          >
-            {currentStepData.buttonText}
-          </Button>
+        <footer className="pb-8 flex flex-col items-center gap-4">
+          {currentStep !== onboardingSteps.length - 1 ? (
+            <Button
+              onClick={handleNext}
+              variant="contained"
+              size="large"
+              endIcon={<ChevronRight />}
+              aria-label={`Continue to step ${currentStep + 2} of ${onboardingSteps.length}`}
+              sx={{
+                backgroundColor: '#FFD700',
+                color: '#000',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                py: 2,
+                px: 4,
+                borderRadius: 3,
+                '&:hover': {
+                  backgroundColor: '#FFC107',
+                },
+                minWidth: 200
+              }}
+            >
+              {currentStepData.buttonText}
+            </Button>
+          ) : (
+            <Button
+              onClick={() => setShowGroupModal(true)}
+              variant="contained"
+              size="large"
+              endIcon={<ChevronRight />}
+              aria-label="Find your new AMBAG Pals!"
+              sx={{
+                backgroundColor: '#FFD700',
+                color: '#000',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                py: 2,
+                px: 4,
+                borderRadius: 3,
+                '&:hover': {
+                  backgroundColor: '#FFC107',
+                },
+                minWidth: 200
+              }}
+            >
+              Find your new AMBAG Pals!
+            </Button>
+          )}
         </footer>
       </section>
     </main>

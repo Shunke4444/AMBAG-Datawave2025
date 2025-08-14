@@ -22,14 +22,14 @@ class UserRole(BaseModel):
 class UserProfile(BaseModel):
     first_name: str
     last_name: str
-    contact_number: str
-    address: Optional[str] = None
-    emergency_contact: Optional[str] = None
-    emergency_contact_number: Optional[str] = None
+    # contact_number: str
+    # address: Optional[str] = None
+    # emergency_contact: Optional[str] = None
+    # emergency_contact_number: Optional[str] = None
 
 class UserCreate(BaseModel):
     profile: UserProfile
-    role: UserRole
+    role: Optional[UserRole] = None
 
 class User(BaseModel):
     firebase_uid: str
@@ -258,4 +258,196 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
             status="pending",
             created_at=datetime.now().isoformat()
         )
+        
+        # Store request
+        await member_requests_collection.insert_one(new_request.model_dump())
+        
+        # Send notification to manager about new request
+        await notify_manager_of_request(request_id, {
+            "to_manager_id": request_data.to_manager_id,
+            "from_user_name": f"{sender['profile']['first_name']} {sender['profile']['last_name']}",
+            "subject": request_data.subject,
+            "message": request_data.message,
+            "group_id": manager['role']['group_id']
+        })
+        
+        logger.info(f"📧 New request: {request_data.subject} from {sender['profile']['first_name']} to manager")
+        
+        return {"message": "Request sent successfully", "request_id": request_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Request creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Request creation failed: {str(e)}")
 
+@router.get("/requests/sent/{user_id}")
+async def get_sent_requests(user_id: str, user=Depends(verify_token)):
+    """Get all requests sent by a user"""
+    try:
+        user_requests = await member_requests_collection.find({"from_user_id": user_id}).to_list(length=None)
+
+        user_requests.sort(key=lambda x: x.get("created_at"), reverse=True)
+
+        return {"requests": user_requests}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch sent requests: {str(e)}")
+
+@router.get("/requests/received/{manager_id}")
+async def get_received_requests(manager_id: str, user=Depends(verify_token)):
+    """Get all requests received by a manager"""
+    manager_requests = await member_requests_collection.find({"to_manager_id": manager_id}).to_list(length=None)
+    
+    manager_requests.sort(key=lambda x: x.get("created_at"), reverse=True)
+    
+    return {"requests": manager_requests}
+
+@router.get("/requests/{request_id}")
+async def get_request_details(request_id: str, user=Depends(verify_token)):
+    """Get specific request details"""
+    request = await member_requests_collection.find_one({"id": request_id})
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    return request
+
+class ManagerResponse(BaseModel):
+    response_message: bool
+
+@router.post("/requests/{request_id}/respond")
+async def respond_to_request(request_id: str, response: ManagerResponse, manager_id: str, user=Depends(verify_token)):
+    request = await member_requests_collection.find_one({"id": request_id})
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    if request['to_manager_id'] != manager_id:
+        raise HTTPException(status_code=403, detail="Not authorized to respond to this request")
+    
+    # Update request with manager response
+    manager_response = "Approved" if response.response_message else "Rejected"
+    await member_requests_collection.update_one(
+        {"id": request_id},
+        {
+            "$set": {
+                "status": "responded",
+                "manager_response": manager_response
+            }
+        }
+    )
+    
+    # Send notification to member about manager response
+    await notify_member_of_request_response(request_id, {
+        "from_user_id": request['from_user_id'],
+        "subject": request['subject'],
+        "status": "responded",
+        "manager_response": "Approved" if response.response_message else "Rejected",
+        "group_id": request['group_id']
+    })
+    
+    logger.info(f"💬 Manager responded to request {request_id}")
+    
+    return {
+        "message": "Response sent successfully",
+        "request": {
+            "id": request_id,
+            "status": "responded",
+            "manager_response": manager_response
+        }
+    }
+
+ 
+
+@router.get("/requests/types")
+async def get_request_types():
+    """Get available request types for frontend"""
+    return {
+        "request_types": [
+            {"value": RequestType.ADD_GOAL, "label": "Add A Goal"},
+            {"value": RequestType.CONCERN, "label": "Concern"},
+            {"value": RequestType.UNABLE_TO_PAY, "label": "Unable to Pay"},
+            {"value": RequestType.EXTEND_DEADLINE, "label": "Extend Deadline"},
+            {"value": RequestType.OTHER, "label": "Other"}
+        ]
+    }
+
+# Utility Endpoints
+# @router.get("/session/{session_token}", response_model=UserResponse)
+# async def get_user_by_session(session_token: str):
+#     """Get current user by session token"""
+#     user = get_current_user(session_token)
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Invalid session token")
+    
+#     return UserResponse(**user.model_dump())
+
+@router.post("/create-test-users")
+async def create_test_users():
+    """Create test users for development"""
+    test_users = [
+        {
+            "email": "manager@ambag.com",
+            "password": "manager123",
+            "profile": {
+                "first_name": "Juan",
+                "last_name": "Dela Cruz",
+                "contact_number": "+63-917-123-4567",
+                "address": "123 Makati Avenue, Makati City",
+                "emergency_contact": "Maria Dela Cruz",
+                "emergency_contact_number": "+63-917-123-4568"
+            },
+            "role": {
+                "role_type": "manager",
+                "permissions": ["create_goals", "approve_goals", "manage_group", "view_analytics"],
+                "group_id": None
+            }
+        },
+        {
+            "email": "contributor1@ambag.com",
+            "password": "contrib123",
+            "profile": {
+                "first_name": "Maria",
+                "last_name": "Santos",
+                "contact_number": "+63-917-234-5678",
+                "address": "456 Quezon City",
+                "emergency_contact": "Pedro Santos",
+                "emergency_contact_number": "+63-917-234-5679"
+            },
+            "role": {
+                "role_type": "contributor",
+                "permissions": ["contribute_to_goals", "view_goals", "join_groups"],
+                "group_id": None
+            }
+        },
+        {
+            "email": "contributor2@ambag.com",
+            "password": "contrib123",
+            "profile": {
+                "first_name": "Pedro",
+                "last_name": "Garcia",
+                "contact_number": "+63-917-345-6789",
+                "address": "789 Manila City",
+                "emergency_contact": "Ana Garcia",
+                "emergency_contact_number": "+63-917-345-6790"
+            },
+            "role": {
+                "role_type": "contributor",
+                "permissions": ["contribute_to_goals", "view_goals", "join_groups"],
+                "group_id": None
+            }
+        }
+    ]
+    
+    created_users = []
+    for user_data in test_users:
+        try:
+            user_create = UserCreate(**user_data)
+            created_user = await register_user(user_create)
+            created_users.append(created_user)
+        except Exception as e:
+            logger.warning(f"Test user creation failed: {str(e)}")
+    
+    return {
+        "message": f"Created {len(created_users)} test users",
+        "users": created_users
+    }
