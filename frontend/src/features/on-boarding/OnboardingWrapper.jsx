@@ -6,7 +6,7 @@ export default function OnboardingWrapper() {
   const navigate = useNavigate();
 
   const handleOnboardingComplete = () => {
-    navigate('/signup');
+    navigate('/login');
   };
 
   return <SimpleOnboarding onComplete={handleOnboardingComplete} />;
