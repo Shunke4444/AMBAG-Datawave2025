@@ -54,36 +54,52 @@ router = APIRouter(prefix="/goal", tags=["goals"])
 # payment_instructions = {}
 # auto_payment_queue = {}
 
-async def notify_contributors_of_completion(goal_id: str, confirmation: Dict):
+logger = logging.getLogger(__name__)
+
+async def notify_contributors_of_completion(goal_id: str, confirmation: dict):
     """Notify all contributors that goal is completed and paid"""
+
+    # Fetch goal and contributors data
     goal_item = await goals_collection.find_one({"goal_id": goal_id})
-    contributors = await pool_status_collection.find_one({"goal_id": goal_id})
-    contributors = contributors.get("contributors", [])
-    
+    if not goal_item:
+        logger.error(f"Goal not found for goal_id={goal_id}")
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+    contributors = pool_data.get("contributors", [])
+
+    # Defensive: get fields with fallback
+    title = goal_item.get("title", "Untitled Goal")
+    current_amount = float(goal_item.get("current_amount", 0))
+    payment_method = confirmation.get("payment_method", "unknown")
+    completed_by = confirmation.get("confirmed_by", "system")
+    completion_time = confirmation.get("completion_time", datetime.now().isoformat())
+
     notification = {
         "type": "goal_completed",
-        "goal_title": goal_item['title'],
-        "total_amount": goal_item['current_amount'],
-        "payment_method": confirmation["payment_method"],
-        "completed_by": confirmation["confirmed_by"],
-        "completion_time": confirmation["completion_time"],
-        "message": f"🎉 Goal '{goal_item['title']}' has been completed and paid!"
+        "goal_title": title,
+        "total_amount": current_amount,
+        "payment_method": payment_method,
+        "completed_by": completed_by,
+        "completion_time": completion_time,
+        "message": f"🎉 Goal '{title}' has been completed and paid!"
     }
 
-    # Agent try to send notification to AI tools system
+    # Try to send notification to AI tools system
     try:
-        # Add completion notification to AI tools system
         ai_notification = {
             "id": f"completion_{goal_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             "type": "goal_completed_auto_payment",
             "recipient": "all_contributors",
             "group_id": goal_id,
-            "message": f"🎉 AUTO PAYMENT SUCCESS: '{goal_item['title']}' completed!\n\n" +
-                      f"💰 Amount: ₱{goal_item['current_amount']:,.2f}\n" +
-                      f"📅 Completed: {confirmation.get('completion_time', datetime.now().isoformat())}\n" +
-                      f"💳 Method: {confirmation['payment_method']}\n" +
-                      f"✅ Payment processed automatically\n\n" +
-                      f"Thank you to all {len(contributors)} contributors! 🙌",
+            "message": (
+                f"🎉 AUTO PAYMENT SUCCESS: '{title}' completed!\n\n"
+                f"💰 Amount: ₱{current_amount:,.2f}\n"
+                f"📅 Completed: {completion_time}\n"
+                f"💳 Method: {payment_method}\n"
+                f"✅ Payment processed automatically\n\n"
+                f"Thank you to all {len(contributors)} contributors! 🙌"
+            ),
             "channel": "push",
             "status": "sent",
             "timestamp": datetime.now().isoformat(),
@@ -91,24 +107,21 @@ async def notify_contributors_of_completion(goal_id: str, confirmation: Dict):
             "auto_payment": True,
             "goal_data": {
                 "goal_id": goal_id,
-                "title": goal_item['title'],
-                "amount": goal_item['current_amount'],
+                "title": title,
+                "amount": current_amount,
                 "contributors_count": len(contributors)
             }
         }
         await notifications_collection.insert_one(ai_notification)
         logger.info(f"✅ Auto payment success notification sent to AI tools system for goal {goal_id}")
-        
     except ImportError:
         logger.warning("AI tools notification system not available")
     except Exception as e:
         logger.error(f"Failed to send auto payment notification to AI tools: {str(e)}")
-    
-    # Log for debugging
-    logger.info(f"📢 Notifying {len(contributors)} contributors of goal completion")
-    
-    return notification
 
+    logger.info(f"📢 Notifying {len(contributors)} contributors of goal completion")
+
+    return notification
 async def notify_manager_of_request(request_id: str, request_data: Dict):
     """Notify manager when a new request is submitted"""
     try:
@@ -316,40 +329,30 @@ class pendingGoalResponse(BaseModel):
     status: str
     pending_goal: pendingGoal 
 
-# Bank-Free Auto Payment Functions
-async def process_bank_free_auto_payment(goal_id: str) -> Dict:
+async def process_bank_free_auto_payment(goal_id: str) -> dict:
     goal_item = await goals_collection.find_one({"goal_id": goal_id})
     if not goal_item:
-        return {"error": "Goal not found or auto payment not configured"}
-    
-    if not goal_item.get("auto_payment_settings", {}):
-        return {"error": "Goal not found or auto payment not configured"}
-    
-    settings = goal_item["auto_payment_settings"]
-    if not settings["enabled"]:
-        return {"error": "Auto payment not enabled for this goal"}
-    
-    pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
-    amount = float(pool_data.get("current_amount", 0)) if pool_data else 0
+        return {"error": "Goal not found"}
 
-    
-    if amount < goal_item.goal_amount:
+    settings = goal_item.get("auto_payment_settings", {})
+    if not settings:
+        return {"error": "Auto payment not configured for this goal"}
+
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+    amount = float(pool_data.get("current_amount", 0))
+    target = float(goal_item.get("goal_amount", 0))
+
+    if amount < target:
         return {"error": "Goal not yet completed"}
-    
-    # Check if auto completion threshold is met (for virtual balance)
-    if (settings["auto_complete_threshold"] and 
-        amount <= settings["auto_complete_threshold"] and 
-        settings["payment_method"] == PaymentMethod.VIRTUAL_BALANCE):
-        
-        logger.info(f"🤖 Auto-completing virtual payment for goal {goal_id} - amount ₱{amount} within threshold")
-        return await process_virtual_balance_payment(goal_id)
-    
-    elif settings.payment_method == PaymentMethod.VIRTUAL_BALANCE:
-        return await process_virtual_balance_payment(goal_id)
-    
-    
-    elif settings.require_confirmation:
-        # auto payment queue for confirmation
+
+    # Virtual balance auto-complete if threshold is set and met
+    if settings.get("payment_method") == PaymentMethod.VIRTUAL_BALANCE:
+        threshold = settings.get("auto_complete_threshold")
+        if threshold and amount <= threshold:
+            return await process_virtual_balance_payment(goal_id)
+
+    # Require confirmation case
+    if settings.get("require_confirmation", True):
         auto_payment_queue = {
             "goal_id": goal_id,
             "goal": goal_item,
@@ -357,77 +360,73 @@ async def process_bank_free_auto_payment(goal_id: str) -> Dict:
             "timestamp": datetime.now().isoformat(),
             "status": "awaiting_confirmation"
         }
-
         await auto_payment_queue_collection.insert_one(auto_payment_queue)
-        
         await goals_collection.update_one(
-            {"goal_id": goal_id},               
-            {"$set": {"status": "awaiting_auto_payment"}} 
-        )
-
-        await pool_status_collection.update_one(
-            {"goal_id": goal_id},               
+            {"goal_id": goal_id},
             {"$set": {"status": "awaiting_auto_payment"}}
         )
-        
-        logger.info(f"Goal {goal_id} added to auto payment queue - awaiting manager confirmation")
         return {
-            "message": f"Goal '{goal_item['title']}' ready for auto payment - awaiting confirmation",
+            "message": "Awaiting manager confirmation",
             "requires_confirmation": True,
             "amount": amount
         }
-    
+
     return {"error": "Auto payment configuration invalid"}
+
 
 async def process_virtual_balance_payment(goal_id: str) -> Dict:
     """Process payment using virtual balance system"""
+
+    # Fetch goal and pool data
     goal_item = await goals_collection.find_one({"goal_id": goal_id})
-    amount = await pool_status_collection.find_one({"goal_id": goal_id})
-    amount = amount.get("current_amount", 0)
-    
+    if not goal_item:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+    amount = float(pool_data.get("current_amount", 0))
+
+    # Defensive: check for required fields
+    title = goal_item.get("title", "Untitled Goal")
+
     # Transfer to virtual payout balance
     payout_id = f"payout_{goal_id}"
     virtual_balances = {
         "payout_id": payout_id,
         "amount": amount,
-        "goal_title": goal_item.title,
+        "goal_title": title,
         "status": "ready_for_external_payment",
         "created_at": datetime.now().isoformat()
     }
-    
     await virtual_balances_collection.insert_one(virtual_balances)
-    
+
     # Mark goal as completed immediately (virtual transfer)
-
     await goals_collection.update_one(
-        {"goal_id": goal_id},               
-        {"$set": {"status": "completed", "is_paid": True}} 
+        {"goal_id": goal_id},
+        {"$set": {"status": "completed", "is_paid": True}}
     )
-
     await pool_status_collection.update_one(
-        {"goal_id": goal_id},               
-        {"$set": {"status": "completed", "is_paid": True} }
+        {"goal_id": goal_id},
+        {"$set": {"status": "completed", "is_paid": True}}
     )
-
     await auto_payment_queue_collection.delete_one({"goal_id": goal_id})
 
     # Send success notification to AI tools system
     try:
-        contributors = await pool_status_collection.find_one({"goal_id": goal_id})
-        contributors = contributors.get("contributors", [])
-        
-        # Add completion notification to AI tools system
+        contributors_doc = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+        contributors = contributors_doc.get("contributors", [])
         ai_notification = {
             "id": f"auto_payment_success_{goal_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             "type": "auto_payment_success",
             "recipient": "all_contributors",
             "group_id": goal_id,
-            "message": f"🎉 AUTO PAYMENT SUCCESS: '{goal_item['title']}' completed!\n\n" +
-                      f"💰 Amount: ₱{amount:,.2f}\n" +
-                      f"📅 Completed: {datetime.now().isoformat()}\n" +
-                      f"💳 Method: Virtual Balance\n" +
-                      f"✅ Payment processed automatically\n\n" +
-                      f"Thank you to all {len(contributors)} contributors! 🙌",
+            "message": (
+                f"🎉 AUTO PAYMENT SUCCESS: '{title}' completed!\n\n"
+                f"💰 Amount: ₱{amount:,.2f}\n"
+                f"📅 Completed: {datetime.now().isoformat()}\n"
+                f"💳 Method: Virtual Balance\n"
+                f"✅ Payment processed automatically\n\n"
+                f"Thank you to all {len(contributors)} contributors! 🙌"
+            ),
             "channel": "push",
             "status": "sent",
             "timestamp": datetime.now().isoformat(),
@@ -435,25 +434,23 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
             "auto_payment": True,
             "goal_data": {
                 "goal_id": goal_id,
-                "title": goal_item['title'],
+                "title": title,
                 "amount": amount,
                 "contributors_count": len(contributors),
                 "payment_method": "virtual_balance"
             }
         }
-        
         await notifications_collection.insert_one(ai_notification)
         logger.info(f"✅ Auto payment success notification sent to AI tools system for goal {goal_id}")
-        
     except ImportError:
         logger.warning("AI tools notification system not available")
     except Exception as e:
         logger.error(f"Failed to send auto payment notification to AI tools: {str(e)}")
-    
+
     logger.info(f"🏦 Virtual transfer completed for goal {goal_id} - ₱{amount}")
-    
+
     return {
-        "message": f"Virtual payment completed for '{goal_item['title']}'",
+        "message": f"Virtual payment completed for '{title}'",
         "payout_balance_id": payout_id,
         "amount": amount,
         "status": "completed",
@@ -556,16 +553,16 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
     try:
         if approval.action == "approve":
             new_goal = goal(
-                id=pending_goal.id,
-                title=pending_goal.title,
-                description=pending_goal.description,
-                goal_amount=pending_goal.goal_amount,
-                creator_role=pending_goal.creator_role,
-                creator_name=pending_goal.creator_name,
-                target_date=pending_goal.target_date,
-                created_at=pending_goal.created_at,
-                approved_at=current_time
-            )
+            goal_id=pending_goal.get("goal_id") or pending_goal.get("id") or str(uuid.uuid4()),
+            title=pending_goal.get("title"),
+            description=pending_goal.get("description"),
+            goal_amount=pending_goal.get("goal_amount"),
+            creator_role=pending_goal.get("creator_role"),
+            creator_name=pending_goal.get("creator_name"),
+            target_date=pending_goal.get("target_date"),
+            created_at=pending_goal.get("created_at"),
+            approved_at=current_time
+        )
             
             await goals_collection.insert_one(new_goal.model_dump())
             
@@ -655,79 +652,55 @@ class contributionData(BaseModel):
 
 @router.post("/{goal_id}/contribute")
 async def contribute_to_goal(goal_id: str, contribution: contributionData, user=Depends(verify_token)):
-    pool = await pool_status_collection.find_one({"goal_id": goal_id})
-    if not pool:
+    pool = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+    if not pool.get("goal_id"):
         raise HTTPException(status_code=404, detail="Goal not found")
-    
-    if contribution.amount <= 0:
-        raise HTTPException(status_code=400, detail="Contribution amount must be positive")
-    
-    goal_item = await goals_collection.find_one({"goal_id": goal_id})
-    if not goal_item:
-        raise HTTPException(status_code=404, detail="Goal not found")
-    
-    logger.info(f"Contribution received: {contribution.amount} from {contribution.contributor_name} for goal {goal_id}")
+
+    amount = float(contribution.amount)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    # Update contribution
     await pool_status_collection.update_one(
-    {"goal_id": goal_id},  # match the document
+        {"goal_id": goal_id},
         {
-            "$inc": {"current_amount": contribution.amount},  # increment the amount
+            "$inc": {"current_amount": amount},
             "$push": {
                 "contributors": {
                     "name": contribution.contributor_name,
-                    "amount": contribution.amount,
-                    "payment_method": contribution.payment_method,
-                    "reference_number": contribution.reference_number,
+                    "amount": amount,
+                    "payment_method": contribution.payment_method or "cash",
+                    "reference_number": contribution.reference_number or "",
                     "timestamp": datetime.now().isoformat()
                 }
             }
         }
     )
-    
-    # Update goal completion status
-    updated_pool = await pool_status_collection.find_one({"goal_id": goal_id})
 
-    progress_percentage = (updated_pool["current_amount"] / goal_item["goal_amount"]) * 100
-    
-    # Check if goal is completed
-    auto_payment_result = None
-    if updated_pool["current_amount"] >= goal_item["goal_amount"]:
-        logger.info(f"🎯 Goal {goal_id} reached target amount!")
+    # Check goal completion
+    updated_pool = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
+    goal_item = await goals_collection.find_one({"goal_id": goal_id}) or {}
 
+    current = float(updated_pool.get("current_amount", 0))
+    target = float(goal_item.get("goal_amount", 1))  # Avoid division by zero
+    progress = min(100, (current / target) * 100) if target > 0 else 0
+
+    response = {
+        "message": f"₱{amount:,.2f} contributed",
+        "remaining": max(0, target - current),
+        "progress": progress
+    }
+
+    # Handle goal completion
+    if current >= target:
         if goal_item.get("auto_payment_settings", {}).get("enabled"):
-            logger.info(f"Triggering bank-free auto payment for goal {goal_id}")
-            auto_payment_result = await process_bank_free_auto_payment(goal_id)
+            response["auto_payment"] = await process_bank_free_auto_payment(goal_id)
         else:
-            await pool_status_collection.update_one(
-                {"goal_id": goal_id},
-                {"$set": {"status": "awaiting_payment"}}
-            )
             await goals_collection.update_one(
                 {"goal_id": goal_id},
                 {"$set": {"status": "awaiting_payment"}}
             )
-            logger.info(f"Goal {goal_id} reached target amount - status updated to awaiting_payment")
-
-    # Keep goal in sync with pool status
-    await goals_collection.update_one(
-        {"goal_id": goal_id},
-        {
-            "$set": {
-                "current_amount": updated_pool["current_amount"],
-                "is_paid": updated_pool.get("is_paid", False),
-                "status": updated_pool.get("status", "active")
-            }
-        }
-    )
-
-    response = {
-        "message": f"₱{contribution.amount} contributed by {contribution.contributor_name}",
-        "goal": await goals_collection.find_one({"goal_id": goal_id}),
-        "remaining_amount": max(0, goal_item["goal_amount"] - updated_pool["current_amount"]),
-        "progress_percentage": min(100, progress_percentage)
-    }
-
-    if auto_payment_result:
-        response["auto_payment"] = auto_payment_result
+            response["status"] = "awaiting_payment"
 
     return response
 
