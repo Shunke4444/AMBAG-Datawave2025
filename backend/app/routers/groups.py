@@ -140,13 +140,13 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
     
     # Add new member
     new_member = GroupMember(
-        user_id=member_request.user_id,
+        firebase_uid=member_request.firebase_uid,
         role=member_request.role,
         joined_at=datetime.now().isoformat(),
         contribution_total=0.0,
         is_active=True
     )
-    
+        
     await groups_collection.update_one(
         {"group_id": group_id},
         {"$push": {"members": new_member.model_dump()}}
@@ -156,7 +156,7 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
     if not updated_group:
         raise HTTPException(status_code=500, detail="Failed to fetch updated group")
     
-    logger.info(f"User {member_request.user_id} added to group {group_id} as {member_request.role}")
+    logger.info(f"User {member_request.firebase_uid} added to group {group_id} as {member_request.role}")
     
     return GroupResponse(
         **updated_group,
