@@ -5,6 +5,7 @@ import { createGroup } from "../../lib/api";
 import { getAuth } from "firebase/auth";
 import CreateGroupTypeModal from "./CreateGroupTypeModal";
 import CreateGroupDetailsModal from "./CreateGroupDetailsModal";
+import JoinGroupModal from "./JoinGroupModal";
 import { Button, Modal, Box, Typography } from "@mui/material";
 import GroupIcon from "@mui/icons-material/Group";
 import LinkIcon from "@mui/icons-material/Link";
@@ -22,6 +23,7 @@ const COLORS = {
 export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [createdGroup, setCreatedGroup] = useState(null);
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
             fullWidth
             variant="outlined"
             startIcon={<LinkIcon />}
-            onClick={onJoin}
+            onClick={() => setShowJoinModal(true)}
             sx={{
               color: COLORS.accent,
               borderColor: COLORS.border,
@@ -82,7 +84,6 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               borderRadius: 2,
               '&:hover': { bgcolor: '#FFF8E1', borderColor: COLORS.accent },
             }}
-              
             disabled={!termsAccepted}
           >
             Join a Group
@@ -119,6 +120,14 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
           } catch (err) {
             alert("Error creating group: " + err.message);
           }
+        }}
+      />
+      <JoinGroupModal
+        open={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onSuccess={() => {
+          setShowJoinModal(false);
+          navigate("/dashboard");
         }}
       />
       {createdGroup && (

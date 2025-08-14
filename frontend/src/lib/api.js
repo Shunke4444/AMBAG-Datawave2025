@@ -33,6 +33,23 @@ export async function createGroup({ name, description, manager_id }) {
   });
   return res.data;
 }
+
+// Join a group by code
+export async function joinGroup({ group_code, firebase_uid }) {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  const token = user && await user.getIdToken();
+  const res = await api.post(`/groups/${group_code}/members`, {
+    firebase_uid,
+    role: "contributor"
+  }, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    }
+  });
+  return res.data;
+}
+
 // Generate AI-driven charts for What-If (debug helper)
 export async function generateSimulationCharts({ goal_id, prompt, max_charts = 3 }) {
   // Ensure goal_id is provided

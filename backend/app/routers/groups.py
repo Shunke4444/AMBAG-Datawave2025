@@ -154,7 +154,7 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
     
     return GroupResponse(
         **updated_group,
-        member_count=len(group.members)
+        member_count=len(updated_group["members"])
     )
 
 @router.delete("/{group_id}/members/{firebase_uid}")
