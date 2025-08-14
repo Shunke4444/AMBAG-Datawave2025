@@ -72,6 +72,8 @@ async def ask_ai(chat_request: ChatRequest, ai_client=Depends(get_ai_client)):
     updated_conversation = await conversations_collection.find_one(
         {"session_id": session_id}
     )
+    if not updated_conversation or "messages" not in updated_conversation:
+        raise HTTPException(status_code=500, detail="Conversation not found or messages missing.")
     
     # Generate AI response
     response = await ai_client.chat.completions.create(
