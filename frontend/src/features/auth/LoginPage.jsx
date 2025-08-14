@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loginWithFirebase } from '../../lib/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 import {
   Visibility,
@@ -48,18 +49,30 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-
     setIsLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      navigate('/dashboard');
+      // 1. Authenticate with Firebase and get token
+      const { token, user } = await loginWithFirebase(formData.email, formData.password);
+      // 2. Send token and user info to backend
+      const res = await fetch('http://localhost:8000/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Backend login failed');
+      }
+  // Login successful, route to onboarding
+  navigate('/onboarding');
     } catch (error) {
-      setErrors({ submit: 'Authentication failed. Please try again.' });
+      setErrors({ submit: error.message || 'Authentication failed. Please try again.' });
     } finally {
       setIsLoading(false);
     }

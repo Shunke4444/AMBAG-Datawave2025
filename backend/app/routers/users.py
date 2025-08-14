@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
 from uuid import uuid4
 import hashlib
 import logging
+from .firebase_admin_setup import verify_firebase_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,16 +26,11 @@ class UserRole(BaseModel):
 class UserProfile(BaseModel):
     first_name: str
     last_name: str
-    contact_number: str
-    address: Optional[str] = None
-    emergency_contact: Optional[str] = None
-    emergency_contact_number: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: str  # Will be validated by Firebase/MongoDB
     password: str
     profile: UserProfile
-    role: UserRole
 
 class UserLogin(BaseModel):
     email: str  # Will be validated by Firebase/MongoDB
@@ -133,25 +129,27 @@ async def register_user(user_data: UserCreate):
         # Create new user
         user_id = str(uuid4())
         hashed_password = hash_password(user_data.password)
-        
+        # For testing, create minimal user
         new_user = User(
             id=user_id,
             email=user_data.email,
-            profile=user_data.profile,
-            role=user_data.role,
+            profile=UserProfile(
+                first_name=user_data.profile.first_name,
+                last_name=user_data.profile.last_name
+            ),
+            role=UserRole(
+                role_type="contributor",
+                permissions=[],
+            ),
             created_at=datetime.now().isoformat(),
             is_active=True
         )
-        
         users_db[user_id] = new_user
-        
         # Store password hash separately 
         user_passwords = getattr(register_user, '_passwords', {})
         user_passwords[user_id] = hashed_password
         register_user._passwords = user_passwords
-        
-        logger.info(f"New user registered: {user_data.email} as {user_data.role.role_type}")
-        
+        logger.info(f"New user registered: {user_data.email}")
         return UserResponse(**new_user.dict())
         
     except Exception as e:
@@ -159,44 +157,47 @@ async def register_user(user_data: UserCreate):
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/login", response_model=SessionResponse)
-async def login_user(login_data: UserLogin):
+async def login_user(request: Request):
     try:
+        # Get Firebase token from Authorization header
+        auth_header = request.headers.get('authorization')
+        logger.info(f"Login request headers: {request.headers}")
+        if not auth_header or not auth_header.startswith('Bearer '):
+            logger.error("Missing or invalid Authorization header")
+            raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        id_token = auth_header.split(' ')[1]
+        decoded_token = verify_firebase_token(id_token)
+        logger.info(f"Decoded Firebase token: {decoded_token}")
+        if not decoded_token:
+            logger.error("Invalid Firebase token")
+            raise HTTPException(status_code=401, detail="Invalid Firebase token")
+        email = decoded_token.get('email')
+        logger.info(f"Email from token: {email}")
         user = None
         user_id = None
         for uid, u in users_db.items():
-            if u.email == login_data.email:
+            logger.info(f"Checking user: {u.email} (id: {uid})")
+            if u.email == email:
                 user = u
                 user_id = uid
                 break
-        
         if not user or not user_id:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        
+            logger.error("User not found in users_db")
+            raise HTTPException(status_code=401, detail="User not found")
         if not user.is_active:
+            logger.error("Account is deactivated")
             raise HTTPException(status_code=401, detail="Account is deactivated")
-        
-        user_passwords = getattr(register_user, '_passwords', {})
-        stored_password = user_passwords.get(user_id)
-        
-        if not stored_password or not verify_password(login_data.password, stored_password):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-        # Create session
+        # Create session token
         session_token = create_session_token()
         user_sessions[session_token] = user_id
-        
-        # Update last login
         user.last_login = datetime.now().isoformat()
         users_db[user_id] = user
-        
-        logger.info(f"User logged in: {login_data.email}")
-        
+        logger.info(f"User logged in: {email}")
         return SessionResponse(
             user_id=user_id,
             session_token=session_token,
             user=UserResponse(**user.dict())
         )
-        
     except HTTPException:
         raise
     except Exception as e:

@@ -31,10 +31,11 @@ import MemberNotification from './features/notifications/MemberNotificationPage'
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
+import { useEffect } from 'react';
 
 const router = createBrowserRouter([
   {
-    path: '/',
+    path: '/onboarding',
     element: <OnboardingWrapper />
   },
   {
@@ -59,7 +60,7 @@ const router = createBrowserRouter([
   { path: '/' , 
     element: <Layout />,
     children: [
-      {index: true, element: <Dashboard />},
+  // {index: true, element: <Dashboard />},
       {path: 'dashboard', element: <Dashboard />},
       {path: 'goals', element: <Goals />},
       {path: 'ai-assistant', element: <AIAssistant/>},
@@ -80,7 +81,7 @@ const router = createBrowserRouter([
       {path: 'member-notification', element: <MemberNotification />},
       {path: 'requests-approval', element: <MemberRequestApproval />},
       {path: 'member-list', element: <MemberList />},
-
+      
       {path: 'settings', element: <Settings />,
         children: [
           { index: true, element: <ProfileTab /> }, // /settings
@@ -97,12 +98,18 @@ const router = createBrowserRouter([
 
 
 const App = () => {
+  useEffect(() => {
+    const token = localStorage.getItem('authRole');
+    if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+      window.location.replace('/login');
+    }
+  }, []);
   return (
-    <AuthRoleProvider> 
-      <ChatProvider>   
+    <AuthRoleProvider>
+      <ChatProvider>
         <RouterProvider router={router} />
       </ChatProvider>
     </AuthRoleProvider>
-  )
+  );
 }
 export default App
