@@ -228,12 +228,7 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
 
         if request_data.subject not in valid_subjects:
             raise HTTPException(status_code=400, detail=f"Invalid subject. Must be one of: {', '.join(valid_subjects)}")
-        
-    except:
-        raise HTTPException(status_code= 500)
-        
 
-# Defensive: Ensure sender is not None
         if not sender:
             raise HTTPException(status_code=404, detail="Sender user not found")
 
@@ -258,10 +253,10 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
             status="pending",
             created_at=datetime.now().isoformat()
         )
-        
+
         # Store request
         await member_requests_collection.insert_one(new_request.model_dump())
-        
+
         # Send notification to manager about new request
         await notify_manager_of_request(request_id, {
             "to_manager_id": request_data.to_manager_id,
@@ -270,11 +265,11 @@ async def create_member_request(request_data: CreateMemberRequest, user=Depends(
             "message": request_data.message,
             "group_id": manager['role']['group_id']
         })
-        
+
         logger.info(f"📧 New request: {request_data.subject} from {sender['profile']['first_name']} to manager")
-        
+
         return {"message": "Request sent successfully", "request_id": request_id}
-        
+
     except HTTPException:
         raise
     except Exception as e:
