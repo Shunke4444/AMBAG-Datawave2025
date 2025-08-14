@@ -80,33 +80,46 @@ class CreateMemberRequest(BaseModel):
 
 # Authentication Endpoints
 @router.post("/register", response_model=UserResponse)
-async def register_user(user_data: UserCreate):
+async def register_user(user_data: UserCreate, user=Depends(verify_token)):
     """
-    Register a new user. No authentication required.
+    Register a new user. Requires authentication to get Firebase UID.
     """
     try:
-        # In production, you should validate the Firebase token and extract uid/email
-        # For now, generate a dummy firebase_uid and email for test users
-        firebase_uid = str(uuid4())
-        email = f"{user_data.profile.first_name.lower()}.{user_data.profile.last_name.lower()}@ambag.com"
+        # Get actual Firebase UID from the authenticated token
+        firebase_uid = user.get("uid")
+        email = user.get("email")
+        
+        if not firebase_uid:
+            raise HTTPException(status_code=400, detail="Firebase UID not found in token")
 
-        # Check for duplicate email
-        if await users_collection.find_one({"profile.first_name": user_data.profile.first_name, "profile.last_name": user_data.profile.last_name}):
+        # Check if user already exists
+        existing_user = await users_collection.find_one({"firebase_uid": firebase_uid})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="User already registered")
+
+        # Check for duplicate name (optional)
+        name_duplicate = await users_collection.find_one({
+            "profile.first_name": user_data.profile.first_name, 
+            "profile.last_name": user_data.profile.last_name
+        })
+        if name_duplicate:
             raise HTTPException(status_code=400, detail="User with this name already registered")
 
         new_user = User(
-            firebase_uid=firebase_uid,
+            firebase_uid=firebase_uid,  # Use actual Firebase UID
             profile=user_data.profile,
-            role=user_data.role,
+            role=user_data.role if user_data.role else UserRole(role_type="contributor", permissions=[], group_id=None),
             created_at=datetime.now().isoformat(),
         )
 
         await users_collection.insert_one(new_user.model_dump())
 
-        logger.info(f"New user registered: {email} as {user_data.role.role_type}")
+        logger.info(f"New user registered: {email} (UID: {firebase_uid}) as {new_user.role.role_type}")
 
         return UserResponse(**new_user.model_dump())
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"User registration error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
@@ -114,19 +127,45 @@ async def register_user(user_data: UserCreate):
 @router.post("/login", response_model=SessionResponse)
 async def login_user(user=Depends(verify_token)):
     try:
-        firebase_uid = user["uid"]
-        email = user["email"]
+        firebase_uid = user.get("uid")
+        email = user.get("email")
+        
+        if not firebase_uid:
+            raise HTTPException(status_code=400, detail="Firebase UID not found in token")
+        
+        logger.info(f"Attempting login for user: {email} (UID: {firebase_uid})")
 
         user_data = await users_collection.find_one({"firebase_uid": firebase_uid})
+        
+        # If not found by Firebase UID, try to find by email or name (for legacy users)
         if not user_data:
-            raise HTTPException(status_code=404, detail="User not found in database")
+            logger.info(f"User not found by Firebase UID, checking for legacy user")
+            # You could also try to find by email if you have it stored
+            # For now, return the registration prompt
+            logger.warning(f"User not found in database: {firebase_uid}")
+            raise HTTPException(status_code=404, detail="User not found in database. Please register first.")
 
+        # Ensure required fields exist with defaults
+        if "last_login" not in user_data:
+            user_data["last_login"] = None
+        
+        if "role" not in user_data or not user_data["role"]:
+            user_data["role"] = {"role_type": "contributor", "permissions": [], "group_id": None}
+        
+        if "profile" not in user_data or not user_data["profile"]:
+            logger.error(f"User {firebase_uid} has invalid profile data")
+            raise HTTPException(status_code=500, detail="User profile data is incomplete")
+
+        # Update last login
         await users_collection.update_one(
             {"firebase_uid": firebase_uid},
             {"$set": {"last_login": datetime.now().isoformat()}}
         )
+        
+        # Update user_data with new last_login for response
+        user_data["last_login"] = datetime.now().isoformat()
 
-        logger.info(f"User logged in: {email}")
+        logger.info(f"User logged in successfully: {email}")
 
         user_response = UserResponse(**user_data)
         return SessionResponse(
@@ -137,7 +176,8 @@ async def login_user(user=Depends(verify_token)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
+        logger.error(f"Login error for user {user.get('email', 'unknown')}: {str(e)}")
+        logger.error(f"Error details: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 # User Management Endpoints
@@ -446,3 +486,37 @@ async def create_test_users():
         "message": f"Created {len(created_users)} test users",
         "users": created_users
     }
+
+# Add endpoint to fix existing users with wrong UIDs
+@router.post("/fix-user-uid/{old_uid}")
+async def fix_user_uid(old_uid: str, user=Depends(verify_token)):
+    """Fix existing user's Firebase UID - for migration purposes"""
+    try:
+        new_firebase_uid = user.get("uid")
+        email = user.get("email")
+        
+        if not new_firebase_uid:
+            raise HTTPException(status_code=400, detail="Firebase UID not found in token")
+        
+        # Find user by old UID
+        user_data = await users_collection.find_one({"firebase_uid": old_uid})
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found with old UID")
+        
+        # Update with new Firebase UID
+        result = await users_collection.update_one(
+            {"firebase_uid": old_uid},
+            {"$set": {"firebase_uid": new_firebase_uid}}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Updated user UID from {old_uid} to {new_firebase_uid}")
+            return {"message": f"Successfully updated UID for user {email}"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update user UID")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"UID fix error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"UID fix failed: {str(e)}")
