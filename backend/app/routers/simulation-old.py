@@ -7,8 +7,9 @@ from uuid import uuid4
 
 # Import AI client and data sources
 from .ai_client import get_ai_client
-from .goal import goals, pool_status
-from .groups import group_db
+# from .goal import goals, pool_status
+# from .groups import group_db
+from .mongo import simulation_results_collection, goals_collection, pool_status_collection, groups_collection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,24 +52,35 @@ class DeadlineChangeScenario(BaseModel):
 
 simulation_results_db = []
 
-# def get_goal_baseline(goal_id: str) -> Optional[Dict]:
-#     goal = goals.get(goal_id)
-#     if not goal:
-#         return None
+async def get_goal_baseline(goal_id: str) -> Optional[Dict]:
+    goal = await goals_collection.find_one({"goal_id": goal_id})
+    if not goal:
+        return None
     
-#     pool_data = pool_status.get(goal_id, {})
+    pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
+    if not pool_data:
+        pool_data = {}
     
-#     return {
-#         "goal_id": goal_id,
-#         "title": goal.title,
-#         "current_goal_amount": goal.goal_amount,
-#         "current_amount": pool_data.get("current_amount", 0),
-#         "target_date": goal.target_date.isoformat(),
-#         "status": goal.status,
-#         "contributors": pool_data.get("contributors", []),
-#         "creator": goal.creator_name,
-#         "days_remaining": (goal.target_date - datetime.now().date()).days
-#     }
+    target_date = goal.get("target_date")
+    if isinstance(target_date, str):
+        try:
+            target_date = datetime.fromisoformat(target_date).date()
+        except:
+            target_date = datetime.now().date()
+    elif not hasattr(target_date, 'isoformat'):
+        target_date = datetime.now().date()
+    
+    return {
+        "goal_id": goal_id,
+        "title": goal.get("title", "Untitled Goal"),
+        "current_goal_amount": goal.get("goal_amount", 0),
+        "current_amount": pool_data.get("current_amount", 0),
+        "target_date": target_date.isoformat(),
+        "status": goal.get("status", "active"),
+        "contributors": pool_data.get("contributors", []),
+        "creator": goal.get("creator_name", "Unknown"),
+        "days_remaining": (target_date - datetime.now().date()).days
+    }
 
 # def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
 #     """Calculate the impact of a specific scenario"""
@@ -227,7 +239,7 @@ Your entire response MUST be a single, valid JSON object. Do not include markdow
 async def get_goal_scenarios(goal_id: str):
     """Get all simulation results for a specific goal"""
     
-    goal_simulations = [s for s in simulation_results_db if s["goal_id"] == goal_id]
+    goal_simulations = await simulation_results_collection.find({"goal_id": goal_id}).to_list(length=None)
     
     return {
         "goal_id": goal_id,
@@ -240,47 +252,51 @@ async def get_goal_scenarios(goal_id: str):
 async def create_test_goal():
     """Create a test goal with sample data for simulation testing"""
     
-    test_goal_id = "test_goal_123"
+    test_goal_id = f"test_goal_{uuid4()}"
     
+    # Create goal document for MongoDB
     test_goal_data = {
-        "id": test_goal_id,
+        "goal_id": test_goal_id,
         "title": "Family Vacation Fund",
         "goal_amount": 50000.0,
-        "current_amount": 15000.0,
         "target_date": (datetime.now() + timedelta(days=90)).date(),
         "creator_name": "Juan Dela Cruz",
         "description": "Save for Boracay family trip",
         "creator_role": "manager",
         "status": "active",
-        "created_at": datetime.now().isoformat(),
-        "is_paid": False
+        "created_at": datetime.now().isoformat()
     }
     
-    from .goal import goal
-    test_goal = goal(**test_goal_data)
+    # Insert goal into MongoDB
+    await goals_collection.insert_one(test_goal_data)
     
-    goals[test_goal_id] = test_goal
-    
-    pool_status[test_goal_id] = {
+    # Create pool status document for MongoDB
+    pool_status_data = {
+        "goal_id": test_goal_id,
         "current_amount": 15000.0,
+        "is_paid": False,
+        "status": "active",
         "contributors": [
-            {"name": "Juan Dela Cruz", "amount": 5000.0, "date": "2025-07-15"},
-            {"name": "Maria Santos", "amount": 4000.0, "date": "2025-07-20"},
-            {"name": "Pedro Garcia", "amount": 3000.0, "date": "2025-07-25"},
-            {"name": "Ana Reyes", "amount": 3000.0, "date": "2025-07-30"}
+            {"name": "Juan Dela Cruz", "amount": 5000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-15T10:00:00"},
+            {"name": "Maria Santos", "amount": 4000.0, "payment_method": "gcash", "timestamp": "2025-07-20T14:30:00"},
+            {"name": "Pedro Garcia", "amount": 3000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-25T09:15:00"},
+            {"name": "Ana Reyes", "amount": 3000.0, "payment_method": "paymaya", "timestamp": "2025-07-30T16:45:00"}
         ],
         "last_updated": datetime.now().isoformat()
     }
+    
+    # Insert pool status into MongoDB
+    await pool_status_collection.insert_one(pool_status_data)
     
     return {
         "message": "Test goal created successfully",
         "goal_id": test_goal_id,
         "goal_details": {
-            "title": test_goal.title,
-            "goal_amount": test_goal.goal_amount,
+            "title": test_goal_data["title"],
+            "goal_amount": test_goal_data["goal_amount"],
             "current_amount": 15000.0,
-            "target_date": test_goal.target_date.isoformat(),
-            "days_remaining": (test_goal.target_date - datetime.now().date()).days,
+            "target_date": test_goal_data["target_date"].isoformat(),
+            "days_remaining": (test_goal_data["target_date"] - datetime.now().date()).days,
             "contributors": 4,
             "remaining_amount": 35000.0
         },
@@ -293,21 +309,26 @@ async def create_test_goal():
 async def simulation_dashboard():
     """Get overview of all simulation activity"""
     
-    total_simulations = len(simulation_results_db)
-    unique_goals = len(set(s["goal_id"] for s in simulation_results_db))
+    total_simulations = await simulation_results_collection.count_documents({})
+    unique_goals_list = await simulation_results_collection.distinct("goal_id")
+    unique_goals = len(unique_goals_list)
     
-    # Count scenario types
+    # Count scenario types 
     scenario_types = {}
-    for sim in simulation_results_db:
-        for scenario in sim["scenarios"]:
-            scenario_type = scenario.scenario_type
-            scenario_types[scenario_type] = scenario_types.get(scenario_type, 0) + 1
-    
+    all_simulations = await simulation_results_collection.find({}).to_list(length=None)
+    for sim in all_simulations:
+        for scenario in sim.get("scenarios", []):
+            scenario_type = scenario.get("scenario_type")
+            if scenario_type:
+                scenario_types[scenario_type] = scenario_types.get(scenario_type, 0) + 1
+
+
+    recent_simulations = await simulation_results_collection.find({}).sort("_id", -1).limit(5).to_list(length=5)
     return {
         "total_simulations": total_simulations,
         "unique_goals_analyzed": unique_goals,
         "scenario_type_breakdown": scenario_types,
-        "recent_simulations": simulation_results_db[-5:] if simulation_results_db else [],
+        "recent_simulations": recent_simulations,
         "generated_at": datetime.now().isoformat()
     }
 
@@ -363,7 +384,7 @@ async def generate_charts(req: ChartGenerationRequest):
     """
     Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations.
     """
-    baseline = get_goal_baseline(req.goal_id)
+    baseline = await get_goal_baseline(req.goal_id)
     if not baseline:
         raise HTTPException(status_code=404, detail=f"Goal {req.goal_id} not found")
 
