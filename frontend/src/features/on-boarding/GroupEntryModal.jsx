@@ -83,12 +83,14 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               fontWeight: "bold",
               borderRadius: 2,
               '&:hover': { bgcolor: '#FFF8E1', borderColor: COLORS.accent },
+              mb: 4,
             }}
             disabled={!termsAccepted}
           >
             Join a Group
           </Button>
-                 <TermsAndConditions termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted} />
+          <Box mt={3} />
+          <TermsAndConditions />
         </Box>
       </Modal>
       <CreateGroupTypeModal

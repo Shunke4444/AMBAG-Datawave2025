@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { Typography, Dialog, DialogTitle, DialogContent, DialogActions, FormGroup } from "@mui/material";
 
 
-export default function TermsAndConditions({ termsAccepted, setTermsAccepted }) {
+
+export default function TermsAndConditions() {
   const [showTerms, setShowTerms] = useState(false);
   return (
     <>
@@ -13,7 +14,8 @@ export default function TermsAndConditions({ termsAccepted, setTermsAccepted }) 
         sx={{ position: 'absolute', left: 16, bottom: 8, cursor: 'pointer', zIndex: 10}}
         onClick={() => setShowTerms(true)}
       >
-        View Terms and Conditions
+        By continuing you agree to our
+        <span style={{ color: '#FFD700' }}> Terms and Conditions</span>
       </Typography>
       <Dialog open={showTerms} onClose={() => setShowTerms(false)}>
         <DialogTitle>Terms and Conditions This is only a prototype TaC</DialogTitle>
@@ -30,10 +32,6 @@ export default function TermsAndConditions({ termsAccepted, setTermsAccepted }) 
             <p>
                 This means group members may establish their own set of rules — including payment schedules, contribution amounts, and penalties — which shall be binding among themselves. Ambag is not a party to these agreements and is not responsible for enforcing or monitoring compliance, except to provide the platform where such agreements may be recorded and tracked.
             </p>
-
-            <h1>
-                
-            </h1>
           </FormGroup>
         </DialogContent>
         <DialogActions>
@@ -47,9 +45,9 @@ export default function TermsAndConditions({ termsAccepted, setTermsAccepted }) 
               fontWeight: 'bold',
               cursor: 'pointer',
             }}
-            onClick={() => { setTermsAccepted(true); setShowTerms(false); }}
+            onClick={() => setShowTerms(false)}
           >
-            I Agree
+            Close
           </button>
         </DialogActions>
       </Dialog>
