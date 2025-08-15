@@ -130,21 +130,20 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
         onSuccess={async () => {
           setShowJoinModal(false);
           // Re-fetch user profile and route based on role
-          try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            if (!user) return navigate("/login");
-            const token = await user.getIdToken();
-            const firebase_uid = user.uid;
-            const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
-            const role_type = res?.data?.role?.role_type;
-            if (role_type === 'manager') {
-              navigate('/dashboard');
-            } else {
-              navigate('/member');
-            }
-          } catch (err) {
-            navigate('/dashboard'); // fallback
+          const auth = getAuth();
+          const user = auth.currentUser;
+          if (!user) {
+            navigate("/login");
+            return;
+          }
+          const token = await user.getIdToken();
+          const firebase_uid = user.uid;
+          const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
+          const role_type = res?.data?.role?.role_type;
+          if (role_type === 'manager') {
+            navigate('/dashboard');
+          } else {
+            navigate('/member');
           }
         }}
       />

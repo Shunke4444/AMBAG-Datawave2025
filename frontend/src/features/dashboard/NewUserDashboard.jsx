@@ -28,8 +28,7 @@ const NewUserDashboard = () => {
             <MemberHeader />
           </div>
 
-          {/* Empty Goals Placeholder */}
-          <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
+            <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
             <p className="text-secondary text-center text-sm sm:text-base md:text-lg">
               Goals are Empty
             </p>

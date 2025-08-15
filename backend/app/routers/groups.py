@@ -27,6 +27,8 @@ class GroupCreate(GroupBase):
 
 class GroupMember(BaseModel):
     firebase_uid: str
+    first_name: str
+    last_name: str
     role: str  # "manager" or "contributor"
     joined_at: str
     contribution_total: float = 0.0
@@ -72,9 +74,19 @@ async def create_group(group: GroupCreate, user=Depends(verify_token)):
                 }
             }
         )
+        # Fetch manager first_name and last_name from users_collection
+        manager_user = await users_collection.find_one({"firebase_uid": group.manager_id})
+        if manager_user:
+            first = manager_user.get("profile", {}).get("first_name", "")
+            last = manager_user.get("profile", {}).get("last_name", "")
+        else:
+            first = "Unknown"
+            last = ""
         # Create manager member entry
         manager_member = GroupMember(
             firebase_uid=group.manager_id,
+            first_name=first,
+            last_name=last,
             role="manager",
             joined_at=datetime.now().isoformat(),
             contribution_total=0.0,
@@ -133,9 +145,19 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
             raise HTTPException(status_code=400, detail="User is already a member of this group")
     
 
+    # Fetch member first_name and last_name from users_collection
+    member_user = await users_collection.find_one({"firebase_uid": member_request.firebase_uid})
+    if member_user:
+        first = member_user.get("profile", {}).get("first_name", "")
+        last = member_user.get("profile", {}).get("last_name", "")
+    else:
+        first = "Unknown"
+        last = ""
     # Add new member
     new_member = GroupMember(
         firebase_uid=member_request.firebase_uid,
+        first_name=first,
+        last_name=last,
         role=member_request.role,
         joined_at=datetime.now().isoformat(),
         contribution_total=0.0,
