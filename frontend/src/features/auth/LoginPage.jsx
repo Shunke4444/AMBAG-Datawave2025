@@ -69,8 +69,26 @@ export default function Login() {
       if (!res.ok) {
         throw new Error('Backend login failed');
       }
-  // Login successful, route to onboarding
-  navigate('/onboarding');
+      // After login, check user profile and route accordingly
+      try {
+        const userProfileRes = await fetch(`http://localhost:8000/users/profile/${user.uid}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const userProfile = await userProfileRes.json();
+        const group_id = userProfile?.role?.group_id;
+        const role_type = userProfile?.role?.role_type;
+        if (group_id) {
+          if (role_type === 'manager') {
+            navigate('/dashboard');
+          } else {
+            navigate('/member');
+          }
+        } else {
+          navigate('/onboarding');
+        }
+      } catch (err) {
+        navigate('/onboarding');
+      }
     } catch (error) {
       setErrors({ submit: error.message || 'Authentication failed. Please try again.' });
     } finally {
