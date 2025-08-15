@@ -7,8 +7,11 @@ import {
   Delete as DeleteIcon 
 } from '@mui/icons-material';
 import { useChatHistory } from '../../contexts/ChatContext';
+import useSidebar from '../../hooks/useSidebar';
+
 
 export default function ChatSidebar({ isOpen, onClose }) {
+  const { isCollapsed } = useSidebar();
   const [searchQuery, setSearchQuery] = useState('');
   const { 
     chatHistory, 
@@ -51,12 +54,17 @@ export default function ChatSidebar({ isOpen, onClose }) {
         />
       )}
       
-      <aside className={`
-        fixed top-0 h-full w-80 bg-white border-r border-gray-200 z-50
-        transform transition-transform duration-300 ease-in-out shadow-2xl
-        ${isOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0'}
-        lg:translate-x-0 lg:left-64 lg:shadow-none lg:z-0
-      `}>
+      <aside  className={`
+        fixed top-0 h-full bg-white border-l border-gray-200 z-50
+        transform transition-all duration-300 ease-in-out shadow-2xl
+        lg:shadow-none lg:top-0 lg:h-full
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}
+      style={{
+        left: isCollapsed ? '6rem' : '16rem', // adjust dynamically based on global sidebar
+        width: '20rem',
+      }}  
+      >
         <div className="flex flex-col h-full">
           <header className="p-4 border-b border-gray-200">
             <div className="relative mb-4">
