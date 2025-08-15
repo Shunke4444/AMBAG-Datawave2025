@@ -11,6 +11,7 @@ import MemberCard from './MemberCard';
  * @param {Function} props.onNudge - Handler for nudge actions
  */
 const MemberCardList = ({ members, onMemberClick, onNudge }) => {
+  console.log('MemberCardList members:', members);
   if (members.length === 0) {
     return (
       <section 

@@ -33,6 +33,7 @@ import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
 import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { useEffect } from 'react';
+import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
 
 const router = createBrowserRouter([
   {
@@ -111,7 +112,9 @@ const App = () => {
   return (
     <AuthRoleProvider>
       <ChatProvider>
-        <RouterProvider router={router} />
+        <MembersProvider>
+          <RouterProvider router={router} />
+        </MembersProvider>
       </ChatProvider>
     </AuthRoleProvider>
   );
