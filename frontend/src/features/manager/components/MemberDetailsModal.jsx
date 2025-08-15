@@ -58,15 +58,15 @@ const MemberDetailsModal = ({ isOpen, member, onClose, onNudge }) => {
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-white border-2 border-blue-500 rounded-full flex items-center justify-center">
               <span className="text-blue-500 text-lg font-semibold" aria-hidden="true">
-                {getUserInitials(member.name)}
-              </span>
+                  {getUserInitials(`${member.first_name} ${member.last_name}`)}
+                </span>
             </div>
             <div>
               <h2 id="modal-title" className="text-lg font-bold text-gray-900">
                 Member Details
               </h2>
               <p id="modal-description" className="text-sm text-gray-500">
-                {member.name}
+                  {member.first_name} {member.last_name} {/* Ensure consistent usage */}
               </p>
             </div>
           </div>
@@ -210,9 +210,9 @@ const MemberDetailsModal = ({ isOpen, member, onClose, onNudge }) => {
           {/* Nudge Button */}
           {shouldShowNudgeButton(member.goalStatus) && (
             <button
-              onClick={() => onNudge(member.id, member.name)}
+              onClick={() => onNudge(member.id, `${member.first_name} ${member.last_name}`)}
               className="w-full bg-primary hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2"
-              aria-label={`Send payment reminder to ${member.name}`}
+              aria-label={`Send payment reminder to ${member.first_name} ${member.last_name}`}
             >
               <NudgeIcon className="w-5 h-5" aria-hidden="true" />
               <span>Send Payment Reminder</span>

@@ -9,8 +9,28 @@ import RecentActivity from "./RecentActivity";
 import ActionButtons from "./ActionButtons";
 import MemberHeader from "../members/MemberHeader";
 
+import { useEffect, useState } from "react";
+import { getAuth } from "firebase/auth";
+import { api } from "../../lib/api";
+
 const ManagerDashboard = ({onLoan}) => {
   const isUseMobile = useIsMobile();
+  const [firstName, setFirstName] = useState("");
+
+  useEffect(() => {
+    const fetchFirstName = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await user.getIdToken();
+      const firebase_uid = user.uid;
+      const res = await api.get(`/users/profile/${firebase_uid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFirstName(res?.data?.profile?.first_name || "Manager");
+    };
+    fetchFirstName();
+  }, []);
 
   if (isUseMobile) {
     return (
@@ -18,7 +38,7 @@ const ManagerDashboard = ({onLoan}) => {
         {/* Header */}
         <div className="bg-primary text-white px-4 pt-6 pb-4 rounded-b-3xl">
           <div className="mt-2">
-            <MemberHeader />
+            <MemberHeader userName={firstName || "Manager"} />
           </div>
 
           {/* Goals (Mobile version of GoalCards) */}

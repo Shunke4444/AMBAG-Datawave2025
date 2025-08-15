@@ -1,6 +1,7 @@
 import React from 'react';
-import { sampleMembers } from './data/memberData';
-import { useMembers, useModal, useNudge } from '../../hooks/useMemberManagement';
+// import { sampleMembers } from './data/memberData'; // Removed: use real backend data instead
+import { useModal, useNudge } from '../../hooks/useMemberManagement';
+import { useMembersContext } from './contexts/MembersContext.jsx';
 import MemberSearchAndFilter from './components/MemberSearchAndFilter';
 import MemberCardList from './components/MemberCardList';
 import MemberDetailsModal from './components/MemberDetailsModal';
@@ -11,14 +12,15 @@ import NudgeNotification from './components/NudgeNotification';
  * Provides search, filtering, and detailed member information
  */
 export default function MemberList() {
-  // Custom hooks for state management
+  // Use context for member data
   const {
+    loading,
     searchTerm,
     setSearchTerm,
     filterStatus,
     setFilterStatus,
     filteredMembers
-  } = useMembers(sampleMembers);
+  } = useMembersContext();
 
   const {
     selectedMember,
@@ -32,6 +34,10 @@ export default function MemberList() {
     sendNudge
   } = useNudge();
 
+  if (loading) {
+    return <div className="text-center py-12">Loading members...</div>;
+  }
+
   return (
     <main className="min-h-screen bg-white">
       {/* Nudge Notification */}
@@ -39,7 +45,6 @@ export default function MemberList() {
         message={nudgeMessage} 
         visible={!!nudgeMessage} 
       />
-      
       <div className="px-4 py-4 pb-20">
         {/* Search and Filter Controls */}
         <MemberSearchAndFilter
@@ -48,7 +53,6 @@ export default function MemberList() {
           filterStatus={filterStatus}
           onFilterChange={setFilterStatus}
         />
-
         {/* Member Cards List */}
         <MemberCardList
           members={filteredMembers}
@@ -56,7 +60,6 @@ export default function MemberList() {
           onNudge={sendNudge}
         />
       </div>
-
       {/* Member Details Modal */}
       <MemberDetailsModal
         isOpen={isModalOpen}

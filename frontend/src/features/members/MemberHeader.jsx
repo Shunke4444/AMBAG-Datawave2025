@@ -3,7 +3,7 @@ import { Notifications, AccountCircle } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import bot from '../../assets/icons/chatbot-speech-bubble.svg'
 import userIcon from '../../assets/images/USER.png';    
-const MemberHeader = ({ userName = "Johnny" }) => {
+const MemberHeader = ({ userName = "User" }) => {
   const navigate = useNavigate();
     const handleChatClick = () => {
         navigate('/ai-assistant'); 
@@ -20,7 +20,7 @@ const MemberHeader = ({ userName = "Johnny" }) => {
           src={userIcon} 
           className="w-12 h-12 contain-content"
         />
-        <h1 className="text-lg font-medium">Hello, {userName}</h1>
+  <h1 className="text-lg font-medium">Hello, {userName}</h1>
       </section>
       
       <aside className="flex items-center space-x-4">
