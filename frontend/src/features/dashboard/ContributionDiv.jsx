@@ -1,4 +1,3 @@
-
 import { 
   List, 
   ListItem, 
@@ -14,48 +13,52 @@ const ContributionDiv = () => {
 
   const [contributionsList, setContributionsList] = useState([]);
 
-  // Example: Load mock data on mount (replace this with backend call)
-
   useEffect(() => {
-    // Simulate fetch kuno hahhaa pag nagrefresh 
+    const fetchMembers = async () => {
+      try {
+        // Get current user
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const firebase_uid = user.uid;
 
-    // Mock Data
-    setTimeout(() => {
-      setContributionsList([
-        {
-          name: 'Jihad Fariq',
-          role: 'Manager',
-          amount: '+ 2,500.00 PHP',
-          date: '29/07/2025',
-        },
-        {
-          name: 'Gab Vinculado',
+        const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
+        const userRes = await fetch(`${baseURL}/users/profile/${firebase_uid}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const userData = await userRes.json();
+        const group_id = userData?.role?.group_id;
+        if (!group_id) return;
+        // Fetch group members
+        const groupRes = await fetch(`${baseURL}/groups/${group_id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const groupData = await groupRes.json();
+        
+        const members = groupData.members.filter(m => m.role !== 'manager');
+        // Map to display format
+        const formatted = members.map(m => ({
+          first_name: m.first_name,
+          last_name: m.last_name,
+          name: m.first_name && m.last_name ? `${m.first_name} ${m.last_name}` : m.firebase_uid,
           role: 'Member',
-          amount: '+ 2,500.00 PHP', 
-          date: '29/07/2025'
-        },
-        {
-          name: 'Dianne Boholst',
-          role: 'Member',
-          amount: '+ 2,500.00 PHP', 
-          date: '29/07/2025'
-        },
-        {
-          name: 'Norman Bautista',
-          role: 'Member',
-          amount: '+ 2,500.00 PHP', 
-          date: '29/07/2025'
-        },
-      ]);
-    }, 500);
-  }, [])
+          amount: '+ 2,500.00 PHP', // Replace with actual amount if available
+          date: new Date().toLocaleDateString(), // Replace with actual date if available
+        }));
+        setContributionsList(formatted);
+      } catch (err) {
+        setContributionsList([]);
+      }
+    };
+    fetchMembers();
+  }, []);
 
  //MUI Functions for Automatic Avatar Coloring!!!
   function stringToColor(string) {
     let hash = 0;
     let i;
-
-    
     for (i = 0; i < string.length; i += 1) {
       hash = string.charCodeAt(i) + ((hash << 5) - hash);
     }
@@ -71,14 +74,15 @@ const ContributionDiv = () => {
   };
 
 
-  function stringAvatar(name) {
+  function stringAvatar(first_name, last_name) {
+    const name = first_name && last_name ? `${first_name} ${last_name}` : first_name || last_name || '?';
+    const first = first_name?.[0] || '?';
+    const second = last_name?.[0] || '';
     return {
-      sx: {
-        bgcolor: stringToColor(name),
-      },
-      children: `${name.split(' ')[0][0]}${name.split(' ')[1][0]}`,
-      };
-    }
+      sx: { bgcolor: stringToColor(name) },
+      children: `${first}${second}`,
+    };
+  }
 
   return (
     <div className="max-h-[550px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
@@ -98,10 +102,10 @@ const ContributionDiv = () => {
                     <ListItemText>
                       <div className="grid grid-cols-3">
                         <div className="p-3 ">
-                          <Avatar  {...stringAvatar(contributions.name)} />
+                          <Avatar  {...stringAvatar(contributions.first_name, contributions.last_name)} />
                         </div>
                         <div className="flex flex-col absolute left-24">
-                          <p className='text-sm font-semibold'>{contributions.name}</p>
+                          <p className='text-sm font-semibold'>{contributions.first_name} {contributions.last_name}</p>
                           <p className='text-xxs text-green font-light'>Contributed</p>
                           <p className='text-xxs font-light'>{contributions.role}</p>
                         </div>

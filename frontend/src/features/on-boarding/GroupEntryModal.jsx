@@ -24,7 +24,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  // Removed termsAccepted logic
   const [createdGroup, setCreatedGroup] = useState(null);
   const navigate = useNavigate();
   return (
@@ -63,7 +63,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               borderRadius: 2,
               '&:hover': { bgcolor: COLORS.accent },
             }}
-            disabled={!termsAccepted}
+            // No longer disabled by termsAccepted
           >
             Create My Own
           </Button>
@@ -83,12 +83,14 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               fontWeight: "bold",
               borderRadius: 2,
               '&:hover': { bgcolor: '#FFF8E1', borderColor: COLORS.accent },
+              mb: 4,
             }}
-            disabled={!termsAccepted}
+            // No longer disabled by termsAccepted
           >
             Join a Group
           </Button>
-                 <TermsAndConditions termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted} />
+          <Box mt={3} />
+          <TermsAndConditions />
         </Box>
       </Modal>
       <CreateGroupTypeModal
@@ -125,9 +127,24 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
       <JoinGroupModal
         open={showJoinModal}
         onClose={() => setShowJoinModal(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setShowJoinModal(false);
-          navigate("/dashboard");
+          // Re-fetch user profile and route based on role
+          const auth = getAuth();
+          const user = auth.currentUser;
+          if (!user) {
+            navigate("/login");
+            return;
+          }
+          const token = await user.getIdToken();
+          const firebase_uid = user.uid;
+          const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
+          const role_type = res?.data?.role?.role_type;
+          if (role_type === 'manager') {
+            navigate('/dashboard');
+          } else {
+            navigate('/member');
+          }
         }}
       />
       {createdGroup && (

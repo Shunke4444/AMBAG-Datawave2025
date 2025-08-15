@@ -27,6 +27,8 @@ class GroupCreate(GroupBase):
 
 class GroupMember(BaseModel):
     firebase_uid: str
+    first_name: str
+    last_name: str
     role: str  # "manager" or "contributor"
     joined_at: str
     contribution_total: float = 0.0
@@ -72,9 +74,19 @@ async def create_group(group: GroupCreate, user=Depends(verify_token)):
                 }
             }
         )
+        # Fetch manager first_name and last_name from users_collection
+        manager_user = await users_collection.find_one({"firebase_uid": group.manager_id})
+        if manager_user:
+            first = manager_user.get("profile", {}).get("first_name", "")
+            last = manager_user.get("profile", {}).get("last_name", "")
+        else:
+            first = "Unknown"
+            last = ""
         # Create manager member entry
         manager_member = GroupMember(
             firebase_uid=group.manager_id,
+            first_name=first,
+            last_name=last,
             role="manager",
             joined_at=datetime.now().isoformat(),
             contribution_total=0.0,
@@ -132,26 +144,46 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
         if member.get("firebase_uid") == member_request.firebase_uid:
             raise HTTPException(status_code=400, detail="User is already a member of this group")
     
+
+    # Fetch member first_name and last_name from users_collection
+    member_user = await users_collection.find_one({"firebase_uid": member_request.firebase_uid})
+    if member_user:
+        first = member_user.get("profile", {}).get("first_name", "")
+        last = member_user.get("profile", {}).get("last_name", "")
+    else:
+        first = "Unknown"
+        last = ""
     # Add new member
     new_member = GroupMember(
         firebase_uid=member_request.firebase_uid,
+        first_name=first,
+        last_name=last,
         role=member_request.role,
         joined_at=datetime.now().isoformat(),
         contribution_total=0.0,
         is_active=True
     )
-        
+
     await groups_collection.update_one(
         {"group_id": group_id},
         {"$push": {"members": new_member.model_dump()}}
     )
 
+    # Update user's profile with group_id and role_type
+    await users_collection.update_one(
+        {"firebase_uid": member_request.firebase_uid},
+        {"$set": {
+            "role.group_id": group_id,
+            "role.role_type": member_request.role
+        }}
+    )
+
     updated_group = await groups_collection.find_one({"group_id": group_id})
     if not updated_group:
         raise HTTPException(status_code=500, detail="Failed to fetch updated group")
-    
+
     logger.info(f"User {member_request.firebase_uid} added to group {group_id} as {member_request.role}")
-    
+
     return GroupResponse(
         **updated_group,
         member_count=len(updated_group["members"])

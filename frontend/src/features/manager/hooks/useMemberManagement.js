@@ -7,17 +7,28 @@ import { useState, useMemo } from 'react';
  */
 export const useMembers = (initialMembers) => {
   const [members, setMembers] = useState(initialMembers);
+  // Ensure members state updates when initialMembers changes (e.g., after backend fetch)
+  React.useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
   const filteredMembers = useMemo(() => {
+    // If search term is empty, show all members matching filter
+    if (!searchTerm.trim()) {
+      return members.filter(member => filterStatus === 'all' || member.goalStatus === filterStatus);
+    }
     return members.filter(member => {
-      const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           member.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const fullName = `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase();
+      const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                           (member.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = filterStatus === 'all' || member.goalStatus === filterStatus;
       return matchesSearch && matchesFilter;
     });
   }, [members, searchTerm, filterStatus]);
+  // Debug: log filteredMembers and search/filter
+  console.log('Filtered members:', filteredMembers, 'Search:', searchTerm, 'Filter:', filterStatus);
 
   const memberStats = useMemo(() => {
     const activeMembers = members.filter(m => 

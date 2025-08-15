@@ -1,6 +1,7 @@
+// Status options for filtering
+const statusOptions = ['all', 'on-track', 'fully-paid', 'behind', 'at-risk', 'overdue'];
 import React from 'react';
 import { Search as SearchIcon } from '@mui/icons-material';
-import { statusOptions } from '../data/memberData';
 import { formatStatusText } from '../utils/memberUtils';
 
 /**

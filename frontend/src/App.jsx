@@ -35,6 +35,7 @@ import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { SidebarProvider } from "./contexts/SideBarProvider";
 
 import { useEffect } from 'react';
+import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
 
 const router = createBrowserRouter([
   {
@@ -116,6 +117,9 @@ const App = () => {
         <SidebarProvider>
           <RouterProvider router={router} />
         </SidebarProvider>
+        <MembersProvider>
+          <RouterProvider router={router} />
+        </MembersProvider>
       </ChatProvider>
     </AuthRoleProvider>
   );

@@ -22,16 +22,18 @@ const MemberCard = ({ member, onClick, onNudge }) => {
 
   const handleNudgeClick = (e) => {
     e.stopPropagation();
-    onNudge(member.id, member.name);
+    onNudge(member.id, `${member.first_name || ''} ${member.last_name || ''}`.trim());
   };
 
+  // Defensive: default paymentHistory to [] if undefined
+  const paymentHistory = Array.isArray(member.paymentHistory) ? member.paymentHistory : [];
   return (
     <article
       onClick={() => onClick(member)}
       className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-all duration-200"
       role="button"
       tabIndex={0}
-      aria-label={`View details for ${member.name}`}
+      aria-label={`View details for ${member.first_name || ''} ${member.last_name || ''}`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -45,13 +47,12 @@ const MemberCard = ({ member, onClick, onNudge }) => {
           {/* Profile Avatar */}
           <div className="w-12 h-12 bg-white border-2 border-blue-500 rounded-full flex items-center justify-center">
             <span className="text-blue-500 text-sm font-semibold" aria-hidden="true">
-              {getUserInitials(member.name)}
+              {getUserInitials(`${member.first_name || ''} ${member.last_name || ''}`)}
             </span>
           </div>
-          
           {/* Member Info */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">{member.name}</h3>
+            <h3 className="text-sm font-semibold text-gray-900">{member.first_name} {member.last_name}</h3>
             <p className="text-xs text-gray-500">{member.currentGoal}</p>
             <span 
               className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(member.goalStatus)}`}
@@ -61,7 +62,6 @@ const MemberCard = ({ member, onClick, onNudge }) => {
             </span>
           </div>
         </div>
-        
         {/* Nudge Button */}
         {shouldShowNudgeButton(member.goalStatus) && (
           <button
@@ -74,14 +74,12 @@ const MemberCard = ({ member, onClick, onNudge }) => {
           </button>
         )}
       </header>
-
       {/* Progress Section */}
       <section className="mb-3" aria-label="Goal progress">
         <div className="flex justify-between text-xs text-gray-600 mb-1">
           <span>{formatCurrency(member.paidAmount)} paid</span>
           <span>{formatCurrency(member.targetAmount)} target</span>
         </div>
-        
         {/* Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
@@ -94,7 +92,6 @@ const MemberCard = ({ member, onClick, onNudge }) => {
             aria-label={`Goal progress: ${progressPercentage.toFixed(0)}% completed`}
           ></div>
         </div>
-        
         <div className="flex justify-between text-xs text-gray-500 mt-1">
           <span>{progressPercentage.toFixed(0)}% completed</span>
           {member.missedPayments > 0 && (
@@ -104,12 +101,11 @@ const MemberCard = ({ member, onClick, onNudge }) => {
           )}
         </div>
       </section>
-
       {/* Payment Info */}
       <footer className="flex justify-between text-xs text-gray-600">
-        <span>Recent: {formatCurrency(member.paymentHistory[0]?.amount || 0)}</span>
+        <span>Recent: {formatCurrency(paymentHistory[0]?.amount || 0)}</span>
         <span>
-          Last paid: {member.lastPayment.toLocaleDateString('en-US', { 
+          Last paid: {member.lastPayment?.toLocaleDateString('en-US', { 
             month: 'short', 
             day: 'numeric' 
           })}

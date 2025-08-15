@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { Collapse, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
@@ -12,6 +11,8 @@ import {
   Menu as MenuIcon,
   Receipt as TransactionIcon,
 } from '@mui/icons-material';
+import { getAuth } from "firebase/auth";
+import axios from "axios";
 import useSidebar from "../../hooks/useSidebar";
 import useIsMobile from "../../hooks/useIsMobile";
 
@@ -71,9 +72,7 @@ const Sidebar = () => {
               </IconButton>
             </div>
 
-            <h1 className={`text-secondary text-xl font-semibold ${isCollapsed ? "hidden" : ""}`}>
-              Welcome, <span className="text-accent">User!</span>
-            </h1>
+      {!isCollapsed && <SidebarUserName />}
 
             <nav className="flex flex-col gap-4 mt-32 p-3">
               {navItems.map(({ to, label, icon }) => (
@@ -152,6 +151,30 @@ const Sidebar = () => {
     
   );
 };
+
+function SidebarUserName() {
+  const [firstName, setFirstName] = useState("");
+  useEffect(() => {
+    const fetchFirstName = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) return setFirstName("");
+      const token = await user.getIdToken();
+      const firebase_uid = user.uid;
+      const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
+      const res = await axios.get(`${baseURL}/users/profile/${firebase_uid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFirstName(res?.data?.profile?.first_name || "User");
+    };
+    fetchFirstName();
+  }, []);
+  return (
+    <h1 className={`text-secondary text-xl font-semibold`}>
+      Welcome, <span className="text-accent">{firstName || "User"}!</span>
+    </h1>
+  );
+}
 
 export default Sidebar;
 
