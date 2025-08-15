@@ -32,6 +32,8 @@ import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
 import NewUserDashboard from './features/dashboard/NewUserDashboard';
+import { SidebarProvider } from "./contexts/SideBarProvider";
+
 import { useEffect } from 'react';
 
 const router = createBrowserRouter([
@@ -111,7 +113,9 @@ const App = () => {
   return (
     <AuthRoleProvider>
       <ChatProvider>
-        <RouterProvider router={router} />
+        <SidebarProvider>
+          <RouterProvider router={router} />
+        </SidebarProvider>
       </ChatProvider>
     </AuthRoleProvider>
   );

@@ -18,12 +18,13 @@ import Notifications from "../../features/notifications/Notifications";
 import { ManagerNotifs }  from "../../features/notifications/ManagerNotifs";
 import { MemberNotifs } from "../../features/notifications/MemberNotifs";
 import MobileHeader from "../../components/MobileHeader";// import { useAuthRole } from "../../contexts/AuthRoleContext";
+import useSidebar from "../../hooks/useSidebar";
 
 const authRole = "Manager";
 const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
 
 const Layout = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, setIsFullScreenPage } = useSidebar();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,6 +41,10 @@ const Layout = () => {
                         location.pathname.includes('member-requests') ||
                         location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
+
+  useEffect(() => {
+    setIsFullScreenPage(isFullScreenPage);
+  }, [isFullScreenPage, setIsFullScreenPage]);
 
   // Notification dialog handlers (placeholders)
   const toggleNotifDialog = () => setNotifDialogOpen((open) => !open);
@@ -147,8 +152,6 @@ const Layout = () => {
     <div className="flex min-h-screen">
       <div className="hidden lg:block">
         <Sidebar
-          isCollapsed={isCollapsed}
-          setIsCollapsed={setIsCollapsed}
           isMobile={false}
         />
       </div>

@@ -35,7 +35,7 @@ export default function AIAssitant() {
   const currentChat = getCurrentChat();
   const messages = currentChat?.messages || [];
 
- const shouldShowSuggestions = messages.length === 0;
+  const shouldShowSuggestions = messages.length === 0;
 
   // Create initial chat if none exists
   useEffect(() => {
