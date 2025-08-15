@@ -1,5 +1,5 @@
 import React from 'react';
-import { Notifications, AccountCircle } from '@mui/icons-material';
+import { Notifications, AccountCircle, Settings } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import bot from '../../assets/icons/chatbot-speech-bubble.svg'
 import userIcon from '../../assets/images/USER.png';    
@@ -12,6 +12,10 @@ const MemberHeader = ({ userName = "Johnny" }) => {
     const handleNotificationClick = () => {
         navigate('/member-notification'); 
     };
+
+    const handleSettingsClick = () => {
+        navigate('/settings')
+    }
 
   return (
     <main className="flex items-center justify-between pt-8 px-5 bg-primary text-secondary"> 
@@ -26,22 +30,25 @@ const MemberHeader = ({ userName = "Johnny" }) => {
       <aside className="flex items-center space-x-4">
         <div className="relative">
           <button onClick={handleChatClick}
-          className="w-10 h-10 text-accent rounded-lg flex items-center justify-center hover:bg-secondary/10 transition-colors">
+          className="w-10 h-10 text-accent rounded-lg flex items-center justify-center hover:bg-secondary/10 transition-colors cursor-pointer">
             <img 
               src={bot} 
               alt="Chatbot Icon" 
               className="w-7 h-7
-               filter-accent"
+              filter-accent"
               style={{filter: 'brightness(0) saturate(100%) invert(100%)'}}
             />
           </button>
         </div>
 
-        <button onClick={handleNotificationClick} className="relative w-10 h-10 rounded-lg flex items-center justify-center hover:bg-secondary/10 transition-colors">
+        <button onClick={handleNotificationClick} className="relative w-10 h-10 rounded-lg flex items-center justify-center hover:bg-secondary/10 transition-colors cursor-pointer">
           <Notifications fontSize='large' className=" text-secondary" />
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center">
             <p className="text-xs font-bold text-textcolor">!</p>
           </div>
+        </button>
+        <button onClick={handleSettingsClick} className="relative w-10 h-10 rounded-lg flex items-center justify-center hover:bg-secondary/10 transition-colors cursor-pointer">
+          <Settings fontSize='large' className=" text-secondary" />
         </button>
       </aside>
     </main>

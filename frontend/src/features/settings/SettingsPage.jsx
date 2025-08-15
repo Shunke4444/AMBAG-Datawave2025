@@ -1,85 +1,45 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
-
-
 const TABS = [
-  'Profile',
-  'Account & Security',
-  'Preferences',
-  'PrivacyLegal'
+  { label: 'Profile', to: '' },
+  { label: 'Account & Security', to: 'account-security' },
+  { label: 'Notifications', to: 'notifications' },
+  { label: 'Preferences', to: 'preferences' },
+  { label: 'Privacy & Legal', to: 'privacy-legal' },
 ];
 
 const Settings = () => {
 
 
-
-
-
   return (
-    <main className="flex flex-col w-full h-full min-h-screen">
+    <main className="flex flex-col w-full h-full min-h-screen px-4">
       
       {/* Settings Tabs */}
-      <nav className='flex w-fit mx-auto my-8 p-4 rounded-3xl shadow-md gap-8 bg-primary/10'> 
+      <nav className={`flex flex-wrap justify-center gap-2 my-4 p-2 rounded-3xl shadow-md bg-primary/10`}>
+        {TABS.map((tab) => (
           <NavLink
-          to=''
-          end
-          className={({isActive}) => 
-          isActive 
-          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
-          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
-          }
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === ''}
+            className={({ isActive }) =>
+              `
+              text-center font-bold rounded-2xl shadow-md transition-all
+              ${isActive 
+                ? "text-primary bg-secondary" 
+                : "text-secondary bg-primary"
+              }
+              px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm md:px-4 md:py-2 md:text-base
+              `
+            }
           >
-            Profile
+            {tab.label}
           </NavLink>
-
-          <NavLink
-          to='account-security'
-          className={({isActive}) => 
-          isActive 
-          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
-          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
-          }
-          >
-            Account & Security
-          </NavLink>
-
-          <NavLink
-          to='notifications'
-          className={({isActive}) => 
-          isActive 
-          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
-          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
-          }
-          >
-            Notifications
-          </NavLink>
-
-          <NavLink
-          to='preferences'
-          className={({isActive}) => 
-          isActive 
-          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
-          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
-          }
-          >
-            Preferences
-          </NavLink>
-          
-          <NavLink
-          to='privacy-legal'
-          className={({isActive}) => 
-          isActive 
-          ? "text-primary outline-1 outline-primary bg-secondary p-2 rounded-2xl font-bold shadow-2xl"
-          : "text-secondary bg-primary rounded-2xl font-bold shadow-2xl p-2"
-          }
-          >
-            Privacy & Legal
-          </NavLink>
+        ))}
       </nav>
 
-      <Outlet/>
+      <Outlet />
     </main>
-  )
-}
+  );
+};
 
-export default Settings
+export default Settings;

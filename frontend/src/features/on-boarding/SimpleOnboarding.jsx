@@ -56,8 +56,6 @@ export default function SimpleOnboarding({ onComplete }) {
     }
   };
 
-
-
   const currentStepData = onboardingSteps[currentStep];
 
   return (

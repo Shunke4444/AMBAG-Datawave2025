@@ -8,10 +8,12 @@ import {
 } from '@mui/icons-material';
 import { useChatHistory } from '../../contexts/ChatContext';
 import useSidebar from '../../hooks/useSidebar';
+import useIsMobile from '../../hooks/useIsMobile';
 
 
 export default function ChatSidebar({ isOpen, onClose }) {
   const { isCollapsed } = useSidebar();
+  const isUseMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const { 
     chatHistory, 
@@ -54,16 +56,20 @@ export default function ChatSidebar({ isOpen, onClose }) {
         />
       )}
       
-      <aside  className={`
+      <aside  
+          className={`
         fixed top-0 h-full bg-white border-l border-gray-200 z-50
         transform transition-all duration-300 ease-in-out shadow-2xl
         lg:shadow-none lg:top-0 lg:h-full
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isUseMobile 
+          ? `${isOpen ? 'translate-x-0' : '-translate-x-full'}` // slide in/out on mobile
+          : 'translate-x-0' // always visible on desktop
+        }
       `}
       style={{
-        left: isCollapsed ? '6rem' : '16rem', // adjust dynamically based on global sidebar
+        left: isUseMobile ? 0 : (isCollapsed ? '6rem' : '16rem'), // mobile starts at left 0
         width: '20rem',
-      }}  
+      }}
       >
         <div className="flex flex-col h-full">
           <header className="p-4 border-b border-gray-200">
