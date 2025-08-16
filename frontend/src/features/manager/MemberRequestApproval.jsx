@@ -1,81 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Check,
   Close as CloseIcon,
 } from '@mui/icons-material';
 
-
-const sampleRequests = [
-  {
-    id: 1,
-    subject: "Request for Emergency Loan",
-    submittedBy: "Juan Dela Cruz",
-    submittedDate: new Date('2024-01-15'),
-    status: "pending",
-    priority: "high",
-    requestType: "loan-request",
-    description: "I need an emergency loan for medical expenses. My family member was hospitalized and I need funds urgently.",
-    amount: 50000,
-    paymentPeriod: 12,
-    interestRate: "negotiable"
-  },
-  {
-    id: 2,
-    subject: "Add New Savings Goal - House Down Payment",
-    submittedBy: "Maria Santos",
-    submittedDate: new Date('2024-01-14'),
-    status: "pending",
-    priority: "medium",
-    requestType: "add-goal",
-    description: "I want to create a new savings goal for my house down payment. Target amount is 500,000 pesos.",
-    amount: 500000,
-    startingDate: "2024-02-01",
-    dueDate: "2026-02-01"
-  },
-  {
-    id: 3,
-    subject: "Unable to Pay This Month",
-    submittedBy: "Pedro Gonzales",
-    submittedDate: new Date('2024-01-13'),
-    status: "approved",
-    priority: "high",
-    requestType: "unable-to-pay",
-    description: "Due to job loss, I am unable to make my payment this month. I request for a payment extension."
-  },
-  {
-    id: 4,
-    subject: "Extend Payment Deadline",
-    submittedBy: "Ana Rodriguez",
-    submittedDate: new Date('2024-01-12'),
-    status: "pending",
-    priority: "low",
-    requestType: "extend-deadline",
-    description: "I need to extend my payment deadline by 2 weeks due to delayed salary."
-  },
-  {
-    id: 5,
-    subject: "Change Goal Amount",
-    submittedBy: "Carlos Mendoza",
-    submittedDate: new Date('2024-01-11'),
-    status: "rejected",
-    priority: "medium",
-    requestType: "change-goal",
-    description: "I want to increase my vacation goal from 100,000 to 150,000 pesos.",
-    amount: 150000
-  }
-];
+import { fetchAllMemberRequests, approveMemberRequest, rejectMemberRequest } from '../../lib/api';
 
 export default function MemberRequestApproval() {
-  const [requests, setRequests] = useState(sampleRequests);
+  const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchRequests() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchAllMemberRequests();
+        // Map backend data to UI format
+        const mapped = data.map((req) => ({
+          id: req._id || req.id || req.request_id || Math.random().toString(36).slice(2),
+          subject: req.subject || req.metadata?.subject || 'No Subject',
+          submittedBy: req.metadata?.submittedBy || req.user_name || req.user_id || 'Unknown',
+          submittedDate: req.created_at ? new Date(req.created_at) : new Date(),
+          status: req.status || 'pending',
+          priority: req.priority || 'medium',
+          requestType: req.type || req.requestType || 'other',
+          description: req.description || '',
+          amount: req.metadata?.amount || req.amount,
+          paymentPeriod: req.metadata?.paymentPeriod,
+          interestRate: req.metadata?.interestRate,
+          startingDate: req.metadata?.startingDate,
+          dueDate: req.metadata?.dueDate,
+        }));
+        setRequests(mapped);
+      } catch (err) {
+        setError('Failed to fetch member requests.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRequests();
+  }, []);
+
 
   const filteredRequests = requests.filter(request => {
     const matchesSearch = request.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
+                         (request.submittedBy && request.submittedBy.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter = filterStatus === 'all' || request.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -87,17 +63,23 @@ export default function MemberRequestApproval() {
     setIsModalOpen(true);
   };
 
-  const handleApprove = (requestId) => {
-    setRequests(prev => prev.map(req => 
-      req.id === requestId ? { ...req, status: 'approved' } : req
-    ));
+  const handleApprove = async (requestId) => {
+    try {
+      await approveMemberRequest(requestId);
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err) {
+      alert('Failed to approve request.');
+    }
     setIsModalOpen(false);
   };
 
-  const handleReject = (requestId) => {
-    setRequests(prev => prev.map(req => 
-      req.id === requestId ? { ...req, status: 'rejected' } : req
-    ));
+  const handleReject = async (requestId) => {
+    try {
+      await rejectMemberRequest(requestId);
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err) {
+      alert('Failed to reject request.');
+    }
     setIsModalOpen(false);
   };
 
@@ -137,6 +119,13 @@ export default function MemberRequestApproval() {
   };
 
   // Mobile Layout
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">Loading member requests...</div>;
+  }
+  if (error) {
+    return <div className="p-8 text-center text-red-500">{error}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 py-4 pb-20">
