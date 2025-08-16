@@ -15,6 +15,7 @@ import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 const firebaseConfig = {
   apiKey: "AIzaSyCWDZiFwURvOecnl5UgzwuBEHLo4DBtEY4",
   authDomain: "ambag-auth.firebaseapp.com",
+  projectId: "ambag-auth",
 };
 
 const app = initializeApp(firebaseConfig);

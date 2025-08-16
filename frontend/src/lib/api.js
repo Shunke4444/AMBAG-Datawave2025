@@ -1,4 +1,34 @@
+// Approve a member request (manager only)
+export async function approveMemberRequest(requestId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post(`/request/approve/${requestId}`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
 
+// Reject a member request (manager only)
+export async function rejectMemberRequest(requestId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post(`/request/reject/${requestId}`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+// Fetch all member requests (for managers)
+export async function fetchAllMemberRequests() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get("/request/", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 const auth = getAuth();
@@ -94,4 +124,90 @@ export async function createSimulationTestGoal() {
 export async function getGoalSimulations(goalId) {
   const res = await api.get(`/simulation/scenarios/${goalId}`);
   return res.data; 
+}
+
+
+export async function createGoal(goalData) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const token = await user.getIdToken();
+
+  // Inject role and name so backend logic works correctly
+  const completeGoalData = {
+    ...goalData,
+    creator_role: "member", // or "manager" if logged-in user is a manager
+    creator_name: user.displayName || "Unknown User"
+  };
+
+  const res = await api.post("/goal/", completeGoalData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  console.log("✅ API response received:", res.data);
+  return res.data;
+}
+
+
+export async function listGoals() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  
+  const res = await api.get("/goal/", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+export async function deleteGoal(goalId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  
+  const res = await api.delete(`/goal/${goalId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Get pending goals waiting for approval
+export async function listPendingGoals() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  
+  const res = await api.get("/goal/pending", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Approve or reject a pending goal
+export async function approveOrRejectGoal(goalId, isApproved, managerName, rejectionReason = null) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+
+  const requestData = {
+    action: isApproved ? "approve" : "reject", // Backend accepts string or bool
+    manager_name: managerName,                 // Pass actual manager's name
+    rejection_reason: rejectionReason          // Only needed if rejecting
+  };
+
+  const res = await api.post(`/goal/pending/${goalId}/approve`, requestData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  return res.data;
+}
+
+export async function createMemberRequest(requestData) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post("/request/", requestData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
 }
