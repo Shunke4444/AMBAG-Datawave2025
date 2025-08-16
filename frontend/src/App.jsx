@@ -33,7 +33,7 @@ import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
 import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { SidebarProvider } from "./contexts/SideBarProvider";
-
+import ApprovalsPage from './features/approvals/ApprovalsPage';
 import { useEffect } from 'react';
 import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
 
@@ -88,6 +88,8 @@ const router = createBrowserRouter([
       {path: 'member-notification', element: <MemberNotification />},
       {path: 'requests-approval', element: <MemberRequestApproval />},
       {path: 'member-list', element: <MemberList />},
+      {path: 'approvals', element: <ApprovalsPage />},
+
       
       {path: 'settings', element: <Settings />,
         children: [
