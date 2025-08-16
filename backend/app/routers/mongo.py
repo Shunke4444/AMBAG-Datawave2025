@@ -17,6 +17,7 @@ pending_goals_collection = db["pending_goals"]
 auto_payment_queue_collection = db["auto_payment_queue"]
 plans_collection = db["plans_collection"]
 virtual_balances_collection = db["virtual_balances"]
+request_collection = db["requests"]
 
 smart_reminders_collection = db["smart_reminders"]
 notifications_collection = db["notifications"]
