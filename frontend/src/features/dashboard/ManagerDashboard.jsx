@@ -9,13 +9,17 @@ import RecentActivity from "./RecentActivity";
 import ActionButtons from "./ActionButtons";
 import MemberHeader from "../members/MemberHeader";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { getAuth } from "firebase/auth";
-import { api } from "../../lib/api";
+import { api, listGoals } from "../../lib/api";
+import { useAuthRole } from "../../contexts/AuthRoleContext";
 
 const ManagerDashboard = ({onLoan}) => {
   const isUseMobile = useIsMobile();
   const [firstName, setFirstName] = useState("");
+  const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const { user } = useAuthRole();;
 
   useEffect(() => {
     const fetchFirstName = async () => {
@@ -32,6 +36,30 @@ const ManagerDashboard = ({onLoan}) => {
     fetchFirstName();
   }, []);
 
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setGoalsLoading(true);
+        const goalsData = await listGoals();
+        console.log('ManagerDashboard - Fetched goals:', goalsData);
+        setGoals(goalsData || []);
+      } catch (error) {
+        console.error("Error fetching goals:", error);
+        setGoals([]);
+      } finally {
+        setGoalsLoading(false);
+      }
+    };
+    fetchGoals();
+  }, []);
+
+  const mappedGoals = goals.map(g => ({
+    ...g,
+    amount: g.current_amount ?? 0,
+    total: g.goal_amount ?? 0,
+    targetDate: g.target_date,
+  })).slice(0, 6);
+
   if (isUseMobile) {
     return (
       <main className="flex flex-col min-h-screen bg-white mb-16">
@@ -43,9 +71,8 @@ const ManagerDashboard = ({onLoan}) => {
 
           {/* Goals (Mobile version of GoalCards) */}
           <div className="p-4">
-            <GoalCarouselMobile />
+            <GoalCarouselMobile goals={mappedGoals} loading={goalsLoading} /> </div>
           </div>
-        </div>
 
         {/* Dashboard Buttons */}
         <div className="p-4">
@@ -76,7 +103,7 @@ const ManagerDashboard = ({onLoan}) => {
 
         {/* Top Right Boxes */}
         <div className="col-span-2">
-          <GoalCards />
+          <GoalCards goals={mappedGoals} />
         </div>
 
         {/* Bottom Right Boxes */}
