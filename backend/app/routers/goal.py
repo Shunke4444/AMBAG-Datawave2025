@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Dict, List, Optional, Union
 from datetime import datetime, date, timedelta
-from .mongo import users_collection, goals_collection, pool_status_collection, pending_goals_collection, auto_payment_queue_collection, virtual_balances_collection, notifications_collection
+from .mongo import users_collection, goals_collection, pool_status_collection, pending_goals_collection, auto_payment_queue_collection, virtual_balances_collection, notifications_collection, request_collection
 from .verify_token import verify_token
 import uuid
 import logging
@@ -287,9 +287,10 @@ class goalCreate(BaseModel):
     title: str
     goal_amount: float
     description: Optional[str] = None
+    goal_type: str
     creator_role: str  # "manager" or "member"
-    creator_name: str 
-    target_date: date  
+    creator_name: str
+    target_date: date
     auto_payment_settings: Optional[BankFreePaymentSettings] = None
 
 class goal(BaseModel):
@@ -297,31 +298,62 @@ class goal(BaseModel):
     title: str
     description: Optional[str] = None
     goal_amount: float
+    goal_type : str
     current_amount: float = 0.0
     creator_role: str
     creator_name: str
-    target_date: date 
+    target_date: Union[date, str]  # Accept both date and string
     is_paid: bool = False
     status: str = "active"  # active, completed, cancelled, awaiting_payment, awaiting_auto_payment, awaiting_payment_confirmation
     created_at: str
     approved_at: Optional[str] = None
     auto_payment_settings: Optional[BankFreePaymentSettings] = None
 
+    @field_validator('target_date', mode='before')
+    @classmethod
+    def validate_target_date(cls, v):
+        if isinstance(v, str):
+            try:
+                # Try to parse ISO format date string
+                return datetime.fromisoformat(v).date()
+            except:
+                return v
+        return v
+
 class pendingGoal(BaseModel):
     goal_id: str
     title: str
     description: Optional[str] = None
     goal_amount: float
+    goal_type : str
     creator_role: str
     creator_name: str
-    target_date: date
+    target_date: Union[date, str]  # Accept both date and string
     status: str = "pending"  # pending, approved, rejected
     created_at: str
+
+    @field_validator('target_date', mode='before')
+    @classmethod
+    def validate_target_date(cls, v):
+        if isinstance(v, str):
+            try:
+                # Try to parse ISO format date string
+                return datetime.fromisoformat(v).date()
+            except:
+                return v
+        return v
     
 class goalApproval(BaseModel):
-    action: str  # "approve" or "reject"
+    action: Union[str, bool]  # "approve"/"reject" or True/False
     manager_name: str
     rejection_reason: Optional[str] = None 
+
+    @field_validator('action', mode='before')
+    @classmethod
+    def validate_action(cls, v):
+        if isinstance(v, bool):
+            return "approve" if v else "reject"
+        return v 
 
 class pendingGoalResponse(BaseModel):
     message: str
@@ -465,106 +497,183 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
 #     target_date: date  
 #     auto_payment_settings: Optional[BankFreePaymentSettings] = None
 
-@router.post("/", response_model=Union[goal, pendingGoalResponse])
+@router.post("/", response_model=goal)
 async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
+    logger.info(f"Creating goal: {goal_data.title} by {goal_data.creator_name} ({goal_data.creator_role})")
     if goal_data.creator_role not in ["manager", "member"]:
         raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'member'.")
-    
     goal_id = str(uuid.uuid4())
     current_time = datetime.now().isoformat()
-
-    goals = await goals_collection.find().to_list(length=None)
-
-    if not goals or goal_data.creator_role == "manager":
+    if goal_data.creator_role == "manager":
+        logger.info(f"Creating goal directly (manager)")
         new_goal = goal(
             goal_id=goal_id,
             title=goal_data.title,
             description=goal_data.description,
             goal_amount=goal_data.goal_amount,
+            goal_type=goal_data.goal_type,
             creator_role=goal_data.creator_role,
             creator_name=goal_data.creator_name,
             target_date=goal_data.target_date,
             created_at=current_time,
-            approved_at=current_time if goal_data.creator_role == "manager" else None, # how tf is ts getting approved if it doesnt get added in pending goals
+            approved_at=current_time,
             auto_payment_settings=goal_data.auto_payment_settings
         )
-        await goals_collection.insert_one(new_goal.model_dump())
+        goal_dict = new_goal.model_dump()
+        goal_dict['creator_uid'] = user.get('uid') if user else None
+        await goals_collection.insert_one(goal_dict)
         pool_status = {
             "goal_id": goal_id,
             "current_amount": 0.0,
             "is_paid": False,
             "status": "active",
-            "contributors": [] 
+            "contributors": []
         }
-
         await pool_status_collection.insert_one(pool_status)
-        
-        if goal_data.auto_payment_settings and goal_data.auto_payment_settings.enabled:
-            logger.info(f" Auto payment enabled for goal {goal_id}")
-        
-        return goal(**new_goal.model_dump())
-    
+        return new_goal
     else:
-        pending_goal = pendingGoal(
+        logger.info(f"⏳ MEMBER REQUEST: Creating pending goal for approval")
+        pending_goal_obj = pendingGoal(
             goal_id=goal_id,
             title=goal_data.title,
             description=goal_data.description,
             goal_amount=goal_data.goal_amount,
+            goal_type=goal_data.goal_type,
             creator_role=goal_data.creator_role,
             creator_name=goal_data.creator_name,
             target_date=goal_data.target_date,
+            status="pending",
             created_at=current_time
         )
-        await pending_goals_collection.insert_one(pending_goal.model_dump())
-        
-        # Notify managers about pending goal
-        await notify_managers_of_pending_goal(goal_id, {
-            "title": goal_data.title,
-            "goal_amount": goal_data.goal_amount,
-            "creator_name": goal_data.creator_name,
-            "target_date": str(goal_data.target_date),
-            "description": goal_data.description
-        })
-        
+        await pending_goals_collection.insert_one(pending_goal_obj.model_dump())
         return pendingGoalResponse(
-            message=f"Goal '{goal_data.title}' created and sent for manager approval",
+            message="Goal submitted for approval",
             goal_id=goal_id,
-            status="pending_approval",
-            pending_goal=pending_goal
+            status="pending",
+            pending_goal=pending_goal_obj
         )
+
 
 @router.get("/pending", response_model=List[pendingGoal])
 async def get_pending_goals(user=Depends(verify_token)):
-    pendings = await pending_goals_collection.find().to_list(length=None)
+    logger.info(f"🎯 MANAGER REQUEST: Getting pending goals for manager")
+    # Only managers should see pending goals
+    user_uid = user.get('uid') if user else None
+    user_doc = await users_collection.find_one({"firebase_uid": user_uid})
+    user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
+    
+    logger.info(f"👤 User role: {user_role}, UID: {user_uid}")
+    
+    if user_role != "manager":
+        raise HTTPException(status_code=403, detail="Only managers can view pending goals")
+    
+    # Only fetch goals with status "pending"
+    logger.info(f"🔍 Searching for pending goals with status='pending'")
+    pendings = await pending_goals_collection.find({"status": "pending"}).to_list(length=None)
+    all_pendings = await pending_goals_collection.find().to_list(length=None)
+    logger.info(f"📊 Found {len(pendings)} pending goals out of {len(all_pendings)} total goals in pending_goals collection")
+    
+    # Log the statuses of all pending goals for debugging
+    logger.info(f"📋 ALL GOALS IN PENDING_GOALS COLLECTION:")
+    for i, p in enumerate(all_pendings):
+        logger.info(f"  {i+1}. Title: '{p.get('title', 'No title')}' | Status: '{p.get('status', 'No status')}' | ID: {p.get('goal_id', 'No ID')}")
 
-    return [pendingGoal(**pending) for pending in pendings]
+    # Filter and validate pending goals, skip invalid ones and non-pending goals
+    valid_pending_goals = []
+    for pending in pendings:
+        try:
+            # Skip goals that are not pending
+            if pending.get('status') != 'pending':
+                logger.info(f"Skipping goal {pending.get('goal_id', 'unknown')} with status: {pending.get('status')}")
+                continue
+                
+            # Remove MongoDB's _id field if present
+            if '_id' in pending:
+                del pending['_id']
+            
+            # Provide default values for missing required fields
+            if 'goal_type' not in pending:
+                pending['goal_type'] = 'Savings'  # Default goal type
+            
+            if 'description' not in pending:
+                pending['description'] = ''
+                
+            if 'status' not in pending:
+                pending['status'] = 'pending'
+                
+            if 'creator_role' not in pending:
+                pending['creator_role'] = 'member'
+                
+            if 'creator_name' not in pending:
+                pending['creator_name'] = 'Unknown User'
+                
+            # Create the pendingGoal object
+            pending_goal_obj = pendingGoal(**pending)
+            valid_pending_goals.append(pending_goal_obj)
+        except Exception as e:
+            logger.warning(f"Skipping invalid pending goal {pending.get('goal_id', 'unknown')}: {e}")
+            continue
+
+    return valid_pending_goals
 
 @router.post("/pending/{goal_id}/approve")
 async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depends(verify_token)):
+    # Only managers can approve/reject goals
+    user_uid = user.get('uid') if user else None
+    user_doc = await users_collection.find_one({"firebase_uid": user_uid})
+    user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
+    
+    if user_role != "manager":
+        raise HTTPException(status_code=403, detail="Only managers can approve/reject goals")
+    
     if approval.action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
     
     pending_goal = await pending_goals_collection.find_one({"goal_id": goal_id})
-
-    if not pending_goal or pending_goal["status"] != "pending":
-        raise HTTPException(status_code=404, detail="Pending goal not found or already processed")
+    logger.info(f"Looking for pending goal with ID: {goal_id}")
     
+    if not pending_goal:
+        logger.warning(f"No pending goal found with ID: {goal_id}")
+        raise HTTPException(status_code=404, detail="Pending goal not found")
+    
+    logger.info(f"Found pending goal: {pending_goal.get('title', 'No title')} with status: {pending_goal.get('status', 'No status')}")
+    
+    if pending_goal.get("status") != "pending":
+        logger.warning(f"Goal {goal_id} has status '{pending_goal.get('status')}', expected 'pending'")
+        raise HTTPException(status_code=404, detail="Goal already processed")
+
     current_time = datetime.now().isoformat()
+    logger.info(f"Processing {approval.action} action for goal {goal_id}")
     try:
         if approval.action == "approve":
-            new_goal = goal(
-            goal_id=pending_goal.get("goal_id") or pending_goal.get("id") or str(uuid.uuid4()),
-            title=pending_goal.get("title"),
-            description=pending_goal.get("description"),
-            goal_amount=pending_goal.get("goal_amount"),
-            creator_role=pending_goal.get("creator_role"),
-            creator_name=pending_goal.get("creator_name"),
-            target_date=pending_goal.get("target_date"),
-            created_at=pending_goal.get("created_at"),
-            approved_at=current_time
-        )
+            # Ensure we have all required fields with defaults if missing
+            goal_data = {
+                "goal_id": pending_goal.get("goal_id") or pending_goal.get("id") or str(uuid.uuid4()),
+                "title": pending_goal.get("title") or "Untitled Goal",
+                "description": pending_goal.get("description") or "",
+                "goal_amount": pending_goal.get("goal_amount") or 0.0,
+                "goal_type": pending_goal.get("goal_type") or "Savings",  # Default goal type
+                "creator_role": pending_goal.get("creator_role") or "member",
+                "creator_name": pending_goal.get("creator_name") or "Unknown User",
+                "target_date": pending_goal.get("target_date"),
+                "created_at": pending_goal.get("created_at") or current_time,
+                "approved_at": current_time
+            }
             
-            await goals_collection.insert_one(new_goal.model_dump())
+            new_goal = goal(**goal_data)
+            
+            # Convert the model to dict and handle date serialization
+            goal_dict = new_goal.model_dump()
+            
+            # Handle date serialization for MongoDB
+            if 'target_date' in goal_dict and goal_dict['target_date'] is not None:
+                if isinstance(goal_dict['target_date'], date):
+                    goal_dict['target_date'] = goal_dict['target_date'].isoformat()
+            
+            # Add creator UID for filtering
+            goal_dict['creator_uid'] = pending_goal.get('creator_uid')
+            
+            await goals_collection.insert_one(goal_dict)
             
             pool_status = {
                 "goal_id": goal_id,
@@ -594,7 +703,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
             })
             
             return {
-                "message": f"Goal '{pending_goal.title}' approved by {approval.manager_name}",
+                "message": f"Goal '{pending_goal.get('title', 'Untitled Goal')}' approved by {approval.manager_name}",
                 "goal": new_goal,
                 "approved_at": current_time
             }
@@ -619,7 +728,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
             })
             
             return {
-                "message": f"Goal '{pending_goal.title}' rejected by {approval.manager_name}",
+                "message": f"Goal '{pending_goal.get('title', 'Untitled Goal')}' rejected by {approval.manager_name}",
                 "reason": approval.rejection_reason or "No reason provided",
                 "rejected_at": current_time
             }
@@ -630,19 +739,101 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
         print(f"Approval data: {approval}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@router.get("/test-no-auth")
+async def test_goals_no_auth():
+    """Test endpoint to check if database connection works"""
+    try:
+        count = await goals_collection.count_documents({})
+        return {"message": "Database connection working", "goal_count": count}
+    except Exception as e:
+        return {"error": str(e)}
+
+@router.get("/test-goals-no-auth")
+async def test_get_goals_no_auth():
+    """Test endpoint to get goals without authentication for debugging"""
+    try:
+        goals = await goals_collection.find().limit(1).to_list(length=1)
+        # Return raw data without Pydantic validation
+        for goal_data in goals:
+            goal_data['_id'] = str(goal_data['_id'])  # Convert ObjectId to string
+        return {"goals": goals, "count": len(goals)}
+    except Exception as e:
+        logger.error(f"Error in test endpoint: {str(e)}")
+        return {"error": str(e)}
+
+@router.get("/public", response_model=List[goal])
+async def get_all_goals_public():
+    """Temporary public endpoint for testing"""
+    try:
+        goals = await goals_collection.find().to_list(length=None)
+        # Convert ObjectId to string and ensure proper data format
+        validated_goals = []
+        for goal_data in goals:
+            try:
+                # Remove MongoDB ObjectId
+                if '_id' in goal_data:
+                    del goal_data['_id']
+                # Fix missing goal_type field
+                if 'goal_type' not in goal_data or goal_data['goal_type'] is None:
+                    goal_data['goal_type'] = 'Savings'  # Default value
+                # Fix target_date format - convert datetime to date string
+                if 'target_date' in goal_data:
+                    if hasattr(goal_data['target_date'], 'date'):
+                        goal_data['target_date'] = goal_data['target_date'].date().isoformat()
+                    elif hasattr(goal_data['target_date'], 'isoformat'):
+                        goal_data['target_date'] = goal_data['target_date'].isoformat()
+                # Validate and create goal object
+                goal_obj = goal(**goal_data)
+                validated_goals.append(goal_obj)
+            except Exception:
+                # Silently skip invalid goal data
+                continue
+        
+        return validated_goals
+    except Exception as e:
+        logger.error(f"Error fetching goals: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch goals: {str(e)}")
+
 @router.get("/", response_model=List[goal])
 async def get_all_goals(user=Depends(verify_token)):
-    goals = await goals_collection.find().to_list(length=None)
+    try:
+        user_uid = user.get('uid') if user else None
+        user_doc = await users_collection.find_one({"firebase_uid": user_uid})
+        user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
 
-    return [goal(**goal) for goal in goals]
+        # Both managers and members see all goals
+        goals = await goals_collection.find().to_list(length=None)
+        logger.info(f"User {user_uid} ({user_role}): Found {len(goals)} total goals")
+
+        validated_goals = []
+        for goal_data in goals:
+            try:
+                if '_id' in goal_data:
+                    del goal_data['_id']
+                if 'goal_type' not in goal_data or goal_data['goal_type'] is None:
+                    goal_data['goal_type'] = 'Savings'
+                if 'target_date' in goal_data:
+                    if hasattr(goal_data['target_date'], 'date'):
+                        goal_data['target_date'] = goal_data['target_date'].date().isoformat()
+                    elif hasattr(goal_data['target_date'], 'isoformat'):
+                        goal_data['target_date'] = goal_data['target_date'].isoformat()
+                goal_obj = goal(**goal_data)
+                validated_goals.append(goal_obj)
+            except Exception:
+                continue
+
+        return validated_goals
+    except Exception as e:
+        logger.error(f"Error fetching goals: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch goals: {str(e)}")
 
 @router.get("/{goal_id}", response_model=goal)
 async def get_goal(goal_id: str, user=Depends(verify_token)):
-    goal = await goals_collection.find_one({"goal_id": goal_id})
-    if not goal:
+    goal_data = await goals_collection.find_one({"goal_id": goal_id})
+    if not goal_data:
         raise HTTPException(status_code=404, detail="Goal not found")
     
-    return goal(**goal)
+    return goal(**goal_data)
 
 class contributionData(BaseModel):
     amount: float

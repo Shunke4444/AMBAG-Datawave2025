@@ -79,6 +79,20 @@ class CreateMemberRequest(BaseModel):
     message: str
 
 # Authentication Endpoints
+@router.get("/test-auth")
+async def test_auth_endpoint(user=Depends(verify_token)):
+    """
+    Test endpoint to verify Firebase token authentication is working.
+    Returns the decoded token information.
+    """
+    return {
+        "message": "Authentication successful",
+        "user_id": user.get("uid"),
+        "email": user.get("email"),
+        "auth_time": user.get("auth_time"),
+        "token_issued_at": user.get("iat")
+    }
+
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserCreate, user=Depends(verify_token)):
     """
