@@ -1,34 +1,90 @@
-
-import {Add as AddIcon} from '@mui/icons-material';
+import { useState, useContext } from 'react';
+import { Add as AddIcon } from '@mui/icons-material';
 import GoalInfo from './GoalInfo';
+import CreateGoalModal from './CreateGoalModal';
+import { AuthRoleContext } from '../../contexts/AuthRoleContext';
 
 const GoalsPage = () => {
-  const authRole = "NewUser"; // this will come from auth state later
+  const { user, userRole } = useContext(AuthRoleContext);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  const authRole = userRole?.role_type || "Manager";
+  console.log("🔍 GoalsPage: Current authRole:", authRole, "userRole:", userRole);
+  console.log("🔍 GoalsPage: Can create goals?", ["Manager", "Member", "manager", "member", "contributor"].includes(authRole));
+
+  const handleCreateGoal = async (goalData) => {
+    console.log("🎯 GoalsPage: handleCreateGoal called with:", goalData);
+    try {
+      const { createGoal } = await import("../../lib/api");
+      const creatorName =
+        user?.profile?.first_name && user?.profile?.last_name
+          ? `${user.profile.first_name} ${user.profile.last_name}`
+          : user?.email || "Unknown User";
+
+      const creatorRole = userRole?.role_type === "manager" ? "manager" : "member";
+      console.log("👤 Creator details:", { creatorName, creatorRole });
+
+      const completeGoalData = {
+        ...goalData,
+        creator_role: creatorRole,
+        creator_name: creatorName,
+        auto_payment_settings: {
+          enabled: false,
+          payment_method: "manual",
+          require_confirmation: true,
+          notification_settings: {
+            notify_manager: true,
+            notify_contributors: true,
+            send_receipt: true
+          }
+        }
+      };
+
+      console.log("📝 Complete goal data being sent:", completeGoalData);
+      const result = await createGoal(completeGoalData);
+      console.log("✅ Goal creation result:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Goal creation error:", error);
+      throw error;
+    }
+  };
 
   return (
     <>
-      <main className="flex flex-col w-full h-full min-h-screen justify-center">  
+      <main className="flex flex-col w-full h-full min-h-screen justify-center">
         <div className="w-372 h-176 bg-primary mx-20 rounded-4xl flex flex-col justify-start gap-4">
           <header className="flex justify-end p-8">
-            <button className="cursor-pointer">
-              <AddIcon className="text-secondary" />
-            </button>
+            {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) && (
+              <button
+                onClick={() => setIsGoalModalOpen(true)}
+                className="cursor-pointer"
+              >
+                <AddIcon className="text-secondary" />
+              </button>
+            )}
           </header>
 
-          {/* Show goal cards only for Manager or Member */}
-          {["Manager", "Member"].includes(authRole) ? (
+          {/* Show goal cards only for Manager, Member, or contributor */}
+          {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) ? (
             <GoalInfo />
           ) : (
             <div className="flex justify-center items-center h-full text-secondary/60">
-              {/* Empty state placeholder */}
               No goals created yet
             </div>
           )}
         </div>
       </main>
+
+      {isGoalModalOpen && (
+        <CreateGoalModal
+          open={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onCreateGoal={handleCreateGoal}
+        />
+      )}
     </>
   );
 };
 
-
-export default GoalsPage
+export default GoalsPage;

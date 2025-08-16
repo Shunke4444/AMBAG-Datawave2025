@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import useIsMobile from "../../hooks/useIsMobile";
 import DashboardBtns from "./DashboardBtns";
 import ActionButtons from "./ActionButtons";
 import CreateGroupModal from "../groups/CreateGroupModal";
 import CreateGoalModal from "../goals/CreateGoalModal";
+import { AuthRoleContext } from "../../contexts/AuthRoleContext";
 
 import {
   Add as AddIcon,
@@ -13,10 +14,48 @@ import MemberHeader from "../members/MemberHeader";
 const NewUserDashboard = () => {
 
   const isUseMobile = useIsMobile();
+  const { user, userRole } = useContext(AuthRoleContext);
 
   // State for modals
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  const handleCreateGoal = async (goalData) => {
+    try {
+      // Import createGoal directly from api
+      const { createGoal } = await import("../../lib/api");
+      
+      // Get creator name from user profile
+      const creatorName = user?.profile?.first_name && user?.profile?.last_name 
+        ? `${user.profile.first_name} ${user.profile.last_name}`
+        : user?.email || "Unknown User";
+      
+      // Get creator role - temporarily hardcode as manager for testing
+      const creatorRole = "manager"; // userRole?.role_type || "member";
+      
+      // Add required fields to the payload
+      const completeGoalData = {
+        ...goalData,
+        creator_role: creatorRole,
+        creator_name: creatorName,
+        auto_payment_settings: {
+          enabled: false,
+          payment_method: "manual",
+          require_confirmation: true,
+          notification_settings: {
+            notify_manager: true,
+            notify_contributors: true,
+            send_receipt: true
+          }
+        }
+      };
+      
+      const result = await createGoal(completeGoalData);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
 
 
   if (isUseMobile) {
@@ -66,8 +105,9 @@ const NewUserDashboard = () => {
           )}
           {isGoalModalOpen && (
               <CreateGoalModal
-                isOpen={isGoalModalOpen}
+                open={isGoalModalOpen}
                 onClose={() => setIsGoalModalOpen(false)}
+                onCreateGoal={handleCreateGoal}
               />
             )}
 
@@ -114,8 +154,9 @@ const NewUserDashboard = () => {
 
       {isGoalModalOpen && (
           <CreateGoalModal
-            isOpen={isGoalModalOpen}
+            open={isGoalModalOpen}
             onClose={() => setIsGoalModalOpen(false)}
+            onCreateGoal={handleCreateGoal}
           />
         )}
 

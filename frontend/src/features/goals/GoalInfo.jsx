@@ -1,50 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect, useContext } from "react";
 import { MoreVert as MoreIcon } from "@mui/icons-material";
 import { Card, CardContent, IconButton, Menu, MenuItem } from "@mui/material";
+import { AuthRoleContext } from "../../contexts/AuthRoleContext";
+import { listGoals } from "../../lib/api";
 
 const GoalInfo = () => {
-  const [goals, setGoals] = useState([
-    {
-      title: "Monthly House Bills",
-      amount: 8100.0,
-      total: 15000.0,
-      daysLeft: "15 days left",
-      reqShare: 2500.0,
-      payAmount: 2500.0,
-      remaining: "None",
-      deadline: "July 30, 2025",
-    },
-    {
-      title: "Boracay Trip",
-      amount: 28800.0,
-      total: 90000.0,
-      daysLeft: "5 months left",
-      reqShare: 11500.0,
-      payAmount: 5500.0,
-      remaining: 6000.0,
-      deadline: "December 19, 2025",
-    },
-    {
-      title: "Tuition Fee",
-      amount: 39000.0,
-      total: 50000.0,
-      daysLeft: "35 days left",
-      reqShare: 8600.0,
-      payAmount: 4000.0,
-      remaining: 4600.0,
-      deadline: "August 15, 2025",
-    },
-    {
-      title: "Emergency Funds",
-      amount: 56100.0,
-      total: 330000.0,
-      daysLeft: "1 year left",
-      reqShare: 5500.0,
-      payAmount: 5500.0,
-      remaining: "None",
-      deadline: "July 30, 2026",
-    },
-  ]);
+  const [goals, setGoals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user } = useContext(AuthRoleContext);
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setLoading(true);
+        const goalsData = await listGoals();
+        setGoals(goalsData || []);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGoals();
+  }, []);
 
   // Menu state
   const [anchorEl, setAnchorEl] = useState(null);
@@ -66,9 +46,17 @@ const GoalInfo = () => {
     handleMenuClose();
   };
 
-  const handleDelete = () => {
-    setGoals((prev) => prev.filter((_, i) => i !== selectedGoalIndex));
-    handleMenuClose();
+  const handleDelete = async () => {
+    try {
+      const goalToDelete = goals[selectedGoalIndex];
+      const { deleteGoal } = await import("../../lib/api");
+      await deleteGoal(goalToDelete.goal_id);
+      setGoals((prev) => prev.filter((_, i) => i !== selectedGoalIndex));
+    } catch (error) {
+      alert("Failed to delete goal: " + error.message);
+    } finally {
+      handleMenuClose();
+    }
   };
 
   const handleMarkDone = () => {
@@ -76,48 +64,110 @@ const GoalInfo = () => {
     handleMenuClose();
   };
 
+  // Helpers
+  const getDaysLeft = (targetDate) => {
+    if (!targetDate) return "No deadline";
+    const today = new Date();
+    const target = new Date(targetDate);
+    const diffTime = target - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return "Deadline passed";
+    if (diffDays === 0) return "Today";
+    if (diffDays < 30) return `${diffDays} days left`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months left`;
+    return `${Math.floor(diffDays / 365)} years left`;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "No deadline";
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
   return (
     <div>
-      <div className="grid grid-cols-1 grid-rows-4 md:grid-cols-2 md:grid-rows-2 gap-8 min-[100px] w-364 px-14 mx-4">
-        {goals.map((goal, index) => (
-          <Card key={index} className="rounded-2xl shadow-md cursor-pointer">
-            <CardContent className="flex flex-col relative">
-              <header className="flex justify-between items-start">
-                <h1 className="font-semibold text-md text-primary">
-                  {goal.title}
-                </h1>
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleMenuOpen(e, index)}
-                >
-                  <MoreIcon />
-                </IconButton>
-              </header>
-              <p className="text-xs text-textcolor">{goal.daysLeft}</p>
-              <p className="text-md text-green">
-                {goal.amount} / {goal.total}
-              </p>
-              <span className="text-xs text-tex">
-                <p>
-                  Required Share:{" "}
-                  <span className="text-green">{goal.reqShare}</span>
+      {loading && (
+        <div className="flex justify-center items-center h-32">
+          <p className="text-gray-500">Loading goals...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex justify-center items-center h-32">
+          <p className="text-red-500">Error: {error}</p>
+        </div>
+      )}
+
+      {!loading && !error && goals.length === 0 && (
+        <div className="flex justify-center items-center h-32">
+          <p className="text-gray-500">No goals found</p>
+        </div>
+      )}
+
+      {!loading && !error && goals.length > 0 && (
+        <div className="grid grid-cols-1 grid-rows-4 md:grid-cols-2 md:grid-rows-2 gap-8 min-[100px] w-364 px-14 mx-4">
+          {goals.map((goal, index) => (
+            <Card
+              key={goal.goal_id || index}
+              className="rounded-2xl shadow-md cursor-pointer"
+            >
+              <CardContent className="flex flex-col relative">
+                {/* Header */}
+                <header className="flex justify-between items-start">
+                  <h1 className="font-semibold text-md text-primary">
+                    {goal.title}
+                  </h1>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleMenuOpen(e, index)}
+                  >
+                    <MoreIcon />
+                  </IconButton>
+                </header>
+
+                {/* Days Left */}
+                <p className="text-xs text-textcolor">{getDaysLeft(goal.target_date)}</p>
+
+                {/* Amount Progress */}
+                <p className="text-md text-green">
+                  ₱{(goal.current_amount || 0).toLocaleString()} / ₱
+                  {goal.goal_amount.toLocaleString()}
                 </p>
-                <p>
-                  You've Paid:{" "}
-                  <span className="text-green">{goal.payAmount}</span>
+
+                {/* Details */}
+                <span className="text-xs text-tex">
+                  <p>
+                    Required Share:{" "}
+                    <span className="text-green">
+                      ₱{(goal.goal_amount - (goal.current_amount || 0)).toLocaleString()}
+                    </span>
+                  </p>
+                  <p>
+                    You've Paid:{" "}
+                    <span className="text-green">
+                      ₱{(goal.current_amount || 0).toLocaleString()}
+                    </span>
+                  </p>
+                  <p>
+                    Remaining:{" "}
+                    <span>
+                      ₱{(goal.goal_amount - (goal.current_amount || 0)).toLocaleString()}
+                    </span>
+                  </p>
+                </span>
+
+                <br />
+
+                {/* Deadline */}
+                <p className="text-sm font-medium">
+                  Deadline: {formatDate(goal.target_date)}
                 </p>
-                <p>
-                  Remaining: <span>{goal.remaining}</span>
-                </p>
-              </span>
-              <br />
-              <p className="text-sm font-medium">
-                Deadline: {goal.deadline}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Menu */}
       <Menu

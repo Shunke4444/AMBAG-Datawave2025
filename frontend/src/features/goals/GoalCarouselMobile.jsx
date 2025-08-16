@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import GoalCardGlassMobile from "./GoalCardGlassMobile";
-import mockGoals from "./mockGoals";
+import { calculateDaysLeft } from "./GoalCards";
 
-const GoalCarouselMobile = () => {
+const GoalCarouselMobile = ({ goals = [] }) => {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
-  const total = mockGoals.length;
+  const total = goals.length;
+
+  // If no goals, don't render anything
+  if (!goals || goals.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-8 text-gray-500">
+        No goals available
+      </div>
+    );
+  }
 
   const next = () => {
     setDirection(1);
@@ -116,13 +125,18 @@ const GoalCarouselMobile = () => {
               transformStyle: 'preserve-3d'
             }}
           >
-            <GoalCardGlassMobile goal={mockGoals[index]} />
+            <GoalCardGlassMobile goal={{
+              ...goals[index],
+              total: goals[index]?.goal_amount || 0,
+              amount: goals[index]?.current_amount || 0,
+              daysLeft: calculateDaysLeft(goals[index]?.target_date)
+            }} />
           </motion.div>
         </AnimatePresence>
       </div>
 
       <div className="flex gap-2">
-        {mockGoals.map((_, i) => (
+        {goals.map((_, i) => (
           <motion.button
             key={i}
             onClick={() => {
