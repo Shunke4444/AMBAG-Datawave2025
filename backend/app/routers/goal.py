@@ -285,6 +285,7 @@ router = APIRouter(
 # Goal Models
 class goalCreate(BaseModel):
     title: str
+    group_id: str
     goal_amount: float
     description: Optional[str] = None
     goal_type: str
@@ -295,6 +296,7 @@ class goalCreate(BaseModel):
 
 class goal(BaseModel):
     goal_id: str
+    group_id: str
     title: str
     description: Optional[str] = None
     goal_amount: float
@@ -322,6 +324,7 @@ class goal(BaseModel):
 
 class pendingGoal(BaseModel):
     goal_id: str
+    group_id: str
     title: str
     description: Optional[str] = None
     goal_amount: float
@@ -508,6 +511,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
         logger.info(f"Creating goal directly (manager)")
         new_goal = goal(
             goal_id=goal_id,
+            group_id = goal_data.group_id,
             title=goal_data.title,
             description=goal_data.description,
             goal_amount=goal_data.goal_amount,
@@ -535,6 +539,7 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
         logger.info(f"⏳ MEMBER REQUEST: Creating pending goal for approval")
         pending_goal_obj = pendingGoal(
             goal_id=goal_id,
+            group_id=goal_data.group_id,
             title=goal_data.title,
             description=goal_data.description,
             goal_amount=goal_data.goal_amount,
@@ -553,7 +558,6 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
             pending_goal=pending_goal_obj
         )
 
-
 @router.get("/pending", response_model=List[pendingGoal])
 async def get_pending_goals(user=Depends(verify_token)):
     logger.info(f"🎯 MANAGER REQUEST: Getting pending goals for manager")
@@ -569,7 +573,16 @@ async def get_pending_goals(user=Depends(verify_token)):
     
     # Only fetch goals with status "pending"
     logger.info(f"🔍 Searching for pending goals with status='pending'")
-    pendings = await pending_goals_collection.find({"status": "pending"}).to_list(length=None)
+    user_group_id = user_doc.get('group_id') if user_doc else None
+
+    if user_group_id:
+        pendings = await pending_goals_collection.find({
+            "status": "pending", 
+            "group_id": user_group_id
+        }).to_list(length=None)
+    else:
+        # If user has no group_id, return empty list or all pending goals
+        pendings = []
     all_pendings = await pending_goals_collection.find().to_list(length=None)
     logger.info(f"📊 Found {len(pendings)} pending goals out of {len(all_pendings)} total goals in pending_goals collection")
     
@@ -649,6 +662,7 @@ async def approve_or_reject_goal(goal_id: str, approval: goalApproval, user=Depe
             # Ensure we have all required fields with defaults if missing
             goal_data = {
                 "goal_id": pending_goal.get("goal_id") or pending_goal.get("id") or str(uuid.uuid4()),
+                "group_id": pending_goal.get("group_id") or str(uuid.uuid4()),
                 "title": pending_goal.get("title") or "Untitled Goal",
                 "description": pending_goal.get("description") or "",
                 "goal_amount": pending_goal.get("goal_amount") or 0.0,
@@ -801,8 +815,8 @@ async def get_all_goals(user=Depends(verify_token)):
         user_doc = await users_collection.find_one({"firebase_uid": user_uid})
         user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
 
-        # Both managers and members see all goals
-        goals = await goals_collection.find().to_list(length=None)
+        user_group_id = user_doc.get("group_id")
+        goals = await goals_collection.find({"group_id" : user_group_id}).to_list(length=None)
         logger.info(f"User {user_uid} ({user_role}): Found {len(goals)} total goals")
 
         validated_goals = []
@@ -1066,6 +1080,5 @@ async def get_virtual_balances():
     virtual_balances = await virtual_balances_collection.find().to_list(length=None)
     return {
         "virtual_balances": virtual_balances,
-        "total_balances": len(virtual_balances)
+        "total_balances": len(virtual_balances) # UHHHHHHHHHHHH im not sure what to do with this yet
     }
-
