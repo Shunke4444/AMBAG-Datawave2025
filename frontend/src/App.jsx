@@ -114,14 +114,13 @@ const App = () => {
     }
   }, []);
   return (
-    <AuthRoleProvider>
+<AuthRoleProvider>
       <ChatProvider>
         <SidebarProvider>
-          <RouterProvider router={router} />
+          <MembersProvider>
+            <RouterProvider router={router} />
+          </MembersProvider>
         </SidebarProvider>
-        <MembersProvider>
-          <RouterProvider router={router} />
-        </MembersProvider>
       </ChatProvider>
     </AuthRoleProvider>
   );
