@@ -117,11 +117,10 @@ const App = () => {
     <AuthRoleProvider>
       <ChatProvider>
         <SidebarProvider>
-          <RouterProvider router={router} />
+          <MembersProvider>
+            <RouterProvider router={router} />
+          </MembersProvider>
         </SidebarProvider>
-        <MembersProvider>
-          <RouterProvider router={router} />
-        </MembersProvider>
       </ChatProvider>
     </AuthRoleProvider>
   );

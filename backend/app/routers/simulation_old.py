@@ -71,15 +71,15 @@ async def get_goal_baseline(goal_id: str) -> Optional[Dict]:
         target_date = datetime.now().date()
     
     return {
-        "goal_id": goal_id,
-        "title": goal.get("title", "Untitled Goal"),
-        "current_goal_amount": goal.get("goal_amount", 0),
-        "current_amount": pool_data.get("current_amount", 0),
-        "target_date": target_date.isoformat(),
-        "status": goal.get("status", "active"),
-        "contributors": pool_data.get("contributors", []),
-        "creator": goal.get("creator_name", "Unknown"),
-        "days_remaining": (target_date - datetime.now().date()).days
+    "goal_id": goal_id,
+    "title": goal.get("title", "Untitled Goal"),
+    "current_goal_amount": goal.get("goal_amount", 0),
+    "current_amount": pool_data.get("current_amount", 0),
+    "target_date": target_date.isoformat(),
+    "status": goal.get("status", "active"),
+    "contributors": pool_data.get("contributors", []),
+    "creator": goal.get("creator_name", "Unknown"),
+    "days_remaining": ((target_date.date() if isinstance(target_date, datetime) else target_date) - datetime.now().date()).days
     }
 
 def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
@@ -98,11 +98,9 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
         # Simulate changing the goal amount
         new_amount = scenario.parameters.get("new_goal_amount", baseline["current_goal_amount"])
         difference = new_amount - baseline["current_goal_amount"]
-        
         impact["projected"]["current_goal_amount"] = new_amount
         impact["changes"]["goal_amount_change"] = difference
         impact["changes"]["new_per_member_target"] = new_amount / len(baseline["contributors"]) if baseline["contributors"] else new_amount
-        
         # Calculate risks and opportunities
         if difference > 0:
             impact["risks"].append("Higher goal may reduce participation")
@@ -110,25 +108,21 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
         else:
             impact["opportunities"].append("Lower goal easier to achieve")
             impact["opportunities"].append("Faster completion possible")
-    
     elif scenario.scenario_type == "member_contribution":
         # Simulate changing a member's contribution
         member_name = scenario.parameters.get("member_name")
         new_amount = scenario.parameters.get("new_amount", 0)
-        
         # Find current contribution
         current_contrib = 0
         for contrib in baseline["contributors"]:
             if contrib["name"] == member_name:
                 current_contrib = contrib["amount"]
                 break
-        
         difference = new_amount - current_contrib
         impact["projected"]["current_amount"] = baseline["current_amount"] + difference
         impact["changes"]["member"] = member_name
         impact["changes"]["contribution_change"] = difference
         impact["changes"]["new_remaining"] = baseline["current_goal_amount"] - impact["projected"]["current_amount"]
-        
         if difference < 0:
             shortage = abs(difference)
             other_members = len(baseline["contributors"]) - 1
@@ -163,17 +157,15 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
             try:
                 new_date = datetime.fromisoformat(new_deadline).date()
                 old_date = datetime.fromisoformat(baseline["target_date"]).date()
-                
                 impact["projected"]["target_date"] = new_deadline
                 impact["changes"]["deadline_change_days"] = (new_date - old_date).days
-                
                 if new_date > old_date:
                     impact["opportunities"].append("More time to collect contributions")
                     impact["opportunities"].append("Reduced pressure on members")
                 else:
                     impact["risks"].append("Less time to collect remaining amount")
                     impact["risks"].append("Increased urgency may stress members")
-            except:
+            except Exception:
                 impact["risks"].append("Invalid date format")
         else:
             impact["risks"].append("No deadline provided")
@@ -181,126 +173,39 @@ def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
     return impact
 
 
-def create_master_prompt(baseline: Dict, user_prompt: str) -> str:
-    """Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations."""
-    return f'''
-You are AMBAG AI, an expert Filipino financial assistant. Your task is to analyze a user's savings goal based on their "what-if" question.
-Your entire response MUST be a single, valid JSON object. Do not include markdown like ```json or any text before or after the JSON object.
-
-**Instructions:**
-1.  **Language:** Respond in conversational **Taglish** (a mix of Tagalog and English). Be encouraging and friendly, like a helpful tita or tito.
-2.  **Analyze the Scenario:** The user's goal is to save ₱{baseline['current_goal_amount']:,.2f}. They have ₱{baseline['current_amount']:,.2f} and {baseline['days_remaining']} days left. Their question is: "{user_prompt}".
-3.  **Generate Narrative:** Write a short narrative explaining the situation. Start with a friendly greeting. If the user's question sounds negative (e.g., "what if I can't pay?", "paano kung kapusin?", "what if we're short?"), you MUST include a markdown section titled "**Recommendations:**" with a list of practical tips. Your recommendations MUST always include:
-        - **Adjust your timeline:** Kung hindi kaya ng 90 days, extend mo ng konti para mas manageable yung daily savings mo.
-        - **Cut unnecessary expenses:** Tingnan mo yung mga luho or unnecessary spending, baka pwede mong bawasan para makapag-save ka ng mas malaki.
-        - **Find extra income:** Maghanap ng sideline or part-time work para dagdag sa savings mo.
-        - **Prioritize your goal:** Lagyan mo ng priority yung savings mo para hindi ka ma-distract sa ibang gastos. Kaya mo yan!
-        - **Loan options:** Suggest talking to group mates for help, or considering a formal loan (e.g., "You can also consider a personal loan. For example, a BPI Personal Loan can provide quick cash. This is a good option for urgent needs, but always check the interest rates and terms carefully.")
-        Use bold, italics, and lists for clarity and design. Place this markdown list inside the narrative field after your analysis.
-4.  **Generate Charts:** Create 1 to 4 charts that visualize the user's scenario. You may use any chart type supported by Chart.js (bar, line, pie, doughnut, radar, polarArea, scatter, bubble, etc.). For each chart, choose the type that best conveys the information. Try to use a variety of chart types (not just bar and pie) when appropriate. The charts should be simple and easy to understand.
-
-**Chart Type Guidance:**
-- **bar**: Compare values (e.g., goal vs. collected, contributors).
-- **line**: Show trends over time (e.g., savings progress).
-- **pie/doughnut/polarArea**: Show parts of a whole (e.g., contribution breakdown).
-- **radar**: Compare multiple variables for a group (e.g., member strengths).
-- **scatter/bubble**: Show relationships between two or three variables (e.g., amount vs. days, or amount vs. days vs. member).
-
-
-**Data Structure Guidance:**
-- For **scatter**: datasets should be arrays of objects with x and y (e.g., {{"x": 1, "y": 2}}).
-- For **bubble**: datasets should be arrays of objects with x, y, and r (e.g., {{"x": 1, "y": 2, "r": 5}}).
-- For **radar**: labels are axes, each dataset is a set of values for those axes.
-
-5.  **Format Output:** Respond ONLY in the valid JSON format specified below.
-
-**Required JSON Output Schema:**
-{{
-    "narrative": "A short, insightful analysis in Taglish. If recommendations are needed, include them as a markdown list in this field.",
-    "charts": [
-        {{
-            "title": "string",
-            "type": "bar|line|pie|doughnut|radar|polarArea|scatter|bubble",
-            "labels": ["string", ...],
-            "datasets": [
-                {{
-                    "label": "string",
-
-                    "data": [number, ...] or [{{x:number, y:number}}] or [{{x:number, y:number, r:number}}],
-                    "color": "#HEXCODE"
-                }}
-      ]
-    }}
-  ]
-}}
-'''
-
-@router.get("/scenarios/{goal_id}")
-async def get_goal_scenarios(goal_id: str):
-    """Get all simulation results for a specific goal"""
+@router.post("/simulate")
+async def run_simulation(req: SimulationRequest):
+    """Run the what-if simulation with the given scenarios"""
+    logger.info(f"[simulate] Received request: {req.dict()}")
     
-    goal_simulations = await simulation_results_collection.find({"goal_id": goal_id}).to_list(length=None)
+    baseline = await get_goal_baseline(req.goal_id)
+    if not baseline:
+        logger.warning(f"[simulate] Goal not found: {req.goal_id}")
+        raise HTTPException(status_code=404, detail=f"Goal {req.goal_id} not found")
+    
+    all_impacts = []
+    for scenario in req.scenarios:
+        impact = calculate_scenario_impact(baseline, scenario)
+        all_impacts.append(impact)
+    
+    # Store simulation result in DB
+    simulation_id = str(uuid4())
+    simulation_result = {
+        "simulation_id": simulation_id,
+        "goal_id": req.goal_id,
+        "scenarios": req.scenarios,
+        "baseline": baseline,
+        "impacts": all_impacts,
+        "created_at": datetime.now(),
+        "explain_outcomes": req.explain_outcomes,
+        "advisor_mode": req.advisor_mode
+    }
+    await simulation_results_collection.insert_one(simulation_result)
     
     return {
-        "goal_id": goal_id,
-        "simulations": goal_simulations,
-        "count": len(goal_simulations)
-    }
-
-
-@router.post("/create-test-goal")
-async def create_test_goal():
-    """Create a test goal with sample data for simulation testing"""
-    
-    test_goal_id = f"test_goal_{uuid4()}"
-    
-    # Create goal document for MongoDB
-    test_goal_data = {
-        "goal_id": test_goal_id,
-        "title": "Family Vacation Fund",
-        "goal_amount": 50000.0,
-        "target_date": (datetime.now() + timedelta(days=90)).date(),
-        "creator_name": "Juan Dela Cruz",
-        "description": "Save for Boracay family trip",
-        "creator_role": "manager",
-        "status": "active",
-        "created_at": datetime.now().isoformat()
-    }
-    
-    # Insert goal into MongoDB
-    await goals_collection.insert_one(test_goal_data)
-    
-    # Create pool status document for MongoDB
-    pool_status_data = {
-        "goal_id": test_goal_id,
-        "current_amount": 15000.0,
-        "is_paid": False,
-        "status": "active",
-        "contributors": [
-            {"name": "Juan Dela Cruz", "amount": 5000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-15T10:00:00"},
-            {"name": "Maria Santos", "amount": 4000.0, "payment_method": "gcash", "timestamp": "2025-07-20T14:30:00"},
-            {"name": "Pedro Garcia", "amount": 3000.0, "payment_method": "bank_transfer", "timestamp": "2025-07-25T09:15:00"},
-            {"name": "Ana Reyes", "amount": 3000.0, "payment_method": "paymaya", "timestamp": "2025-07-30T16:45:00"}
-        ],
-        "last_updated": datetime.now().isoformat()
-    }
-    
-    # Insert pool status into MongoDB
-    await pool_status_collection.insert_one(pool_status_data)
-    
-    return {
-        "message": "Test goal created successfully",
-        "goal_id": test_goal_id,
-        "goal_details": {
-            "title": test_goal_data["title"],
-            "goal_amount": test_goal_data["goal_amount"],
-            "current_amount": 15000.0,
-            "target_date": test_goal_data["target_date"].isoformat(),
-            "days_remaining": (test_goal_data["target_date"] - datetime.now().date()).days,
-            "contributors": 4,
-            "remaining_amount": 35000.0
-        },
-        "ready_for_simulation": True
+        "simulation_id": simulation_id,
+        "goal_id": req.goal_id,
+        "impacts": all_impacts
     }
 
 
@@ -378,14 +283,125 @@ class ChartGenerationRequest(BaseModel):
     max_charts: int = 3
 
 
+def create_master_prompt(baseline: Dict, user_prompt: str) -> str:
+    """Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations."""
+    return f'''
+You are AMBAG AI, an expert Filipino financial assistant. Your task is to analyze a user's savings goal based on their "what-if" question.
+Your entire response MUST be a single, valid JSON object. Do not include markdown like ```json or any text before or after the JSON object.
+
+**Instructions:**
+1.  **Language:** Respond in conversational **Taglish** (a mix of Tagalog and English). Be encouraging and friendly, like a helpful tita or tito.
+2.  **Analyze the Scenario:** The user's goal is to save ₱{baseline['current_goal_amount']:,.2f}. They have ₱{baseline['current_amount']:,.2f} and {baseline['days_remaining']} days left. Their question is: "{user_prompt}".
+3.  **Generate Narrative:** Write a short narrative explaining the situation. Start with a friendly greeting. If the user's question sounds negative (e.g., "what if I can't pay?", "paano kung kapusin?", "what if we're short?"), you MUST include a markdown section titled "**Recommendations:**" with a list of practical tips. Your recommendations MUST always include:
+    - **Adjust your timeline:** Kung hindi kaya ng 90 days, extend mo ng konti para mas manageable yung daily savings mo.
+    - **Cut unnecessary expenses:** Tingnan mo yung mga luho or unnecessary spending, baka pwede mong bawasan para makapag-save ka ng mas malaki.
+    - **Find extra income:** Maghanap ng sideline or part-time work para dagdag sa savings mo.
+    - **Prioritize your goal:** Lagyan mo ng priority yung savings mo para hindi ka ma-distract sa ibang gastos. Kaya mo yan!
+    - **Loan options:** Suggest talking to group mates for help, or considering a formal loan (e.g., "You can also consider a personal loan. For example, a BPI Personal Loan can provide quick cash. This is a good option for urgent needs, but always check the interest rates and terms carefully.")
+    Use bold, italics, and lists for clarity and design. Place this markdown list inside the narrative field after your analysis.
+4.  **Generate Charts:** Create 1 to 4 charts that visualize the user's scenario. You may use any chart type supported by Chart.js (bar, line, pie, doughnut, radar, polarArea, scatter, bubble, etc.). For each chart, choose the type that best conveys the information. Try to use a variety of chart types (not just bar and pie) when appropriate. The charts should be simple and easy to understand.
+
+**Chart Type Guidance:**
+- **bar**: Compare values (e.g., goal vs. collected, contributors).
+- **line**: Show trends over time (e.g., savings progress).
+- **pie/doughnut/polarArea**: Show parts of a whole (e.g., contribution breakdown).
+- **radar**: Compare multiple variables for a group (e.g., member strengths).
+- **scatter/bubble**: Show relationships between two or three variables (e.g., amount vs. days, or amount vs. days vs. member).
+
+**Data Structure Guidance:**
+- For **scatter**: datasets should be arrays of objects with x and y (e.g., {{"x": 1, "y": 2}}).
+- For **bubble**: datasets should be arrays of objects with x, y, and r (e.g., {{"x": 1, "y": 2, "r": 5}}).
+- For **radar**: labels are axes, each dataset is a set of values for those axes.
+
+5.  **Format Output:** Respond ONLY in the valid JSON format specified below.
+
+**Required JSON Output Schema:**
+{{
+    "narrative": "A short, insightful analysis in Taglish. If recommendations are needed, include them as a markdown list in this field.",
+    "charts": [
+        {{
+            "title": "Chart Title",
+            "type": "bar|line|pie|doughnut|radar|polarArea|scatter|bubble",
+            "labels": ["Label1", "Label2", "Label3"],
+            "datasets": [
+                {{
+                    "label": "Dataset Name",
+                    "data": [1, 2, 3] or [{{"x": 1, "y": 2}}] for scatter/bubble,
+                    "color": "#830000" or ["#830000", "#DDB440", "#4B5320"]
+                }}
+            ],
+            "options": {{}}
+        }}
+    ]
+}}
+
+**Example Response:**
+{{
+    "narrative": "Kumusta! Tingnan natin yung situation mo... [analysis here]",
+    "charts": [
+        {{
+            "title": "Goal Progress",
+            "type": "bar",
+            "labels": ["Current", "Remaining"],
+            "datasets": [
+                {{
+                    "label": "Amount (PHP)",
+                    "data": [{baseline['current_amount']}, {max(0, baseline['current_goal_amount'] - baseline['current_amount'])}],
+                    "color": ["#DDB440", "#830000"]
+                }}
+            ]
+        }}
+    ]
+}}
+'''
+
+
 @router.post("/generate-charts")
 async def generate_charts(req: ChartGenerationRequest):
     """
     Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations.
     """
+    logger.info(f"[generate-charts] Received request: goal_id={req.goal_id}, prompt={req.prompt}, max_charts={req.max_charts}")
+    
+    # Conversational flow: If goal_id is missing or invalid, return a list of available goals
+    if not req.goal_id or req.goal_id.strip() == "" or req.goal_id.lower() == "none":
+        all_goals = await goals_collection.find({}).to_list(length=None)
+        goal_list = [
+            {
+                "goal_id": g.get("goal_id"),
+                "title": g.get("title", "Untitled Goal"),
+                "goal_amount": g.get("goal_amount", 0),
+                "target_date": str(g.get("target_date")),
+                "status": g.get("status", "active"),
+            }
+            for g in all_goals
+        ]
+        logger.info(f"[generate-charts] No goal_id provided. Returning list of {len(goal_list)} goals.")
+        return {
+            "goals": goal_list,
+            "message": "Please select a goal to analyze from the list.",
+            "prompt_required": True
+        }
+
     baseline = await get_goal_baseline(req.goal_id)
     if not baseline:
-        raise HTTPException(status_code=404, detail=f"Goal {req.goal_id} not found")
+        logger.warning(f"[generate-charts] Goal not found: {req.goal_id}")
+        all_goals = await goals_collection.find({}).to_list(length=None)
+        goal_list = [
+            {
+                "goal_id": g.get("goal_id"),
+                "title": g.get("title", "Untitled Goal"),
+                "goal_amount": g.get("goal_amount", 0),
+                "target_date": str(g.get("target_date")),
+                "status": g.get("status", "active"),
+            }
+            for g in all_goals
+        ]
+        return {
+            "goals": goal_list,
+            "message": f"Goal '{req.goal_id}' not found. Please select a valid goal.",
+            "prompt_required": True
+        }
 
     # Guardrails
     max_charts = max(1, min(req.max_charts, 5))
@@ -511,3 +527,4 @@ async def generate_charts(req: ChartGenerationRequest):
         result["ai_failed"] = True
         result["narrative"] = (result["narrative"] + " (AI failed, fallback charts shown)").strip()
     return result
+
