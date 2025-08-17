@@ -7,11 +7,13 @@ import RecentActivity from '../dashboard/RecentActivity';
 import ResponsiveGoals from '../goals/ResponsiveGoals';
 import LoanPage from '../loan/LoanPage';
 import { getAuth } from 'firebase/auth';
-import { api } from '../../lib/api';
+import { api, listGoals } from '../../lib/api';
 
 export default function MemberPage() {
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [firstName, setFirstName] = useState('');
+  const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
 
   useEffect(() => {
     const fetchFirstName = async () => {
@@ -30,6 +32,21 @@ export default function MemberPage() {
       }
     };
     fetchFirstName();
+  }, []);
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setGoalsLoading(true);
+        const goalsData = await listGoals();
+        setGoals(goalsData || []);
+      } catch (err) {
+        setGoals([]);
+      } finally {
+        setGoalsLoading(false);
+      }
+    };
+    fetchGoals();
   }, []);
 
   const handlePayShare = () => {
@@ -61,22 +78,20 @@ export default function MemberPage() {
 
   return (
     <div className="min-h-screen bg-secondary">
-      <main className="h-[59vh]  md:h-[50vh] lg:h-[52.5vh] bg-primary shadow-lg">
-  <MemberHeader userName={firstName || "User"} />
+      <main className="bg-primary shadow-lg pb-4">
+        <MemberHeader userName={firstName || "User"} />
         <BalanceCard balance="123,456" />
-
-        <ResponsiveGoals />
+        <ResponsiveGoals goals={goals} loading={goalsLoading} />
         <ActionButtons
           onPayShare={handlePayShare}
           onRequest={handleRequest}
           onDeposit={handleDeposit}
           onLoan={handleLoan}
         />
-        <RecentActivity />
-        {/* Bottom spacing for mobile */}
-        <div className="h-8"></div>
       </main>
-
+      <RecentActivity />
+      {/* Bottom spacing for mobile */}
+      <div className="h-8"></div>
       {/* Loan Modal */}
       <LoanPage 
         isModalOpen={isLoanModalOpen}
