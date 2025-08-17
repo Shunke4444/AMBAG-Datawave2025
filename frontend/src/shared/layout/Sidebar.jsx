@@ -129,6 +129,7 @@ const Sidebar = () => {
                       { to: "/transactions/deposit", label: "Deposit" },
                       { to: "/transactions/history", label: "Transaction History" },
                       { to: "/transactions/audit", label: "Audit Logs" },
+                      { to: "/transactions/Balance", label: "Add Balance"}
                     ].map(({ to, label }) => (
                       <ListItemButton
                         key={to}
