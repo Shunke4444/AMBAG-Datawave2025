@@ -1,3 +1,35 @@
+
+// Get the current user's virtual balance (match backend: /balance/{owner_uid})
+export async function getMyVirtualBalance() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const owner_uid = user.uid;
+  const res = await api.get(`/balance/${owner_uid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Admin: Add a virtual balance for a user (manual top-up)
+export async function addVirtualBalance({ amount, goal_title = "Manual Top-up", status = "ready_for_external_payment", balance_type = "manual" }) {
+  // If user is logged in, use their UID automatically
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const owner_uid = user.uid;
+  const res = await api.post("/balance/add", {
+    owner_uid,
+    amount,
+    goal_title,
+    status,
+    balance_type
+  }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
 // Approve a member request (manager only)
 export async function approveMemberRequest(requestId) {
   const user = getAuth().currentUser;
