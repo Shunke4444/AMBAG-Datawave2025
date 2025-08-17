@@ -12,6 +12,7 @@ import WhatIf from './features/what-if/WhatIfPage'
 import Withdrawal from './features/transactions/WithdrawalPage';
 import Deposit from './features/transactions/DepositPage';
 import TransactionHistory from './features/transactions/TransactionHistoryPage';
+import Balance from './features/transactions/Balance.jsx';
 import MemberPage from './features/members/MemberPage';
 import ManagerNotifications from './features/notifications/ManagerNotificationPage';
 import AuditLogs from './features/transactions/AuditLogsPage';
@@ -72,12 +73,13 @@ const router = createBrowserRouter([
       {path: 'goals', element: <Goals />},
       {path: 'ai-assistant', element: <AIAssistant/>},
       {path: 'what-if', element: <WhatIf/>},
-      {path: 'transactions/withdrawal', element: <Withdrawal /> },
-      {path: 'transactions/deposit', element: <Deposit /> },
-      {path: 'transactions/history', element: <TransactionHistory /> },
-      {path: 'transactions/audit', element: <AuditLogs /> },
-      {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
-      {path: 'transactions/depositProcess', element: <DepositForm /> },  
+  {path: 'transactions/withdrawal', element: <Withdrawal /> },
+  {path: 'transactions/deposit', element: <Deposit /> },
+  {path: 'transactions/history', element: <TransactionHistory /> },
+  {path: 'transactions/balance', element: <Balance /> },
+  {path: 'transactions/audit', element: <AuditLogs /> },
+  {path: 'transactions/withdrawalProcess', element: <WithdrawForm /> },
+  {path: 'transactions/depositProcess', element: <DepositForm /> },  
       {path: 'transaction-history', element: <TransactionHistory />},
       {path: 'manager-notifications', element: <ManagerNotifications />},
       {path: 'member-requests', element: <Request />},
