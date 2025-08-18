@@ -1,8 +1,10 @@
 
 import { Card, CardContent, LinearProgress, Box } from '@mui/material';
 
-const formatMoney = (n) =>
-  "₱" + n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ".00";
+const formatMoney = (n) => {
+  const safe = Number(n) || 0;
+  return "₱" + safe.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ".00";
+};
 
 // Helper function to calculate days left
 export const calculateDaysLeft = (targetDate) => {

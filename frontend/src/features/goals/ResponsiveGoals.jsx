@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import GoalCards from "./GoalCards";
 import GoalCarouselMobile from './GoalCarouselMobile';
 
-const ResponsiveGoals = () => {
+const ResponsiveGoals = ({ goals = [], loading = false }) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("lg")); // Changed from "md" to "lg"
 
@@ -59,7 +59,7 @@ const ResponsiveGoals = () => {
             exit="exit"
             className="w-full"
           >
-            <GoalCards />
+            <GoalCards goals={goals} loading={loading} />
           </motion.div>
         ) : (
           <motion.div
@@ -70,7 +70,7 @@ const ResponsiveGoals = () => {
             exit="exit"
             className="px-4"
           >
-            <GoalCarouselMobile />
+            <GoalCarouselMobile goals={goals} loading={loading} />
           </motion.div>
         )}
       </AnimatePresence>
