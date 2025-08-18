@@ -56,11 +56,24 @@ async def get_goal_baseline(goal_id: str) -> Optional[Dict]:
     goal = await goals_collection.find_one({"goal_id": goal_id})
     if not goal:
         return None
-    
+
     pool_data = await pool_status_collection.find_one({"goal_id": goal_id})
     if not pool_data:
         pool_data = {}
-    
+
+    # Get contributors from group if available
+    contributors = pool_data.get("contributors", [])
+    group_id = goal.get("group_id")
+    if group_id:
+        group = await groups_collection.find_one({"group_id": group_id})
+        if group and "members" in group:
+            # If group members exist, use them as contributors
+            # Each member: { name, amount, ... }
+            contributors = [
+                {"name": m.get("name", m.get("member_name", "Unknown")), "amount": m.get("amount", 0)}
+                for m in group["members"]
+            ]
+
     target_date = goal.get("target_date")
     if isinstance(target_date, str):
         try:
@@ -69,17 +82,17 @@ async def get_goal_baseline(goal_id: str) -> Optional[Dict]:
             target_date = datetime.now().date()
     elif not hasattr(target_date, 'isoformat'):
         target_date = datetime.now().date()
-    
+
     return {
-    "goal_id": goal_id,
-    "title": goal.get("title", "Untitled Goal"),
-    "current_goal_amount": goal.get("goal_amount", 0),
-    "current_amount": pool_data.get("current_amount", 0),
-    "target_date": target_date.isoformat(),
-    "status": goal.get("status", "active"),
-    "contributors": pool_data.get("contributors", []),
-    "creator": goal.get("creator_name", "Unknown"),
-    "days_remaining": ((target_date.date() if isinstance(target_date, datetime) else target_date) - datetime.now().date()).days
+        "goal_id": goal_id,
+        "title": goal.get("title", "Untitled Goal"),
+        "current_goal_amount": goal.get("goal_amount", 0),
+        "current_amount": pool_data.get("current_amount", 0),
+        "target_date": target_date.isoformat(),
+        "status": goal.get("status", "active"),
+        "contributors": contributors,
+        "creator": goal.get("creator_name", "Unknown"),
+        "days_remaining": ((target_date.date() if isinstance(target_date, datetime) else target_date) - datetime.now().date()).days
     }
 
 def calculate_scenario_impact(baseline: Dict, scenario: WhatIfScenario) -> Dict:
@@ -363,25 +376,36 @@ async def generate_charts(req: ChartGenerationRequest):
     """
     logger.info(f"[generate-charts] Received request: goal_id={req.goal_id}, prompt={req.prompt}, max_charts={req.max_charts}")
     
-    # Conversational flow: If goal_id is missing or invalid, return a list of available goals
+    # Conversational flow: If goal_id is missing or invalid, try to match goal title in prompt
     if not req.goal_id or req.goal_id.strip() == "" or req.goal_id.lower() == "none":
         all_goals = await goals_collection.find({}).to_list(length=None)
-        goal_list = [
-            {
-                "goal_id": g.get("goal_id"),
-                "title": g.get("title", "Untitled Goal"),
-                "goal_amount": g.get("goal_amount", 0),
-                "target_date": str(g.get("target_date")),
-                "status": g.get("status", "active"),
+        prompt_lower = (req.prompt or "").lower()
+        matched_goal = None
+        for g in all_goals:
+            title = str(g.get("title", "")).lower()
+            if title and title in prompt_lower:
+                matched_goal = g
+                break
+        if matched_goal:
+            logger.info(f"[generate-charts] Found goal by title match: {matched_goal.get('title')} ({matched_goal.get('goal_id')})")
+            req.goal_id = matched_goal.get("goal_id")
+        else:
+            goal_list = [
+                {
+                    "goal_id": g.get("goal_id"),
+                    "title": g.get("title", "Untitled Goal"),
+                    "goal_amount": g.get("goal_amount", 0),
+                    "target_date": str(g.get("target_date")),
+                    "status": g.get("status", "active"),
+                }
+                for g in all_goals
+            ]
+            logger.info(f"[generate-charts] No goal_id provided and no title match. Returning list of {len(goal_list)} goals.")
+            return {
+                "goals": goal_list,
+                "message": "Please select a goal to analyze from the list.",
+                "prompt_required": True
             }
-            for g in all_goals
-        ]
-        logger.info(f"[generate-charts] No goal_id provided. Returning list of {len(goal_list)} goals.")
-        return {
-            "goals": goal_list,
-            "message": "Please select a goal to analyze from the list.",
-            "prompt_required": True
-        }
 
     baseline = await get_goal_baseline(req.goal_id)
     if not baseline:
@@ -417,11 +441,10 @@ async def generate_charts(req: ChartGenerationRequest):
             response = await client.chat.completions.create(
                 model="deepseek/deepseek-chat",
                 messages=[{"role": "user", "content": ai_instructions}],
-                max_tokens=1200,
+                max_tokens=900,
                 temperature=0.5,
             )
             content = response.choices[0].message.content if response and response.choices else None
-            # Strip markdown code block markers if present
             cleaned = content
             if cleaned:
                 cleaned = cleaned.strip()
@@ -457,6 +480,9 @@ async def generate_charts(req: ChartGenerationRequest):
         labels = [f"Day {i}" for i in range(1, 7)]
         required = [round(per_day_needed, 2)] * 6
         pace = [round(per_day_needed * (0.9 + 0.05 * i), 2) for i in range(6)]
+        contributors = baseline.get('contributors', [])
+        pie_labels = [c['name'] for c in contributors] if contributors else ["No contributors"]
+        pie_data = [c['amount'] for c in contributors] if contributors else [0]
         return {
             "narrative": "Nag-forecast ako ng pacing: eto yung daily requirement vs. current pace mo para maabot ang goal on time.",
             "charts": [
@@ -472,9 +498,9 @@ async def generate_charts(req: ChartGenerationRequest):
                 {
                     "title": "Contribution Breakdown",
                     "type": "pie",
-                    "labels": [c['name'] for c in baseline['contributors']],
+                    "labels": pie_labels,
                     "datasets": [
-                        {"label": "Contribution", "data": [c['amount'] for c in baseline['contributors']], "color": ["#830000", "#DDB440", "#4B5320", "#C0C0C0"]},
+                        {"label": "Contribution", "data": pie_data, "color": ["#830000", "#DDB440", "#4B5320", "#C0C0C0"]},
                     ],
                 },
                 {

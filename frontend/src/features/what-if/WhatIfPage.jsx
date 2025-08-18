@@ -194,13 +194,60 @@ export default function WhatIf() {
       // If no goal selected, always ask for goal first
       let selectedGoalId = goalId;
       if (!selectedGoalId) {
-        // Request goal list from backend
+        // Request goal list or charts from backend
         const data = await fetchSimulationCharts({ goal_id: '', prompt, max_charts: 4 });
+        // If backend returns charts, show them immediately and store goalId
+        if (Array.isArray(data?.charts) && data.charts.length > 0 && data?.baseline?.goal_id) {
+          setGoalId(data.baseline.goal_id);
+          setAiCharts(data.charts);
+          setAiNarrative(data.narrative || '');
+          setErrorMsg('');
+          setAvailableGoals([]);
+          // Update chart layout for up to 4 charts (2x2 grid)
+          const newChartLayout = {};
+          data.charts.forEach((chart, index) => {
+            let x = 0, y = 0, width = 6, height = 3;
+            if (data.charts.length <= 2) {
+              x = index * 6;
+              y = 0;
+              width = 6;
+              height = 6;
+            } else if (data.charts.length === 3) {
+              if (index < 2) {
+                x = index * 6;
+                y = 0;
+                width = 6;
+                height = 3;
+              } else {
+                x = 0;
+                y = 3;
+                width = 12;
+                height = 3;
+              }
+            } else {
+              x = (index % 2) * 6;
+              y = Math.floor(index / 2) * 3;
+              width = 6;
+              height = 3;
+            }
+            newChartLayout[`c${index}`] = { x, y, width, height };
+          });
+          setChartLayout(newChartLayout);
+          const assistantMessage = {
+            id: Date.now() + 1,
+            content: data.narrative || generateAssistantResponse(prompt),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          setConversationMessages((prev) => [...prev, assistantMessage]);
+          setIsAssistantTyping(false);
+          return;
+        }
+        // Otherwise, show goal selection prompt as before
         setAiCharts([]);
         setAiNarrative('');
         setErrorMsg('');
         setAvailableGoals(data.goals || []);
-        // Show goal names in UI, but store goal_id for backend
         const assistantMessage = {
           id: Date.now() + 1,
           content: data.message || 'Please select a goal to analyze.',
@@ -209,18 +256,14 @@ export default function WhatIf() {
           details: data.goals?.map(g => ({ icon: '🎯', text: g.title || g.goal_id, goal_id: g.goal_id })) || [],
         };
         setConversationMessages((prev) => [...prev, assistantMessage]);
-        // Attach a handler for goal selection
         window.selectGoalForSimulation = async (goal_id) => {
           setGoalId(goal_id);
-          localStorage.setItem('whatif-goal-id', goal_id);
           setIsAssistantTyping(true);
-          // Re-fetch charts for selected goal
           const chartData = await fetchSimulationCharts({ goal_id, prompt, max_charts: 4 });
           const narrative = chartData?.narrative || '';
           const charts = Array.isArray(chartData?.charts) ? chartData.charts : [];
           setAiNarrative(narrative);
           setAiCharts(charts);
-          // Update chart layout for up to 4 charts (2x2 grid)
           const newChartLayout = {};
           charts.forEach((chart, index) => {
             let x = 0, y = 0, width = 6, height = 3;
@@ -263,15 +306,15 @@ export default function WhatIf() {
       }
 
       // Check if prompt contains a goal name or goal ID
+      // If user prompt matches a different goal, switch goalId
       if (availableGoals.length > 0) {
         const lowerPrompt = prompt.toLowerCase();
         const foundGoal = availableGoals.find(g =>
           lowerPrompt.includes((g.title || '').toLowerCase()) || lowerPrompt.includes((g.goal_id || '').toLowerCase())
         );
-        if (foundGoal) {
+        if (foundGoal && foundGoal.goal_id !== goalId) {
           selectedGoalId = foundGoal.goal_id;
           setGoalId(selectedGoalId);
-          localStorage.setItem('whatif-goal-id', selectedGoalId);
         }
       }
 
@@ -299,7 +342,6 @@ export default function WhatIf() {
         // Attach a handler for goal selection
         window.selectGoalForSimulation = async (goal_id) => {
           setGoalId(goal_id);
-          localStorage.setItem('whatif-goal-id', goal_id);
           setIsAssistantTyping(true);
           // Re-fetch charts for selected goal
           const chartData = await fetchSimulationCharts({ goal_id, prompt, max_charts: 4 });
@@ -414,11 +456,7 @@ export default function WhatIf() {
   }, [conversationMessages, isAssistantTyping]);
 
   useEffect(() => {
-    // Ensure we have a goal id for simulation (use actual group goals only)
-    const existing = localStorage.getItem('whatif-goal-id');
-    if (existing) {
-      setGoalId(existing);
-    }
+  // No longer restore goalId from localStorage; always prompt for goal
 
     const savedLayoutData = localStorage.getItem('whatif-layout');
     if (savedLayoutData) {
@@ -724,19 +762,18 @@ export default function WhatIf() {
         )}
 
         {/* Input Area - Always visible */}
-  <footer className="p-4 border-t border-primary/20 max-w-[70vw] mx-auto">
-          <form onSubmit={handleMessageSubmit} className="flex items-center space-x-3">
-            <fieldset className="flex-1 relative">
+  <footer className="p-4 border-t border-primary/20 w-full">
+          <form onSubmit={handleMessageSubmit} className="flex items-center justify-center space-x-3">
+            <fieldset className="flex-1 relative flex justify-center">
               <legend className="sr-only">Message Input</legend>
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about scenarios..."
-                className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60"
+                className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60 mx-auto"
               />
             </fieldset>
-            
             <button
               type="submit"
               className="p-2 bg-primary text-secondary rounded-full hover:bg-shadow transition-colors disabled:opacity-50"
