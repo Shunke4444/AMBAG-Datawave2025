@@ -110,12 +110,12 @@ const Deposit = () => {
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-full max-w-5xl mx-auto bg-primary rounded-4xl p-6 sm:p-8">
+      <div className="w-full max-w-7xxl mx-auto bg-primary rounded-4xl p-6 sm:p-8">
         {/* Saved Methods */}
         <h1 className="text-xl text-secondary font-light">Saved Deposit Methods</h1>
         <div className="flex justify-evenly p-8">
           {savedMethods.map((saved, index) => (
-            <Card key={index} className="rounded-2xl shadow-md p-8 w-2xl">
+            <Card key={index} className="rounded-2xl shadow-md p-6 w-full sm:w-80 md:w-96 lg:w-[500px] xl:w-[600px]">
               <CardActionArea onClick={() => navigate('/transactions/depositProcess')}>
                 <CardContent>
                   <div className="flex justify-between items-center mb-2">

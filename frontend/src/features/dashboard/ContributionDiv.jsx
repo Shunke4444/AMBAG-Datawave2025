@@ -85,7 +85,7 @@ const ContributionDiv = () => {
   }
 
   return (
-    <div className="max-h-[550px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
+    <div className="max-h-[600px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
       <h1 className="flex justify-center text-md font-bold text-primary mt-4 ">
             Group Contribution Status
           </h1>
@@ -97,19 +97,19 @@ const ContributionDiv = () => {
 
             <List>
               {contributionsList.map((contributions, index)=>(
-                <div key = {index} className='px-4'>
+                <div key = {index}>
                   <ListItem>
                     <ListItemText>
-                      <div className="grid grid-cols-3">
-                        <div className="p-3 ">
-                          <Avatar  {...stringAvatar(contributions.first_name, contributions.last_name)} />
+                      <div className="grid grid-cols-3 gap-1 items-center">
+                        <div>
+                          <Avatar {...stringAvatar(contributions.first_name, contributions.last_name)} />
                         </div>
-                        <div className="flex flex-col absolute left-24">
+                        <div className="flex flex-col">
                           <p className='text-sm font-semibold'>{contributions.first_name} {contributions.last_name}</p>
                           <p className='text-xxs text-green font-light'>Contributed</p>
                           <p className='text-xxs font-light'>{contributions.role}</p>
                         </div>
-                        <div className="flex flex-col gap-4 absolute left-72 md:left-136 lg:left-64">
+                        <div className="flex flex-col gap-1 text-right">
                           <p className='text-xs font-semibold text-green'>{contributions.amount}</p>
                           <p className='text-xxs font-light'>{contributions.date}</p>
                         </div>

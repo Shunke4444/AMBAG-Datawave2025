@@ -174,7 +174,7 @@ const Layout = () => {
               <button onClick={toggleNotifDialog} className="cursor-pointer">
                 <NotifyIcon className="hover:text-primary" />
               </button >
-              <button className="cursor-pointer">
+              <button className="cursor-pointer" onClick={() => navigate('/help-support')}>
                 <SupportIcon className="hover:text-primary" />
               </button >
               <button onClick={() => navigate("/settings")} className="cursor-pointer">

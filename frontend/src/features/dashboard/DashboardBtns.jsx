@@ -6,6 +6,7 @@ import {
   Payments as PayShareIcon,
   PsychologyAlt as RequestFundsIcon,
   CreditScore as LoanIcon,
+  CallSplit as SplitBillIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,6 +26,7 @@ const DashboardBtns = ({onLoan}) => {
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
     { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
+    { icon: <SplitBillIcon />, label: "Allocate Qouta" , action: () => navigate()}
   ];
 
   const memberButtons = [
