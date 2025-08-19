@@ -1,5 +1,6 @@
+import axios from "axios";
+import { getAuth } from "firebase/auth";
 
-// Get the current user's virtual balance (match backend: /balance/{owner_uid})
 export async function getMyVirtualBalance() {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
@@ -62,8 +63,7 @@ export async function fetchAllMemberRequests() {
   return res.data;
 }
 
-import axios from "axios";
-import { getAuth } from "firebase/auth";
+
 const auth = getAuth();
 const user = auth.currentUser;
 const token = user && await user.getIdToken();
@@ -207,7 +207,6 @@ export async function listGoals() {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
-  
   const res = await api.get("/goal/", {
     headers: { Authorization: `Bearer ${token}` }
   });

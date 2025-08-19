@@ -6,6 +6,9 @@ import GoalCreated from "./GoalCreated";
 
 const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
   const [state, dispatch] = useReducer(createGoalReducer, initialGoalState);
+  // Import AuthRoleContext to get user and group_id
+  // eslint-disable-next-line
+  const { user } = require('../../contexts/AuthRoleContext').useAuthRoleContext?.() || {};
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [error, setError] = useState(null);
   const [createdGoal, setCreatedGoal] = useState(null);
@@ -34,7 +37,8 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
         goal_amount: parseFloat(state.targetAmount),
         target_date: state.deadline,
         description: state.description || '',
-        goal_type: state.goalType
+        goal_type: state.goalType,
+        group_id: user?.group_id // <-- inject group_id from context
       };
       
       console.log("📝 CreateGoalModal: Calling onCreateGoal with:", goalData);

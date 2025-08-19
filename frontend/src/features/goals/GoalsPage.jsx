@@ -26,9 +26,10 @@ const GoalsPage = () => {
 
       const completeGoalData = {
         ...goalData,
+        group_id: user?.group_id,
         creator_role: creatorRole,
         creator_name: creatorName,
-        auto_payment_settings: {
+        auto_payment_settings: goalData.auto_payment_settings || {
           enabled: false,
           payment_method: "manual",
           require_confirmation: true,

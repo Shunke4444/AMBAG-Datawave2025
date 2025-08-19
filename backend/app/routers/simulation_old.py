@@ -389,14 +389,14 @@ The user did not select any goal. {prompt_line}
 Respond ONLY with a single valid JSON object (no markdown, no extra text, no HTML tags).
 
 **Instructions:**
-1. **Language:** Use conversational Taglish lean towards english a bit more, about 60%. Be warm, supportive, and approachable.
+1. **Language:** Use conversational Taglish, lean towards English about 60%. Be warm, supportive, and approachable.
 2. **Narrative:** 
-   - Tell the user they haven’t selected any goal yet in a friendly way.
-   - Encourage them to choose one from their list.
-   - Reference the user's goal list (provided as an array called "goal_titles") in your message, but do NOT format or style them—just mention them naturally in the narrative.
-   - If applicable, add this note: "{untitled_note}"
-   - Example narrative:  
-     "It looks like you haven't sent a goal! Maybe you can check some of your goals here and tell me which one we should focus on!"
+     - Tell the user they haven’t selected any goal yet in a friendly way.
+     - Encourage them to choose one from their list.
+     - DO NOT list or mention any actual goal titles in the narrative. Only reference the user's goal list as "your goals" or "the list below".
+     - If applicable, add this note: "{untitled_note}"
+     - Example narrative:  
+         "It looks like you haven't sent a goal! Maybe you can check your goals below and tell me which one we should focus on!"
 3. **Format:** Output ONLY the JSON object below, and include the array of goal titles as "goal_titles".
 
 {{
