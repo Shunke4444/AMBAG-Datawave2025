@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -180,10 +181,10 @@ export default function WhatIf() {
 
     const prompt = chatInput;
     const userMessage = {
-      id: Date.now(),
-      content: prompt,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString(),
+  id: Date.now(),
+  content: prompt,
+  sender: 'user',
+  timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     };
 
     setConversationMessages(prev => [...prev, userMessage]);
@@ -237,23 +238,34 @@ export default function WhatIf() {
             id: Date.now() + 1,
             content: data.narrative || generateAssistantResponse(prompt),
             sender: 'assistant',
-            timestamp: new Date().toLocaleTimeString(),
+            timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
           };
           setConversationMessages((prev) => [...prev, assistantMessage]);
           setIsAssistantTyping(false);
           return;
         }
-        // Otherwise, show goal selection prompt as before
         setAiCharts([]);
-        setAiNarrative('');
+        setAiNarrative(''); 
         setErrorMsg('');
         setAvailableGoals(data.goals || []);
+        let assistantContent = data.message;
+        // If backend returns a stringified JSON, parse it
+        if (typeof assistantContent === 'string' && assistantContent.trim().startsWith('{')) {
+          try {
+            assistantContent = JSON.parse(assistantContent);
+          } catch (e) {
+            // Not JSON, use as is
+          }
+        }
+        // If still a string, wrap as object with narrative only
+        if (typeof assistantContent === 'string') {
+          assistantContent = { narrative: assistantContent };
+        }
         const assistantMessage = {
           id: Date.now() + 1,
-          content: data.message || 'Please select a goal to analyze.',
+          content: assistantContent || { narrative: 'Please select a goal to analyze.' },
           sender: 'assistant',
-          timestamp: new Date().toLocaleTimeString(),
-          details: data.goals?.map(g => ({ icon: '🎯', text: g.title || g.goal_id, goal_id: g.goal_id })) || [],
+          timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
         };
         setConversationMessages((prev) => [...prev, assistantMessage]);
         window.selectGoalForSimulation = async (goal_id) => {
@@ -297,7 +309,7 @@ export default function WhatIf() {
             id: Date.now() + 2,
             content: narrative || generateAssistantResponse(prompt),
             sender: 'assistant',
-            timestamp: new Date().toLocaleTimeString(),
+            timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
           };
           setConversationMessages((prev) => [...prev, assistantMessage]);
           setIsAssistantTyping(false);
@@ -331,14 +343,13 @@ export default function WhatIf() {
         setErrorMsg('');
         setAvailableGoals(data.goals || []);
         // Add selectable goal buttons to assistant message
-        const assistantMessage = {
-          id: Date.now() + 1,
-          content: data.message || 'Please select a goal to analyze.',
-          sender: 'assistant',
-          timestamp: new Date().toLocaleTimeString(),
-          details: data.goals?.map(g => ({ icon: '🎯', text: g.title || g.goal_id, goal_id: g.goal_id })) || [],
-        };
-        setConversationMessages((prev) => [...prev, assistantMessage]);
+          const assistantMessage = {
+            id: Date.now() + 1,
+            content: data.message,
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString(),
+          };
+        setConversationMessages((prev) => [...prev, assistantMessage]); 
         // Attach a handler for goal selection
         window.selectGoalForSimulation = async (goal_id) => {
           setGoalId(goal_id);
@@ -439,10 +450,10 @@ export default function WhatIf() {
       setErrorMsg("Sorry, there was a problem generating your chart. Please try again or check the backend.");
       const fallback = generateAssistantResponse(prompt);
       const assistantMessage = {
-        id: Date.now() + 1,
-        content: fallback,
-        sender: 'assistant',
-        timestamp: new Date().toLocaleTimeString(),
+  id: Date.now() + 1,
+  content: fallback,
+  sender: 'assistant',
+  timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       };
       setConversationMessages((prev) => [...prev, assistantMessage]);
     } finally {
@@ -682,13 +693,21 @@ export default function WhatIf() {
                 }`}>
                   {message.sender === 'assistant' ? (
                     <div className="text-sm leading-relaxed whitespace-pre-line">
-                      <ReactMarkdown
-                        components={{
-                          strong: ({node, ...props}) => <strong style={{ color: '#b91c1c' }} {...props} />,
-                        }}
-                      >
-                        {message.content}
+                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                        {message.content && typeof message.content === 'object' && message.content.narrative
+                          ? message.content.narrative
+                          : message.content}
                       </ReactMarkdown>
+                      {/* Render goal_titles as a styled list if present */}
+                      {message.content && typeof message.content === 'object' && Array.isArray(message.content.goal_titles) && message.content.goal_titles.length > 0 && (
+                        <ul className="mt-2">
+                          {message.content.goal_titles.map((title, idx) => (
+                            <li key={idx}>
+                              <span style={{ color: '#830000', fontWeight: 500 }}>{title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>

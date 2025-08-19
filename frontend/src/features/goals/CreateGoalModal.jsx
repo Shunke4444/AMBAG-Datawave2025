@@ -29,6 +29,7 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
       }
 
       const goalData = {
+        firebase_uid: state.firebaseUid,
         title: state.goalName,
         goal_amount: parseFloat(state.targetAmount),
         target_date: state.deadline,

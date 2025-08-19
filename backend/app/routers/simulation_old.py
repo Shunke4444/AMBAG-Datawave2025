@@ -367,6 +367,46 @@ Your entire response MUST be a single, valid JSON object. Do not include markdow
     ]
 }}
 '''
+def no_goal_selected_response(goal_list, user_prompt=None) -> str:
+    """
+    Returns a JSON-only prompt for the AI, including the user's goals
+    formatted as a Slack-safe bullet list with a friendly Taglish narrative.
+    """
+    untitled_count = sum(
+        1 for g in goal_list if g.get("title", "").lower() in ["untitled goal", "", None]
+    )
+    titles = [g.get("title", "Untitled Goal") for g in goal_list]
+    untitled_note = (
+        f"Note: Meron kang {untitled_count} 'Untitled Goal', baka gusto mong i-rename 😉"
+        if untitled_count > 0
+        else ""
+    )
+    prompt_line = f"User prompt: '{user_prompt}'" if user_prompt else ""
+
+    return f'''
+You are AMBAG AI, a friendly Filipino financial assistant.
+The user did not select any goal. {prompt_line}
+Respond ONLY with a single valid JSON object (no markdown, no extra text, no HTML tags).
+
+**Instructions:**
+1. **Language:** Use conversational Taglish. Be warm, supportive, and approachable.
+2. **Narrative:** 
+   - Tell the user they haven’t selected any goal yet in a friendly way.
+   - Encourage them to choose one from their list.
+   - Reference the user's goal list (provided as an array called "goal_titles") in your message, but do NOT format or style them—just mention them naturally in the narrative.
+   - If applicable, add this note: "{untitled_note}"
+   - Example narrative:  
+     "It looks like you haven't sent a goal! Maybe you can check some of your goals here and tell me which one we should focus on!"
+3. **Charts:** Always return an empty list for "charts".
+4. **Format:** Output ONLY the JSON object below, and include the array of goal titles as "goal_titles".
+
+{{
+    "narrative": "Friendly Taglish message referencing the user's goals.",
+    "goal_titles": {titles},
+}}
+'''
+
+
 
 
 @router.post("/generate-charts")
@@ -375,7 +415,6 @@ async def generate_charts(req: ChartGenerationRequest):
     Creates the detailed prompt for the AI, instructing it on Taglish and specific recommendations.
     """
     logger.info(f"[generate-charts] Received request: goal_id={req.goal_id}, prompt={req.prompt}, max_charts={req.max_charts}")
-    
     # Conversational flow: If goal_id is missing or invalid, try to match goal title in prompt
     if not req.goal_id or req.goal_id.strip() == "" or req.goal_id.lower() == "none":
         all_goals = await goals_collection.find({}).to_list(length=None)
@@ -400,10 +439,24 @@ async def generate_charts(req: ChartGenerationRequest):
                 }
                 for g in all_goals
             ]
-            logger.info(f"[generate-charts] No goal_id provided and no title match. Returning list of {len(goal_list)} goals.")
+            # Use the new markdown bullet list prompt for the AI
+            ai_prompt = no_goal_selected_response(goal_list, req.prompt)
+            client = get_ai_client()
+            try:
+                response = await client.chat.completions.create(
+                    model="deepseek/deepseek-chat",
+                    messages=[{"role": "user", "content": ai_prompt}],
+                    max_tokens=300,
+                    temperature=0.7,
+                )
+                ai_message = response.choices[0].message.content if response and response.choices else "Please select a goal to analyze from the list."
+            except Exception as e:
+                logger.warning(f"AI message generation failed, using fallback. Error: {e}")
+                ai_message = "Please select a goal to analyze from the list."
+            logger.info(f"[generate-charts] No goal_id provided and no title match. Returning AI-generated message and list of {len(goal_list)} goals.")
             return {
                 "goals": goal_list,
-                "message": "Please select a goal to analyze from the list.",
+                "message": ai_message,
                 "prompt_required": True
             }
 
@@ -432,7 +485,6 @@ async def generate_charts(req: ChartGenerationRequest):
 
     # Compose AI prompt using the master prompt function
     ai_instructions = create_master_prompt(baseline, req.prompt)
-
     charts_payload: Dict[str, Union[str, List[Dict]]] = {"narrative": "", "charts": []}
     ai_failed = False
     try:
