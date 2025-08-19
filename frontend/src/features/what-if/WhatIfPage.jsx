@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,7 +26,7 @@ import { ArrowBack, Send, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import GridLayoutManager from './GridLayoutManager';
 import ChartWidget from './ChartWidget';
-import { createSimulationTestGoal, generateSimulationCharts } from '../../lib/api';
+import { fetchSimulationCharts } from '../../lib/api';
 import { useAuthRole } from '../../contexts/AuthRoleContext';
 
 // Register Chart.js components
@@ -73,6 +74,7 @@ export default function WhatIf() {
   
   const messagesEndRef = useRef(null);
   const [goalId, setGoalId] = useState(null);
+  const [availableGoals, setAvailableGoals] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   const chartRefs = useRef({});
@@ -170,27 +172,6 @@ export default function WhatIf() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const generateAssistantResponse = (userInput) => {
-    const input = userInput.toLowerCase();
-
-    if (input.includes('visual') || input.includes('simulation') || input.includes('yes') || input.includes('oo')) {
-      return "Great! I'll generate a visual simulation. Based on your payment patterns, here's what I can show you:\n\n📈 If you delay the ₱4,000 payment by 1 week, your next 3 contributions will need to increase by ₱500 each to stay on track.\n\n📊 Alternative: You could extend the timeline by 2 weeks and keep the same contribution amounts.\n\nWhich option would you prefer to explore further?";
-    } 
-    
-    if (input.includes('extend') || input.includes('timeline')) {
-      return "Timeline extension is a good strategy! Here are your options:\n\n⏰ Option 1: Extend by 2 weeks - keep same amounts\n⏰ Option 2: Extend by 1 month - reduce future contributions by ₱300 each\n⏰ Option 3: Flexible schedule - pay when you can, goal completion by December\n\nWhich timeline works best for your current situation?";
-    } 
-    
-    if (input.includes('increase') || input.includes('more')) {
-      return "I understand you're considering increasing contributions. Let me analyze this:\n\n💰 If you increase by ₱500/month: Goal completed 6 weeks earlier\n💰 If you increase by ₱1000/month: Goal completed 3 months earlier\n\n⚠️ But consider your cash flow - sustainable amounts are better than aggressive targets that might cause stress.\n\nWhat's your comfortable maximum monthly contribution?";
-    } 
-    
-    if (input.includes('help') || input.includes('advice')) {
-      return "Here's my personalized advice based on your financial profile:\n\n✅ Priority: Build a ₱2,000 emergency buffer first\n✅ Strategy: Set up automatic transfers on your payday\n✅ Backup: Have 2-3 alternative payment dates ready\n\nRemember, consistency beats perfection. Better to contribute steadily than to stress about perfect timing!";
-    }
-
-    return "I can help you explore different scenarios for your group payments. Try asking about:\n\n• Visual simulations of payment impacts\n• Timeline extensions or adjustments\n• Increasing or decreasing contribution amounts\n• Emergency backup plans\n\nWhat would you like to analyze first?";
-  };
 
 
   const handleMessageSubmit = async (e) => {
@@ -200,10 +181,10 @@ export default function WhatIf() {
 
     const prompt = chatInput;
     const userMessage = {
-      id: Date.now(),
-      content: prompt,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString(),
+  id: Date.now(),
+  content: prompt,
+  sender: 'user',
+  timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     };
 
     setConversationMessages(prev => [...prev, userMessage]);
@@ -211,20 +192,217 @@ export default function WhatIf() {
     setIsAssistantTyping(true);
 
     try {
-      // Always create a test goal and use its ID for chart generation
-      const created = await createSimulationTestGoal();
-      let useGoalId = created?.goal_id;
-      if (!useGoalId) {
-        throw new Error('Failed to create test goal.');
+      // If no goal selected, always ask for goal first
+      let selectedGoalId = goalId;
+      if (!selectedGoalId) {
+        // Request goal list or charts from backend
+        const data = await fetchSimulationCharts({ goal_id: '', prompt, max_charts: 4 });
+        // If backend returns charts, show them immediately and store goalId
+        if (Array.isArray(data?.charts) && data.charts.length > 0 && data?.baseline?.goal_id) {
+          setGoalId(data.baseline.goal_id);
+          setAiCharts(data.charts);
+          setAiNarrative(data.narrative || '');
+          setErrorMsg('');
+          setAvailableGoals([]);
+          // Update chart layout for up to 4 charts (2x2 grid)
+          const newChartLayout = {};
+          data.charts.forEach((chart, index) => {
+            let x = 0, y = 0, width = 6, height = 3;
+            if (data.charts.length <= 2) {
+              x = index * 6;
+              y = 0;
+              width = 6;
+              height = 6;
+            } else if (data.charts.length === 3) {
+              if (index < 2) {
+                x = index * 6;
+                y = 0;
+                width = 6;
+                height = 3;
+              } else {
+                x = 0;
+                y = 3;
+                width = 12;
+                height = 3;
+              }
+            } else {
+              x = (index % 2) * 6;
+              y = Math.floor(index / 2) * 3;
+              width = 6;
+              height = 3;
+            }
+            newChartLayout[`c${index}`] = { x, y, width, height };
+          });
+          setChartLayout(newChartLayout);
+          const assistantMessage = {
+            id: Date.now() + 1,
+            content: data.narrative || generateAssistantResponse(prompt),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          };
+          setConversationMessages((prev) => [...prev, assistantMessage]);
+          setIsAssistantTyping(false);
+          return;
+        }
+        setAiCharts([]);
+        setAiNarrative(''); 
+        setErrorMsg('');
+        setAvailableGoals(data.goals || []);
+        let assistantContent = data.message;
+        // If backend returns a stringified JSON, parse it
+        if (typeof assistantContent === 'string' && assistantContent.trim().startsWith('{')) {
+          try {
+            assistantContent = JSON.parse(assistantContent);
+          } catch (e) {
+            // Not JSON, use as is
+          }
+        }
+        // If still a string, wrap as object with narrative only
+        if (typeof assistantContent === 'string') {
+          assistantContent = { narrative: assistantContent };
+        }
+        const assistantMessage = {
+          id: Date.now() + 1,
+          content: assistantContent || { narrative: 'Please select a goal to analyze.' },
+          sender: 'assistant',
+          timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        };
+        setConversationMessages((prev) => [...prev, assistantMessage]);
+        window.selectGoalForSimulation = async (goal_id) => {
+          setGoalId(goal_id);
+          setIsAssistantTyping(true);
+          const chartData = await fetchSimulationCharts({ goal_id, prompt, max_charts: 4 });
+          const narrative = chartData?.narrative || '';
+          const charts = Array.isArray(chartData?.charts) ? chartData.charts : [];
+          setAiNarrative(narrative);
+          setAiCharts(charts);
+          const newChartLayout = {};
+          charts.forEach((chart, index) => {
+            let x = 0, y = 0, width = 6, height = 3;
+            if (charts.length <= 2) {
+              x = index * 6;
+              y = 0;
+              width = 6;
+              height = 6;
+            } else if (charts.length === 3) {
+              if (index < 2) {
+                x = index * 6;
+                y = 0;
+                width = 6;
+                height = 3;
+              } else {
+                x = 0;
+                y = 3;
+                width = 12;
+                height = 3;
+              }
+            } else {
+              x = (index % 2) * 6;
+              y = Math.floor(index / 2) * 3;
+              width = 6;
+              height = 3;
+            }
+            newChartLayout[`c${index}`] = { x, y, width, height };
+          });
+          setChartLayout(newChartLayout);
+          const assistantMessage = {
+            id: Date.now() + 2,
+            content: narrative || generateAssistantResponse(prompt),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          };
+          setConversationMessages((prev) => [...prev, assistantMessage]);
+          setIsAssistantTyping(false);
+        };
+        return;
       }
-      setGoalId(useGoalId);
-      localStorage.setItem('whatif-goal-id', useGoalId);
 
-      const data = await generateSimulationCharts({
-        goal_id: useGoalId,
+      // Check if prompt contains a goal name or goal ID
+      // If user prompt matches a different goal, switch goalId
+      if (availableGoals.length > 0) {
+        const lowerPrompt = prompt.toLowerCase();
+        const foundGoal = availableGoals.find(g =>
+          lowerPrompt.includes((g.title || '').toLowerCase()) || lowerPrompt.includes((g.goal_id || '').toLowerCase())
+        );
+        if (foundGoal && foundGoal.goal_id !== goalId) {
+          selectedGoalId = foundGoal.goal_id;
+          setGoalId(selectedGoalId);
+        }
+      }
+
+      let data = await fetchSimulationCharts({
+        goal_id: selectedGoalId,
         prompt,
-        max_charts: 4, // Allow up to 4 charts
+        max_charts: 4,
       });
+
+      // If backend requests goal selection, show selectable goal list
+      if (data.type === 'goal_list') {
+        setAiCharts([]);
+        setAiNarrative('');
+        setErrorMsg('');
+        setAvailableGoals(data.goals || []);
+        // Add selectable goal buttons to assistant message
+          const assistantMessage = {
+            id: Date.now() + 1,
+            content: data.message,
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString(),
+          };
+        setConversationMessages((prev) => [...prev, assistantMessage]); 
+        // Attach a handler for goal selection
+        window.selectGoalForSimulation = async (goal_id) => {
+          setGoalId(goal_id);
+          setIsAssistantTyping(true);
+          // Re-fetch charts for selected goal
+          const chartData = await fetchSimulationCharts({ goal_id, prompt, max_charts: 4 });
+          const narrative = chartData?.narrative || '';
+          const charts = Array.isArray(chartData?.charts) ? chartData.charts : [];
+          setAiNarrative(narrative);
+          setAiCharts(charts);
+          // Update chart layout for up to 4 charts (2x2 grid)
+          const newChartLayout = {};
+          charts.forEach((chart, index) => {
+            let x = 0, y = 0, width = 6, height = 3;
+            if (charts.length <= 2) {
+              x = index * 6;
+              y = 0;
+              width = 6;
+              height = 6;
+            } else if (charts.length === 3) {
+              if (index < 2) {
+                x = index * 6;
+                y = 0;
+                width = 6;
+                height = 3;
+              } else {
+                x = 0;
+                y = 3;
+                width = 12;
+                height = 3;
+              }
+            } else {
+              x = (index % 2) * 6;
+              y = Math.floor(index / 2) * 3;
+              width = 6;
+              height = 3;
+            }
+            newChartLayout[`c${index}`] = { x, y, width, height };
+          });
+          setChartLayout(newChartLayout);
+          const assistantMessage = {
+            id: Date.now() + 2,
+            content: narrative || generateAssistantResponse(prompt),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          setConversationMessages((prev) => [...prev, assistantMessage]);
+          setIsAssistantTyping(false);
+        };
+        return;
+      }
+
+      // Normal chart/narrative response
       const narrative = data?.narrative || '';
       const charts = Array.isArray(data?.charts) ? data.charts : [];
       setAiNarrative(narrative);
@@ -235,13 +413,11 @@ export default function WhatIf() {
       charts.forEach((chart, index) => {
         let x = 0, y = 0, width = 6, height = 3;
         if (charts.length <= 2) {
-          // 1 or 2 charts: full width or split
           x = index * 6;
           y = 0;
           width = 6;
           height = 6;
         } else if (charts.length === 3) {
-          // 3 charts: 2 on top, 1 full width below
           if (index < 2) {
             x = index * 6;
             y = 0;
@@ -254,7 +430,6 @@ export default function WhatIf() {
             height = 3;
           }
         } else {
-          // 4 charts: 2x2 grid
           x = (index % 2) * 6;
           y = Math.floor(index / 2) * 3;
           width = 6;
@@ -275,10 +450,10 @@ export default function WhatIf() {
       setErrorMsg("Sorry, there was a problem generating your chart. Please try again or check the backend.");
       const fallback = generateAssistantResponse(prompt);
       const assistantMessage = {
-        id: Date.now() + 1,
-        content: fallback,
-        sender: 'assistant',
-        timestamp: new Date().toLocaleTimeString(),
+  id: Date.now() + 1,
+  content: fallback,
+  sender: 'assistant',
+  timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       };
       setConversationMessages((prev) => [...prev, assistantMessage]);
     } finally {
@@ -292,23 +467,7 @@ export default function WhatIf() {
   }, [conversationMessages, isAssistantTyping]);
 
   useEffect(() => {
-    // Ensure we have a goal id for simulation (create a test goal if needed)
-    (async () => {
-      try {
-        const existing = localStorage.getItem('whatif-goal-id');
-        if (existing) {
-          setGoalId(existing);
-        } else {
-          const created = await createSimulationTestGoal();
-          if (created?.goal_id) {
-            localStorage.setItem('whatif-goal-id', created.goal_id);
-            setGoalId(created.goal_id);
-          }
-        }
-      } catch {
-        // ignore errors
-      }
-    })();
+  // No longer restore goalId from localStorage; always prompt for goal
 
     const savedLayoutData = localStorage.getItem('whatif-layout');
     if (savedLayoutData) {
@@ -534,13 +693,21 @@ export default function WhatIf() {
                 }`}>
                   {message.sender === 'assistant' ? (
                     <div className="text-sm leading-relaxed whitespace-pre-line">
-                      <ReactMarkdown
-                        components={{
-                          strong: ({node, ...props}) => <strong style={{ color: '#b91c1c' }} {...props} />,
-                        }}
-                      >
-                        {message.content}
+                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                        {message.content && typeof message.content === 'object' && message.content.narrative
+                          ? message.content.narrative
+                          : message.content}
                       </ReactMarkdown>
+                      {/* Render goal_titles as a styled list if present */}
+                      {message.content && typeof message.content === 'object' && Array.isArray(message.content.goal_titles) && message.content.goal_titles.length > 0 && (
+                        <ul className="mt-2 list-disc list-inside" style={{ marginLeft: '2rem' }}>
+                          {message.content.goal_titles.map((title, idx) => (
+                            <li key={idx}>
+                              <span style={{ color: '#830000', fontStyle: 'italic', fontWeight: 500 }}>{title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
@@ -614,19 +781,18 @@ export default function WhatIf() {
         )}
 
         {/* Input Area - Always visible */}
-  <footer className="p-4 border-t border-primary/20 max-w-[70vw] mx-auto">
-          <form onSubmit={handleMessageSubmit} className="flex items-center space-x-3">
-            <fieldset className="flex-1 relative">
+  <footer className="p-4 border-t border-primary/20 w-full">
+          <form onSubmit={handleMessageSubmit} className="flex items-center justify-center space-x-3">
+            <fieldset className="flex-1 relative flex justify-center">
               <legend className="sr-only">Message Input</legend>
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about scenarios..."
-                className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60"
+                className="w-full px-4 py-3 border border-primary/20 rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-secondary text-textcolor placeholder:text-textcolor/60 mx-auto"
               />
             </fieldset>
-            
             <button
               type="submit"
               className="p-2 bg-primary text-secondary rounded-full hover:bg-shadow transition-colors disabled:opacity-50"

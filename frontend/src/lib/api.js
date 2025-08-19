@@ -1,5 +1,6 @@
+import axios from "axios";
+import { getAuth } from "firebase/auth";
 
-// Get the current user's virtual balance (match backend: /balance/{owner_uid})
 export async function getMyVirtualBalance() {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
@@ -62,8 +63,7 @@ export async function fetchAllMemberRequests() {
   return res.data;
 }
 
-import axios from "axios";
-import { getAuth } from "firebase/auth";
+
 const auth = getAuth();
 const user = auth.currentUser;
 const token = user && await user.getIdToken();
@@ -134,6 +134,27 @@ export async function generateSimulationCharts({ goal_id, prompt, max_charts = 3
   }
 }
 
+// Fetch simulation charts for a goal using the old simulation backend
+export async function fetchSimulationCharts({ goal_id, prompt, max_charts = 3 }) {
+  // Allow missing goal_id for conversational flow
+  const payload = { goal_id: goal_id || '', prompt: prompt || '', max_charts };
+  try {
+    const res = await api.post('/simulation-old/generate-charts', payload);
+    // If backend returns a list of goals, handle conversational flow
+    if (res.data && res.data.prompt_required && Array.isArray(res.data.goals)) {
+      return {
+        type: 'goal_list',
+        goals: res.data.goals,
+        message: res.data.message || 'Please select a goal to analyze.',
+      };
+    }
+    // Otherwise, return chart data as usual
+    return res.data;
+  } catch (error) {
+    console.error('Simulation chart fetch error:', error);
+    throw error;
+  }
+}
 
 export async function askChatbot(prompt, sessionId) {
   const res = await api.post("/chatbot/ask", {
@@ -167,10 +188,11 @@ export async function createGoal(goalData) {
   const token = await user.getIdToken();
 
   // Inject role and name so backend logic works correctly
+  // Expect goalData to include creator_role from context/provider
   const completeGoalData = {
     ...goalData,
-    creator_role: "member", // or "manager" if logged-in user is a manager
-    creator_name: user.displayName || "Unknown User"
+    creator_role: goalData.creator_role , // fallback to "member" if not provided
+    creator_name: user.displayName
   };
 
   const res = await api.post("/goal/", completeGoalData, {
@@ -182,13 +204,13 @@ export async function createGoal(goalData) {
 }
 
 
-export async function listGoals() {
+export async function listGoals(groupId) {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
-  
   const res = await api.get("/goal/", {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
+    params: { group_id: groupId }
   });
   return res.data;
 }
@@ -240,6 +262,47 @@ export async function createMemberRequest(requestData) {
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
   const res = await api.post("/request/", requestData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Fetch agentic notifications for a goal
+export async function fetchAgenticNotifications(goalId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/ai-tools/notifications/${goalId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Trigger smart reminder for a goal
+export async function triggerSmartReminder({ goalId, reminderType = "payment_due", targetMembers = null, urgency = "high", customMessage = null }) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const payload = {
+    group_id: goalId,
+    reminder_type: reminderType,
+    target_members: targetMembers,
+    urgency,
+    custom_message: customMessage,
+    auto_send: true
+  };
+  const res = await api.post(`/ai-tools/smart-reminder`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Fetch user profile from backend
+export async function getUserProfile(firebase_uid) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/users/profile/${firebase_uid}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;

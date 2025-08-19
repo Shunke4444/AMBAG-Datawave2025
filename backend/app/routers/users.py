@@ -47,7 +47,7 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     profile: Optional[UserProfile] = None
-    role: Optional[UserRole] = None
+    role: UserRole
 
 class SessionResponse(BaseModel):
     user_id: str
