@@ -25,10 +25,10 @@ const Withdrawal = () => {
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-372 h-176 bg-primary mx-16 rounded-4xl p-8">
+      <div className="w-full max-w-5xl mx-auto bg-primary rounded-4xl p-6 sm:p-8">
         {/* Saved Methods */}
         <h1 className="text-xl text-secondary font-light">Saved Withdrawal Methods</h1>
-        <div className="flex justify-evenly p-8">
+        <div className="flex flex-wrap justify-evenly gap-4">
           {savedMethods.map((saved, index) => (
             <Card key={index} className="rounded-2xl shadow-md p-8 w-2xl">
               <CardActionArea onClick={() => navigate('/transactions/withdrawalProcess')}>
