@@ -172,11 +172,8 @@ const HelpSupport = () => {
                       support@ambag.ph
                   </span>
                 </div>
-                
-
               </section>
     </main>
   )
 }
-
 export default HelpSupport

@@ -4,6 +4,7 @@ import { ChevronRight } from '@mui/icons-material';
 import image1 from '../../assets/images/1.png';
 import image2 from '../../assets/images/2.png';
 import image3 from '../../assets/images/3.png';
+import AMBAG_LOGO from '../../assets/AMBAG_LOGO.png';
 
 export default function SimpleOnboarding({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -76,6 +77,11 @@ export default function SimpleOnboarding({ onComplete }) {
         <div className="absolute bottom-32 right-16 w-24 h-24 bg-yellow-300 rounded-full"></div>
         <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-yellow-200 rounded-full"></div>
       </div>
+      
+      {/* Top Logo */}
+      <header className="flex justify-center py-6 z-10 relative">
+        <img src={AMBAG_LOGO} alt="AMBAG Logo" className="h-12 w-auto" />
+      </header>
 
       {/* Top section - Image */}
       <section className="flex-1 flex items-center justify-center relative z-10">
