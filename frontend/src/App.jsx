@@ -35,7 +35,7 @@ import { OnboardingWrapper } from './features/on-boarding';
 import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { SidebarProvider } from "./contexts/SideBarProvider";
 import ApprovalsPage from './features/approvals/ApprovalsPage';
-// import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
 
 const router = createBrowserRouter([
@@ -110,12 +110,12 @@ const router = createBrowserRouter([
 
 const App = () => {
 
-//   useEffect(() => {
-//   const token = localStorage.getItem('authRole');
-//   if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
-//     window.location.replace('/signup'); // Forces to signup if no token
-//   }
-// }, []);
+  useEffect(() => {
+  const token = localStorage.getItem('authRole');
+  if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+    window.location.replace('/signup'); // Forces to signup if no token
+  }
+}, []);
 
 
   return (
