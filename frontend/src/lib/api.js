@@ -187,12 +187,11 @@ export async function createGoal(goalData) {
 
   const token = await user.getIdToken();
 
-  // Inject role and name so backend logic works correctly
-  // Expect goalData to include creator_role from context/provider
+  // Use creator_name from goalData, do not overwrite with user.displayName
   const completeGoalData = {
     ...goalData,
-    creator_role: goalData.creator_role , // fallback to "member" if not provided
-    creator_name: user.displayName
+    creator_role: goalData.creator_role // fallback to "member" if not provided
+    // creator_name is already set in goalData
   };
 
   const res = await api.post("/goal/", completeGoalData, {
