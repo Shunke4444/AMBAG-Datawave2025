@@ -34,14 +34,13 @@ import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
 import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { SidebarProvider } from "./contexts/SideBarProvider";
-import ApprovalsPage from './features/approvals/ApprovalsPage';
-import { useEffect } from 'react';
 import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
+import ApprovalsPage from './features/approvals/ApprovalsPage';
 
 const router = createBrowserRouter([
   {
-    path: '/onboarding',
-    element: <OnboardingWrapper />
+    path: '/',
+    element: <Login />,
   },
   {
     path: '/login',
@@ -63,9 +62,14 @@ const router = createBrowserRouter([
     path: '/new-user-dashboard',
     element: <NewUserDashboard/>
   },
+  {
+    path: '/onboarding',
+    element: <OnboardingWrapper />
+  },
 
   // Main App with Layout
-  { path: '/' , 
+  {
+    path: '/' , 
     element: <Layout />,
     children: [
   // {index: true, element: <Dashboard />},
@@ -109,15 +113,6 @@ const router = createBrowserRouter([
 
 
 const App = () => {
-
-  useEffect(() => {
-  const token = localStorage.getItem('authRole');
-  if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
-    window.location.replace('/signup'); // Forces to signup if no token
-  }
-}, []);
-
-
   return (
     <AuthRoleProvider>
       <ChatProvider>

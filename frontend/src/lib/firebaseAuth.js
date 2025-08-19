@@ -30,3 +30,5 @@ export async function signupWithFirebase(email, password) {
     throw new Error(err.message);
   }
 }
+
+export { auth };

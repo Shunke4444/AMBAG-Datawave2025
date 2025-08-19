@@ -17,7 +17,7 @@ router = APIRouter(prefix="/balance", tags=["balance"])
 
 # Admin endpoint to add a virtual balance for a user
 @router.post("/add")
-async def add_virtual_balance(data: VirtualBalanceCreate,):
+async def add_virtual_balance(data: VirtualBalanceCreate, user=Depends(verify_token)):
 	vb = {
 		"owner_uid": data.owner_uid,
 		"amount": data.amount,
@@ -32,7 +32,7 @@ async def add_virtual_balance(data: VirtualBalanceCreate,):
 
 # Get the authenticated user's virtual balance
 @router.get("/{owner_uid}")
-async def get_balance_by_uid(owner_uid: str):
+async def get_balance_by_uid(owner_uid: str, user=Depends(verify_token)):
     user_doc = await users_collection.find_one({"firebase_uid": owner_uid})
     if not user_doc:
         raise HTTPException(status_code=404, detail="User not found")

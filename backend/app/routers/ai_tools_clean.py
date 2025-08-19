@@ -273,7 +273,7 @@ async def get_ai_analysis(prompt: str) -> dict:
         response = await client.chat.completions.create(
             model="deepseek/deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2000,
+            max_tokens=3000,
             temperature=0.7
         )
         

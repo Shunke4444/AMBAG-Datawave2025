@@ -14,9 +14,16 @@ export const MembersProvider = ({ children }) => {
       const { getAuth, onAuthStateChanged } = await import('firebase/auth');
       const auth = getAuth();
       unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (!user) {
+        // Only redirect if not already on login or signup
+        const path = window.location.pathname;
+        if (!user && path !== '/login' && path !== '/signup') {
           console.warn('No user found, redirecting to login...');
           window.location.replace('/login');
+          return;
+        }
+        if (!user) {
+          setMembers([]);
+          setLoading(false);
           return;
         }
         try {
@@ -30,6 +37,8 @@ export const MembersProvider = ({ children }) => {
           const group_id = userData?.role?.group_id;
           if (!group_id) {
             console.warn('No group_id found in user profile');
+            setMembers([]);
+            setLoading(false);
             return;
           }
           const groupRes = await fetch(`${baseURL}/groups/${group_id}/members`, {
@@ -66,24 +75,6 @@ export const MembersProvider = ({ children }) => {
     };
   }, []);
 
-  // Filter and search logic in context
-  const contributorMembers = members.filter(m => m.role !== 'manager');
-  const filteredMembers = React.useMemo(() => {
-    let result;
-    if (!searchTerm.trim()) {
-      result = contributorMembers.filter(member => filterStatus === 'all' || member.goalStatus === filterStatus);
-    } else {
-      result = contributorMembers.filter(member => {
-        const fullName = `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase();
-        const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
-          (member.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = filterStatus === 'all' || member.goalStatus === filterStatus;
-        return matchesSearch && matchesFilter;
-      });
-    }
-    return result;
-  }, [contributorMembers, searchTerm, filterStatus]);
-
   return (
     <MembersContext.Provider value={{
       members,
@@ -93,7 +84,22 @@ export const MembersProvider = ({ children }) => {
       setSearchTerm,
       filterStatus,
       setFilterStatus,
-      filteredMembers
+      filteredMembers: React.useMemo(() => {
+        let result;
+        const contributorMembers = members.filter(m => m.role !== 'manager');
+        if (!searchTerm.trim()) {
+          result = contributorMembers.filter(member => filterStatus === 'all' || member.goalStatus === filterStatus);
+        } else {
+          result = contributorMembers.filter(member => {
+            const fullName = `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase();
+            const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+              (member.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesFilter = filterStatus === 'all' || member.goalStatus === filterStatus;
+            return matchesSearch && matchesFilter;
+          });
+        }
+        return result;
+      }, [members, searchTerm, filterStatus])
     }}>
       {children}
     </MembersContext.Provider>

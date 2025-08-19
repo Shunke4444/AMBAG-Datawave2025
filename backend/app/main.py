@@ -6,7 +6,7 @@ from routers import (
     chatbot,
     scheduler_api,
     ai_tools_clean,
-    simulation,
+    simulation_old,
     users,
     request,
     balance,
@@ -40,7 +40,7 @@ app.include_router(goal.router)
 app.include_router(chatbot.router)
 app.include_router(scheduler_api.router)
 app.include_router(ai_tools_clean.router)
-app.include_router(simulation.router)
+app.include_router(simulation_old.router)
 app.include_router(request.router)
 app.include_router(balance.router)
 
