@@ -19,8 +19,9 @@ import {
 import MobileLayout from '../payments/PaymentLayout';
 import MobileHeader from '../../components/MobileHeader';
 import RequestSubmittedModal from './RequestSubmittedModal';
-import { createGoal, createMemberRequest } from '../../lib/api';
+import { createGoal, createMemberRequest, getUserProfile } from '../../lib/api';
 export default function Request() {
+  const [groupId, setGroupId] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const [searchParams] = useSearchParams();
@@ -54,6 +55,20 @@ export default function Request() {
         subject: 'Loan Request from Group Members'
       }));
     }
+    // Fetch group_id from user profile
+    async function fetchGroupId() {
+      try {
+        const user = window.firebase?.auth?.currentUser || (await import('firebase/auth')).getAuth().currentUser;
+        if (user) {
+          const profile = await getUserProfile(user.uid);
+          const group_id = profile?.role?.group_id;
+          if (group_id) setGroupId(group_id);
+        }
+      } catch (err) {
+        // Optionally handle error
+      }
+    }
+    fetchGroupId();
   }, [searchParams]);
 
   const handleInputChange = (field, value) => {
@@ -88,7 +103,8 @@ export default function Request() {
           startingDate: formData.startingDate || null,
           dueDate: formData.dueDate || null,
           paymentPeriod: formData.paymentPeriod || null,
-          interestRate: formData.interestRate || null
+          interestRate: formData.interestRate || null,
+          group_id: groupId || null
         }
       };
       await createMemberRequest(requestData);
