@@ -93,19 +93,25 @@ export default function Request() {
 
     try {
       // Always use createMemberRequest for all request types
+      const metadata = {
+        startingDate: formData.startingDate || null,
+        dueDate: formData.dueDate || null,
+        paymentPeriod: formData.paymentPeriod || null,
+        interestRate: formData.interestRate || null,
+        group_id: groupId || null
+      };
+      // For add-goal and loan-request, send goal_amount instead of amount
+      if (formData.requestType === 'add-goal' || formData.requestType === 'loan-request') {
+        metadata.goal_amount = formData.amount || null;
+      } else {
+        metadata.amount = formData.amount || null;
+      }
       const requestData = {
         type: formData.requestType,
         subject: formData.subject,
         description: formData.description,
         priority: formData.priority,
-        metadata: {
-          amount: formData.amount || null,
-          startingDate: formData.startingDate || null,
-          dueDate: formData.dueDate || null,
-          paymentPeriod: formData.paymentPeriod || null,
-          interestRate: formData.interestRate || null,
-          group_id: groupId || null
-        }
+        metadata
       };
       await createMemberRequest(requestData);
       setRecentRequests(prev => [{ id: Date.now(), type: formData.requestType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), description: formData.subject, status: "Pending", statusColor: "orange", submittedDate: "Just now" }, ...prev.slice(0, 1)]);
