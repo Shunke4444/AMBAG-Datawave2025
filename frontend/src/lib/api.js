@@ -188,10 +188,11 @@ export async function createGoal(goalData) {
   const token = await user.getIdToken();
 
   // Inject role and name so backend logic works correctly
+  // Expect goalData to include creator_role from context/provider
   const completeGoalData = {
     ...goalData,
-    creator_role: "member", // or "manager" if logged-in user is a manager
-    creator_name: user.displayName || "Unknown User"
+    creator_role: goalData.creator_role , // fallback to "member" if not provided
+    creator_name: user.displayName
   };
 
   const res = await api.post("/goal/", completeGoalData, {
@@ -203,12 +204,13 @@ export async function createGoal(goalData) {
 }
 
 
-export async function listGoals() {
+export async function listGoals(groupId) {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
   const res = await api.get("/goal/", {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
+    params: { group_id: groupId }
   });
   return res.data;
 }
@@ -290,6 +292,17 @@ export async function triggerSmartReminder({ goalId, reminderType = "payment_due
     auto_send: true
   };
   const res = await api.post(`/ai-tools/smart-reminder`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Fetch user profile from backend
+export async function getUserProfile(firebase_uid) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/users/profile/${firebase_uid}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;
