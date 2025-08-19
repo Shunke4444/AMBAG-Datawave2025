@@ -53,7 +53,8 @@ const GoalsPage = () => {
   return (
     <>
       <main className="flex flex-col w-full h-full min-h-screen justify-center">
-        <div className="w-372 h-176 bg-primary mx-20 rounded-4xl flex flex-col justify-start gap-4">
+        <div className="bg-primary rounded-4xl flex flex-col justify-start gap-4
+                w-full max-w-3xl mx-auto p-6 sm:p-8">
           <header className="flex justify-end p-8">
             {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) && (
               <button

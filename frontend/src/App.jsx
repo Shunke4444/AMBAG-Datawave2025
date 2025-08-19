@@ -109,14 +109,21 @@ const router = createBrowserRouter([
 
 
 const App = () => {
+
+  localStorage.setItem('authRole', 'dev-token'); 
+  const mockUser = { uid: 'dev-user', role: 'admin' };
+  sessionStorage.setItem('currentUser', JSON.stringify(mockUser));
+
   useEffect(() => {
-    const token = localStorage.getItem('authRole');
-    if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
-      window.location.replace('/login');
-    }
-  }, []);
+  const token = localStorage.getItem('authRole');
+  if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+    window.location.replace('/signup'); // Forces to signup if no token
+  }
+}, []);
+
+
   return (
-<AuthRoleProvider>
+    <AuthRoleProvider>
       <ChatProvider>
         <SidebarProvider>
           <MembersProvider>

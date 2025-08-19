@@ -95,7 +95,7 @@ const ManagerDashboard = ({onLoan}) => {
   // Desktop Layout
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-372 h-192 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4">
+      <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
         {/* Member List - Tall Left Box */}
         <div className="bg-secondary rounded-2xl p-4 col-span-1">
           <ContributionDiv />

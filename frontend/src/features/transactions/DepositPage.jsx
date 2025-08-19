@@ -110,7 +110,7 @@ const Deposit = () => {
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-372 h-176 bg-primary mx-16 rounded-4xl p-8">
+      <div className="w-full max-w-5xl mx-auto bg-primary rounded-4xl p-6 sm:p-8">
         {/* Saved Methods */}
         <h1 className="text-xl text-secondary font-light">Saved Deposit Methods</h1>
         <div className="flex justify-evenly p-8">

@@ -50,7 +50,7 @@ const WithdrawForm = () => {
   return (
     <main className="flex flex-col w-full h-full min-h-screen  justify-center">
 
-      <div className="w-372 min-h-176 bg-secondary outline-1 outline-primary mx-20 rounded-4xl p-8 flex gap-80">
+      <div className="w-full max-w-5xl mx-auto bg-secondary rounded-4xl p-6 flex flex-col md:flex-row gap-6">
         <form className="flex flex-col gap-16 p-4 w-160 text-textcolor">
           
           {/* Payment Method Select */}

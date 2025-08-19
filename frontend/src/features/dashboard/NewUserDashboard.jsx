@@ -118,7 +118,7 @@ const NewUserDashboard = () => {
   // Desktop Layout
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
-      <div className="w-372 h-176 bg-primary mx-20 rounded-4xl grid grid-cols-3 grid-rows-[auto_auto_auto] gap-4 p-4">
+      <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
         {/* Member List - Tall Left Box */}
         <div className="bg-shadow rounded-2xl p-4 col-span-1 flex items-center justify-center">
           <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer" onClick={() => setIsGroupModalOpen(true)}>
