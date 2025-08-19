@@ -44,21 +44,32 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
       }
 
       const goalData = {
-        firebase_uid: user?.firebase_uid,
-        title: state.goalName,
+        firebase_uid: user?.firebase_uid ?? "",
+        title: state.goalName ?? "",
         goal_amount: parseFloat(state.targetAmount),
-        target_date: state.deadline,
-        description: state.description || '',
-        goal_type: state.goalType,
-        group_id: groupId || user?.group_id,
-        creator_role: user?.role,
+        target_date: state.deadline ?? "",
+        description: state.description ?? "",
+        goal_type: state.goalType ?? "",
+        group_id: (groupId ?? user?.group_id ?? ""),
+        creator_role: user?.role ?? "",
         creator_name:
-          (user?.name && user?.name !== "") ? user.name :
+          (user?.name && typeof user.name === "string" && user.name.trim() !== "") ? user.name :
           (user?.first_name || user?.last_name) ? `${user.first_name || ""} ${user.last_name || ""}`.trim() :
-          user?.email || "Unknown User"
+          (typeof user?.email === "string" && user.email.trim() !== "") ? user.email :
+          ""
       };
       
+      // Log all required fields to verify they are valid strings
       console.log("📝 CreateGoalModal: Calling onCreateGoal with:", goalData);
+      console.log("Field check:", {
+        title: typeof goalData.title,
+        group_id: typeof goalData.group_id,
+        goal_type: typeof goalData.goal_type,
+        creator_role: typeof goalData.creator_role,
+        creator_name: typeof goalData.creator_name,
+        target_date: typeof goalData.target_date,
+        description: typeof goalData.description
+      });
       console.log("🔗 onCreateGoal function:", typeof onCreateGoal);
       
       if (typeof onCreateGoal !== 'function') {

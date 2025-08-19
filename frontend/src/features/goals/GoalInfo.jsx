@@ -14,7 +14,9 @@ const GoalInfo = () => {
     const fetchGoals = async () => {
       try {
         setLoading(true);
+        console.log('[GoalInfo] Fetching goals for groupId:', groupId);
         const goalsData = await listGoals(groupId);
+        console.log('[GoalInfo] Fetched goals:', goalsData);
         setGoals(goalsData || []);
         setError(null);
       } catch (err) {
@@ -24,6 +26,7 @@ const GoalInfo = () => {
       }
     };
     if (groupId) fetchGoals();
+    else console.log('[GoalInfo] No groupId available, cannot fetch goals');
   }, [groupId]);
 
   // Menu state
