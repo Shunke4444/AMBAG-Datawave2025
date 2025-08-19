@@ -845,7 +845,7 @@ async def get_all_goals(user=Depends(verify_token)):
         user_doc = await users_collection.find_one({"firebase_uid": user_uid})
         user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
 
-        user_group_id = user_doc.get("role", {}).get("group_id")
+        user_group_id = user_doc.get("role", {}).get("group_id") if user_doc and user_doc.get("role") else None
         goals = await goals_collection.find({"group_id" : user_group_id}).to_list(length=None)
         logger.info(f"User {user_uid} ({user_role}): Found {len(goals)} total goals")
 
