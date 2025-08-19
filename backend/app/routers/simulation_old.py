@@ -389,7 +389,7 @@ The user did not select any goal. {prompt_line}
 Respond ONLY with a single valid JSON object (no markdown, no extra text, no HTML tags).
 
 **Instructions:**
-1. **Language:** Use conversational Taglish. Be warm, supportive, and approachable.
+1. **Language:** Use conversational Taglish lean towards english a bit more, about 60%. Be warm, supportive, and approachable.
 2. **Narrative:** 
    - Tell the user they haven’t selected any goal yet in a friendly way.
    - Encourage them to choose one from their list.
@@ -397,16 +397,13 @@ Respond ONLY with a single valid JSON object (no markdown, no extra text, no HTM
    - If applicable, add this note: "{untitled_note}"
    - Example narrative:  
      "It looks like you haven't sent a goal! Maybe you can check some of your goals here and tell me which one we should focus on!"
-3. **Charts:** Always return an empty list for "charts".
-4. **Format:** Output ONLY the JSON object below, and include the array of goal titles as "goal_titles".
+3. **Format:** Output ONLY the JSON object below, and include the array of goal titles as "goal_titles".
 
 {{
     "narrative": "Friendly Taglish message referencing the user's goals.",
     "goal_titles": {titles},
 }}
 '''
-
-
 
 
 @router.post("/generate-charts")

@@ -700,10 +700,10 @@ export default function WhatIf() {
                       </ReactMarkdown>
                       {/* Render goal_titles as a styled list if present */}
                       {message.content && typeof message.content === 'object' && Array.isArray(message.content.goal_titles) && message.content.goal_titles.length > 0 && (
-                        <ul className="mt-2">
+                        <ul className="mt-2 list-disc list-inside" style={{ marginLeft: '2rem' }}>
                           {message.content.goal_titles.map((title, idx) => (
                             <li key={idx}>
-                              <span style={{ color: '#830000', fontWeight: 500 }}>{title}</span>
+                              <span style={{ color: '#830000', fontStyle: 'italic', fontWeight: 500 }}>{title}</span>
                             </li>
                           ))}
                         </ul>
