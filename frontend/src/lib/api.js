@@ -187,11 +187,12 @@ export async function createGoal(goalData) {
 
   const token = await user.getIdToken();
 
-  // Use creator_name from goalData, do not overwrite with user.displayName
+  // Inject role and name so backend logic works correctly
+  // Expect goalData to include creator_role from context/provider
   const completeGoalData = {
     ...goalData,
-    creator_role: goalData.creator_role // fallback to "member" if not provided
-    // creator_name is already set in goalData
+    creator_role: goalData.creator_role , // fallback to "member" if not provided
+    creator_name: user.displayName
   };
 
   const res = await api.post("/goal/", completeGoalData, {
@@ -320,6 +321,34 @@ export async function getUserProfile(firebase_uid) {
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
   const res = await api.get(`/users/profile/${firebase_uid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Contribute to a goal (send payment info to manager)
+export async function contributeToGoal(goalId, { amount, contributor_name, payment_method = "cash", reference_number = "" }) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const payload = {
+    amount,
+    contributor_name,
+    payment_method,
+    reference_number
+  };
+  const res = await api.post(`/goal/${goalId}/contribute`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Get contributors for a goal
+export async function getGoalContributors(goalId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/goal/${goalId}/contributors`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;
