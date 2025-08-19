@@ -7,6 +7,7 @@ export const MembersProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [groupId, setGroupId] = useState(null);
 
   useEffect(() => {
     let unsubscribe;
@@ -35,6 +36,7 @@ export const MembersProvider = ({ children }) => {
           });
           const userData = await userRes.json();
           const group_id = userData?.role?.group_id;
+          setGroupId(group_id || null);
           if (!group_id) {
             console.warn('No group_id found in user profile');
             setMembers([]);
@@ -80,6 +82,7 @@ export const MembersProvider = ({ children }) => {
       members,
       setMembers,
       loading,
+      groupId,
       searchTerm,
       setSearchTerm,
       filterStatus,

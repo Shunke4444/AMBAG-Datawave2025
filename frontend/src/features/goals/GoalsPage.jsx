@@ -16,19 +16,9 @@ const GoalsPage = () => {
     console.log("🎯 GoalsPage: handleCreateGoal called with:", goalData);
     try {
       const { createGoal } = await import("../../lib/api");
-      const creatorName =
-        user?.profile?.first_name && user?.profile?.last_name
-          ? `${user.profile.first_name} ${user.profile.last_name}`
-          : user?.email || "Unknown User";
-
-      const creatorRole = userRole?.role_type === "manager" ? "manager" : "member";
-      console.log("👤 Creator details:", { creatorName, creatorRole });
-
+      // Only add auto_payment_settings if not present, and do not overwrite group_id, creator_role, or creator_name
       const completeGoalData = {
         ...goalData,
-        group_id: user?.group_id,
-        creator_role: creatorRole,
-        creator_name: creatorName,
         auto_payment_settings: goalData.auto_payment_settings || {
           enabled: false,
           payment_method: "manual",

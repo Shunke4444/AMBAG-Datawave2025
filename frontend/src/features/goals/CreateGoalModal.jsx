@@ -3,12 +3,24 @@ import { Modal } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { initialGoalState, createGoalReducer } from "../../hooks/useCreateGoal";
 import GoalCreated from "./GoalCreated";
-
+import { useMembersContext } from "../../features/manager/contexts/MembersContext.jsx";
+import { useEffect } from "react";
 const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
   const [state, dispatch] = useReducer(createGoalReducer, initialGoalState);
-  // Import AuthRoleContext to get user and group_id
-  // eslint-disable-next-line
-  const { user } = require('../../contexts/AuthRoleContext').useAuthRoleContext?.() || {};
+  // Use MembersContext to get user and group_id
+
+  const { members, loading, groupId } = useMembersContext();
+  // Get current Firebase user UID
+  const [firebaseUid, setFirebaseUid] = useState(null);
+  useEffect(() => {
+    import('firebase/auth').then(({ getAuth }) => {
+      const auth = getAuth();
+      setFirebaseUid(auth.currentUser?.uid || null);
+    });
+  }, []);
+
+  // Find the member that matches the current Firebase UID
+  const user = members.find(m => m.firebase_uid === firebaseUid) || {};
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [error, setError] = useState(null);
   const [createdGoal, setCreatedGoal] = useState(null);
@@ -32,13 +44,18 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
       }
 
       const goalData = {
-        firebase_uid: state.firebaseUid,
+        firebase_uid: user?.firebase_uid,
         title: state.goalName,
         goal_amount: parseFloat(state.targetAmount),
         target_date: state.deadline,
         description: state.description || '',
         goal_type: state.goalType,
-        group_id: user?.group_id // <-- inject group_id from context
+        group_id: groupId || user?.group_id,
+        creator_role: user?.role,
+        creator_name:
+          (user?.name && user?.name !== "") ? user.name :
+          (user?.first_name || user?.last_name) ? `${user.first_name || ""} ${user.last_name || ""}`.trim() :
+          user?.email || "Unknown User"
       };
       
       console.log("📝 CreateGoalModal: Calling onCreateGoal with:", goalData);
@@ -101,7 +118,11 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
 
             {error && (
               <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
-                {error}
+                {typeof error === "string"
+                  ? error
+                  : Array.isArray(error)
+                  ? error.map((e, i) => <div key={i}>{e.msg || JSON.stringify(e)}</div>)
+                  : error.msg || JSON.stringify(error)}
               </div>
             )}
 
