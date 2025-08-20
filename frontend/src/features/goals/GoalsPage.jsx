@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Spa } from '@mui/icons-material';
 import GoalInfo from './GoalInfo';
 import CreateGoalModal from './CreateGoalModal';
 import { AuthRoleContext } from '../../contexts/AuthRoleContext';
@@ -49,10 +49,12 @@ const GoalsPage = () => {
                     w-full max-w-7xl mx-auto p-6 sm:p-8">
           <header className="flex justify-end p-8">
             {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) && (
+              
               <button
                 onClick={() => setIsGoalModalOpen(true)}
                 className="cursor-pointer"
               >
+                <span className='text-secondary font-semibold text-sm mr-5'>Add Goal</span>
                 <AddIcon className="text-secondary" />
               </button>
             )}

@@ -19,7 +19,7 @@ const ProfileTab = () => {
           <div key={idx} className="flex justify-between items-center gap-4">
             <div className="flex gap-2">
               <span className="font-medium text-textcolor">{info.label}:</span>
-              <span className="text-textcolor">{info.value}</span>
+              <span className="text-textcolor truncate max-w-[150px] sm:max-w-none">{info.value}</span>
             </div>
             <button
               className="outline-1 outline-gray-400 text-textcolor py-1 px-4 rounded-md cursor-pointer

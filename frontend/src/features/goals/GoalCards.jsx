@@ -49,7 +49,7 @@ const GoalCardGlassMobile = ({ goal }) => {
     <Card className="bg-white !rounded-2xl p-4 shadow-md space-y-2 h-64">
       <CardContent>
         {/* Title */}
-        <h1 className="text-md font-bold mb-4">{goal.title}</h1>
+        <h1 className="text-sm font-semibold mb-4">{goal.title}</h1>
 
         {/* Percentage + Status */}
         <div className="text-sm font-semibold text-primary">
@@ -75,12 +75,12 @@ const GoalCardGlassMobile = ({ goal }) => {
         </Box>
 
         {/* Amount */}
-        <p className="text-sm font-medium mt-4">
+        <p className="text-xs font-medium mt-4">
           {formatMoney(goal.amount)} / {formatMoney(goal.total)}
         </p>
 
         {/* Days Left */}
-        <p className="text-xs text-gray-500 mt-4">
+        <p className="text-xxs text-gray-500 mt-4">
           {calculateDaysLeft(goal.targetDate || goal.daysLeft)}
         </p>
       </CardContent>

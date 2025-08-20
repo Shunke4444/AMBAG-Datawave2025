@@ -1,5 +1,5 @@
 
-// import { useAuthRole } from "../../contexts/AuthRoleContext";
+import { useAuthRole } from "../../contexts/AuthRoleContext";
 import {
   Addchart as AddGoalIcon,
   SettingsAccessibility as MemberSettingsIcon,
@@ -9,8 +9,6 @@ import {
   CallSplit as SplitBillIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-
-
 
 const DashboardBtns = ({onLoan , onSplitBill}) => {
   const authRole = "Manager"; // later replace with useAuthRole()
@@ -35,7 +33,7 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
 
-  // Select which set to use
+  // Select which set to use buttons
   const selectedButtons = authRole === "Manager" ? managerButtons : memberButtons;
   
 
@@ -52,7 +50,7 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
           key={index} 
           onClick={action}
           className="bg-primary text-white hover:bg-primary/80
-                  w-20 h-20 rounded-lg shadow cursor-pointer
+                    w-22 h-24 px-2 py-2  rounded-lg shadow cursor-pointer
                   flex flex-col items-center justify-center
                   text-sm">
             {icon}
@@ -63,5 +61,4 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
     </div>
   );
 };
-
 export default DashboardBtns

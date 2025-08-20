@@ -95,9 +95,15 @@ const ManagerDashboard = ({ onLoan }) => {
     .slice(0, 6);
 
   // Determine if user has data (dynamic)
-  const hasGoals = goals.length > 0;
-  const hasGroup = group !== null;
-  const hasData = !goalsLoading && !groupLoading && (hasGoals || hasGroup);
+    const hasGoals = goals.length > 0;
+    const hasGroup = group !== null;
+
+    // For group column
+    const showGroupData = !groupLoading && hasGroup;
+
+    // For goals column
+    const showGoalsData = !goalsLoading && hasGoals;
+
 
   const handleOpenSplitBill = (member) => {
     setSelectedMember(member || null); // optional, if you want to open for specific member
@@ -131,14 +137,14 @@ const ManagerDashboard = ({ onLoan }) => {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
-              <p className="text-secondary text-center text-sm sm:text-base md:text-lg">
+              <p className="text-secondary text-center text-sm sm:text-base md:text-lg lg:text-xl">
                 Goals are Empty
               </p>
               <button
-                className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer"
+                className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
                 onClick={() => setIsGoalModalOpen(true)}
               >
-                <AddIcon className="text-white text-sm sm:text-base" />
+                <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
                 <span>Create a Goal</span>
               </button>
             </div>
@@ -151,7 +157,7 @@ const ManagerDashboard = ({ onLoan }) => {
 
         {!hasData && (
           <div className="p-32 mx-4 mt-6 rounded-2xl outline-1 outline-gray-200 shadow-md bg-white flex flex-col items-center justify-center gap-6">
-            <p className="text-textcolor text-center text-sm sm:text-base md:text-lg">
+            <p className="text-textcolor text-center text-sm sm:text-base md:text-lg lg:text-xl">
               You are not in a group yet
             </p>
             <button
@@ -203,7 +209,7 @@ const ManagerDashboard = ({ onLoan }) => {
 
   // ---------- Desktop Layout ----------
   return (
-    <main className="flex flex-col w-full h-full min-h-screen justify-center">
+    <main className="flex flex-col w-full h-full min-h-screen justify-start mt-24">
       <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4 auto-rows-min">
         {/* Left Column */}
         {!hasData ? (
@@ -223,8 +229,13 @@ const ManagerDashboard = ({ onLoan }) => {
         )}
 
         {/* Top Right Boxes */}
-        <div className={`col-span-2 ${hasData ? "bg-secondary" : "bg-shadow"} rounded-2xl p-4 h-120 flex items-center justify-center`}>
+        <div
+          className={`col-span-2 ${
+            hasData ? "bg-secondary" : "bg-shadow"
+          } rounded-2xl p-4 h-120 flex items-center justify-center`}
+        >
           {!hasData ? (
+            // Single placeholder only once
             <button
               className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer"
               onClick={() => setIsGoalModalOpen(true)}
@@ -233,12 +244,35 @@ const ManagerDashboard = ({ onLoan }) => {
               <span>Create a Goal</span>
             </button>
           ) : (
-            <GoalCards goals={mappedGoals} />
+            <div
+              className={`
+                grid gap-4 w-full
+                ${mappedGoals.length === 1 ? "grid-cols-1" : ""}
+                ${mappedGoals.length === 2 ? "grid-cols-2" : ""}
+                ${mappedGoals.length === 3 ? "grid-cols-3" : ""}
+                ${mappedGoals.length === 4 ? "grid-cols-2" : ""}
+                ${mappedGoals.length === 5 ? "grid-cols-2" : ""}
+                ${mappedGoals.length === 6 ? "grid-cols-3" : ""}
+              `}
+            >
+              {mappedGoals.map((goal, index) =>
+                mappedGoals.length === 5 && index === 4 ? (
+                  // Special case: 5th card spans full width
+                  <div key={goal.id || index} className="col-span-full">
+                    <GoalCards goal={goal} />
+                  </div>
+                ) : (
+                  <GoalCards key={goal.id || index} goal={goal} />
+                )
+              )}
+            </div>
           )}
         </div>
 
+
+
        {/* Bottom Left */}
-      <div className="bg-white rounded-2xl p-4  shadow-sm flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-4 row-span-3  shadow-sm flex items-center justify-center">
         {hasData ? <ConsistencyStat /> : null}
       </div>
 

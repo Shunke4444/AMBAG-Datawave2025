@@ -86,11 +86,11 @@ const ContributionDiv = () => {
 
   return (
     <div className="max-h-[600px] overflow-y-auto pr-2 flex flex-col gap-4 mt-7 outline-1 outline-gray-200 rounded-2xl shadow-md lg:outline-0 lg:rounded-none lg:shadow-none">
-      <h1 className="flex justify-center text-md font-bold text-primary mt-4 ">
+      <h1 className="flex justify-center sm:mt-4 md:text-sm font-bold text-primary">
             Group Contribution Status
           </h1>
         {contributionsList.length === 0 ? (
-            <Typography variant="body2" className="text-center text-gray-500 p-4">
+            <Typography variant="body2" className="flex justify-center sm:mt-4 md:text-md font-bold text-gray-600">
               No member contributions yet.
             </Typography>
           ) : (
@@ -100,18 +100,31 @@ const ContributionDiv = () => {
                 <div key = {index}>
                   <ListItem>
                     <ListItemText>
-                      <div className="grid grid-cols-3 gap-1 items-center">
-                        <div>
-                          <Avatar {...stringAvatar(contributions.first_name, contributions.last_name)} />
-                        </div>
-                        <div className="flex flex-col">
-                          <p className='text-sm font-semibold'>{contributions.first_name} {contributions.last_name}</p>
-                          <p className='text-xxs text-green font-light'>Contributed</p>
-                          <p className='text-xxs font-light'>{contributions.role}</p>
-                        </div>
-                        <div className="flex flex-col gap-1 text-right">
-                          <p className='text-xs font-semibold text-green'>{contributions.amount}</p>
-                          <p className='text-xxs font-light'>{contributions.date}</p>
+                      <div className="flex items-center justify-around md:justify-between ">
+                        {/* Avatar + Info block */}
+                          <div className="flex items-center gap-3">
+                            <Avatar {...stringAvatar(contributions.first_name, contributions.last_name)} />
+                            <div className="flex flex-col">
+                              <p className="text-sm sm:text-base md:text-sm font-semibold">
+                                {contributions.first_name} {contributions.last_name}
+                              </p>
+                              <p className="text-xs sm:text-sm md:text-xxs text-green font-light">
+                                Contributed
+                              </p>
+                              <p className="text-xs sm:text-sm md:text-xxs font-light">
+                                {contributions.role}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Amount + Date block (kept on the right side) */}
+                          <div className="flex flex-col gap-1 text-right">
+                            <p className="text-sm sm:text-base md:text-xs font-semibold text-green">
+                              {contributions.amount}
+                            </p>
+                            <p className="text-xxs sm:text-xs md:text-xxs font-light">
+                              {contributions.date}
+                            </p>
                         </div>
                       </div>
                     </ListItemText>
@@ -124,5 +137,4 @@ const ContributionDiv = () => {
     </div>
   )
 }
-
 export default ContributionDiv
