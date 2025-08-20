@@ -109,11 +109,11 @@ const GoalInfo = () => {
       )}
 
       {!loading && !error && goals.length > 0 && (
-        <div className="grid grid-cols-1 grid-rows-4 md:grid-cols-2 md:grid-rows-2 gap-8 min-[100px] w-364 px-14 mx-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-7xl px-4 sm:px-8 mx-auto">
           {goals.map((goal, index) => (
             <Card
               key={goal.goal_id || index}
-              className="rounded-2xl shadow-md cursor-pointer"
+              className="rounded-2xl shadow-md w-full cursor-pointer"
             >
               <CardContent className="flex flex-col relative">
                 {/* Header */}

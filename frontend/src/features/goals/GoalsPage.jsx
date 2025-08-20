@@ -44,8 +44,9 @@ const GoalsPage = () => {
   return (
     <>
       <main className="flex flex-col w-full h-full min-h-screen justify-center">
-        <div className="bg-primary rounded-4xl flex flex-col justify-start gap-4
-                w-full max-w-3xl mx-auto p-6 sm:p-8">
+        
+        <div className="bg-primary rounded-4xl flex flex-col gap-4
+                    w-full max-w-7xl mx-auto p-6 sm:p-8">
           <header className="flex justify-end p-8">
             {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) && (
               <button
@@ -59,7 +60,9 @@ const GoalsPage = () => {
 
           {/* Show goal cards only for Manager, Member, or contributor */}
           {["Manager", "Member", "manager", "member", "contributor"].includes(authRole) ? (
-            <GoalInfo />
+            <div className="w-full flex justify-center ">
+              <GoalInfo />
+            </div>  
           ) : (
             <div className="flex justify-center items-center h-full text-secondary/60">
               No goals created yet

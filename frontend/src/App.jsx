@@ -24,6 +24,7 @@ import PreferencesTab from './features/settings/PreferencesTab';
 import PrivacyLegalTab from './features/settings/PrivacyLegalTab';
 import NotificationsTab from './features/notifications/NotificationsTab';
 import Payment from './features/payments/PaymentPage';
+import SelectGoalPage from './features/payments/SelectGoalModal.jsx';
 import Request from './features/members/RequestPage'
 import ConfirmPay from './features/payments/ConfirmPayPage';
 import Receipt from './features/payments/ReceiptPage';
@@ -32,10 +33,10 @@ import MemberNotification from './features/notifications/MemberNotificationPage'
 import MemberRequestApproval from './features/manager/MemberRequestApproval'
 import MemberList from './features/manager/MemberList';
 import { OnboardingWrapper } from './features/on-boarding';
-import NewUserDashboard from './features/dashboard/NewUserDashboard';
 import { SidebarProvider } from "./contexts/SideBarProvider";
 import { MembersProvider } from './features/manager/contexts/MembersContext.jsx';
 import ApprovalsPage from './features/approvals/ApprovalsPage';
+import SplitBills from './features/manager/SplitBill.jsx';
 
 const router = createBrowserRouter([
   {
@@ -57,10 +58,6 @@ const router = createBrowserRouter([
   {
     path: '/payment',
     element: <Payment />
-  },
-  {
-    path: '/new-user-dashboard',
-    element: <NewUserDashboard/>
   },
   {
     path: '/onboarding',
@@ -107,6 +104,7 @@ const router = createBrowserRouter([
         ]
       },
       {path: 'help-support', element: <HelpSupport /> },
+      {path: 'split-bills' , element: <SplitBills />}
     ],
   },
 ])

@@ -13,9 +13,9 @@ export default function SimpleOnboarding({ onComplete }) {
 
   const onboardingSteps = [
     {
-      title: "Welcome\nTo AMBAG",
+      title: "Welcome To AMBAG",
       buttonText: "Get Started",
-      image: image1,
+      image: AMBAG_LOGO,
       isWelcome: true
     },
     {
@@ -78,10 +78,6 @@ export default function SimpleOnboarding({ onComplete }) {
         <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-yellow-200 rounded-full"></div>
       </div>
       
-      {/* Top Logo */}
-      <header className="flex justify-center py-6 z-10 relative">
-        <img src={AMBAG_LOGO} alt="AMBAG Logo" className="h-12 w-auto" />
-      </header>
 
       {/* Top section - Image */}
       <section className="flex-1 flex items-center justify-center relative z-10">
