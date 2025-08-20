@@ -1,16 +1,17 @@
+
 import { useState, useCallback } from 'react';
 
+// Store amount as a plain string (no formatting)
 export function usePaymentAmount(availableBalance = 8000, remainingAmount = 6000) {
   const [amount, setAmount] = useState('0');
   const [shouldShake, setShouldShake] = useState(false);
 
   const handleNumberPress = useCallback((number) => {
     let newAmount;
-    if (amount === '0' || amount === '4,000') {
+    if (amount === '0') {
       newAmount = number.toString();
     } else {
-      const cleanAmount = amount.replace(/,/g, '') + number;
-      newAmount = Number(cleanAmount).toLocaleString();
+      newAmount = amount + number.toString();
     }
     setAmount(newAmount);
   }, [amount]);
@@ -20,21 +21,23 @@ export function usePaymentAmount(availableBalance = 8000, remainingAmount = 6000
     if (amount.length <= 1) {
       newAmount = '0';
     } else {
-      const cleanAmount = amount.replace(/,/g, '').slice(0, -1);
-      newAmount = cleanAmount ? Number(cleanAmount).toLocaleString() : '0';
+      newAmount = amount.slice(0, -1);
     }
     setAmount(newAmount);
   }, [amount]);
 
   const handleDot = useCallback(() => {
-    if (!amount.includes('.') && amount !== '0') {
-      const newAmount = amount + '.';
-      setAmount(newAmount);
+    if (!amount.includes('.')) {
+      setAmount(amount + '.');
     }
   }, [amount]);
 
+  // For display only: format with commas
+  const formattedAmount = amount.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
   return {
-    amount,
+    amount, // plain string for backend
+    formattedAmount, // for display
     shouldShake,
     handleNumberPress,
     handleDelete,
