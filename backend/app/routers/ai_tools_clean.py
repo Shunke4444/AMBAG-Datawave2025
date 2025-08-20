@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 import json
 import re
@@ -45,10 +45,33 @@ async def convert_goal_to_group_format(goal_id: str):
         return None
     pool_data = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
     contributors_data = pool_data.get("contributors", [])
-    # Defensive: always default to empty list
-    all_members = [goal.get('creator_name', 'Unknown')]
-    # ... logic to add more members if needed ...
-    pending_members = [m for m in all_members if m not in [c.get("name", "") for c in contributors_data]]
+
+    # Get group document to fetch member objects
+    group = await groups_collection.find_one({"group_id": goal_id})
+    if group and "members" in group:
+        all_members = group["members"]
+    else:
+        # Fallback: just creator as member object
+        all_members = [{
+            "user_id": f"user_{goal.get('creator_name', 'Unknown').replace(' ', '_').lower()}_0",
+            "first_name": goal.get('creator_name', 'Unknown'),
+            "role": "manager",
+            "joined_at": goal.get('created_at', datetime.now().isoformat()),
+            "contribution_total": 0.0,
+            "is_active": True
+        }]
+
+    # Pending members: those who have not contributed
+    contributed_names = [c.get("name", "") for c in contributors_data]
+    pending_members = [m.get("user_id") for m in all_members if (m.get("first_name") or m.get("name") or m.get("user_id")) not in contributed_names]
+
+    # Fix: handle target_date as string or datetime
+    target_date = goal.get('target_date')
+    if isinstance(target_date, date) or isinstance(target_date, datetime):
+        deadline = target_date.isoformat()
+    else:
+        deadline = str(target_date) if target_date else datetime.now().isoformat()
+
     group_data = {
         "id": goal_id,
         "title": goal.get('title', 'Untitled Goal'),
@@ -56,7 +79,7 @@ async def convert_goal_to_group_format(goal_id: str):
         "current_amount": pool_data.get('current_amount', 0.0),
         "status": goal.get('status', 'active'),
         "creator": goal.get('creator_name', 'Unknown'),
-        "deadline": (goal.get('target_date') or datetime.now()).isoformat(),
+        "deadline": deadline,
         "members": all_members,
         "contributions": [
             {
@@ -402,14 +425,36 @@ async def execute_autonomous_action(action_type: Optional[str], group_id: str, a
         logger.error(f"Action execution failed: {str(e)}")
         return {"executed": False, "error": str(e)}
 
+
+
+# ...existing imports...
+from .mongo import users_collection, groups_collection, goals_collection, pool_status_collection, smart_reminders_collection, notifications_collection, executed_actions_collection
+# ...existing code...
+
+async def resolve_member_name(member_uid, member_obj=None):
+    user_data = await users_collection.find_one({"firebase_uid": member_uid})
+    if user_data and "profile" in user_data:
+        first = user_data["profile"].get("first_name", "")
+        last = user_data["profile"].get("last_name", "")
+        full_name = f"{first} {last}".strip()
+        if full_name:
+            return full_name
+    if member_obj:
+        return member_obj.get("first_name") or member_obj.get("name") or member_uid
+    return member_uid
+
 async def send_contributor_reminder(group_id: str, action_data: Dict, target_members: List[str]):
-    
     notifications_sent = []
-    
-    for member in target_members:
+    from .mongo import users_collection
+    # Build member_map for fallback
+    group = await groups_collection.find_one({"group_id": group_id})
+    member_map = {m.get("user_id"): m for m in group.get("members", [])} if group and "members" in group else {}
+    for member_uid in target_members:
+        member_obj = member_map.get(member_uid)
+        member_name = await resolve_member_name(member_uid, member_obj)
         # Generate personalized message
         message = f"""
-        Hi {member}! 👋
+        Hi {member_name}! 👋
         
         Your ₱{action_data.get('amount_due', 0)} share is due by {action_data.get('deadline', 'soon')}.
         
@@ -422,12 +467,11 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         
         Your group is counting on you! 💪
         """
-        
-        # PRODUCTION: Send via SMS/Email/Push notification
         notification = {
-            "id": f"rem_{group_id}_{member}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "id": f"rem_{group_id}_{member_uid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             "type": "contributor_reminder",
-            "recipient": member,
+            "recipient": member_uid,
+            "recipient_name": member_name,
             "group_id": group_id,
             "message": message,
             "channel": "push notification",  # Could be sms, email, push
@@ -435,17 +479,11 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
             "timestamp": datetime.now().isoformat(),
             "auto_generated": True  # Indicates this was generated by AI
         }
-        
-        # notifications_db.append(notification)
         await notifications_collection.insert_one(notification)
-        notifications_sent.append(member)
-        
-        # Log the notification creation for debugging
-        logger.info(f"✅ Notification created and stored: {notification['id']} for {member} in group {group_id}")
+        notifications_sent.append(member_uid)
+        logger.info(f"✅ Notification created and stored: {notification['id']} for {member_uid} in group {group_id}")
         notifications_count = await notifications_collection.count_documents({})
         logger.info(f"📊 Total notifications in database: {notifications_count}")
-    
-    # Log the autonomous action
     await executed_actions_collection.insert_one({
         "action_type": "send_reminder",
         "group_id": group_id,
@@ -454,7 +492,6 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         "timestamp": datetime.now().isoformat(),
         "autonomous": True
     })
-    
     return {
         "executed": True,
         "action": "reminder_sent",
@@ -734,71 +771,89 @@ async def setup_payment_plan(group_id: str, action_data: Dict, target_members: L
         "members": plans_created
     }
 
+
 @router.post("/smart-reminder")
 async def smart_reminder(request: SmartReminderRequest, background_tasks: BackgroundTasks):
     """
     PRODUCTION: AI-powered smart reminders with autonomous sending
     Generates and optionally sends personalized reminders automatically
     """
-    
     try:
         # Get actual goal data from real database
         group_data = await convert_goal_to_group_format(request.group_id)
-        
         if not group_data:
-            raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
-        
-        if group_data is None:
-            raise HTTPException(status_code=404, detail=f"Goal {request.group_id} not found")
+            raise HTTPException(status_code=404, detail=f"Group {request.group_id} not found")
         analytics = calculate_group_analytics(group_data) if group_data is not None else {}
-        
+
+        # Robustly resolve member names for AI prompt
+        async def resolve_member_name(member_uid, member_obj=None):
+            from .mongo import users_collection
+            user_data = await users_collection.find_one({"firebase_uid": member_uid})
+            if user_data and "profile" in user_data:
+                first = user_data["profile"].get("first_name", "")
+                last = user_data["profile"].get("last_name", "")
+                full_name = f"{first} {last}".strip()
+                if full_name:
+                    return full_name
+            if member_obj:
+                return member_obj.get("first_name") or member_obj.get("name") or member_uid
+            return member_uid
+
+        member_map = {m.get("user_id"): m for m in group_data.get("members", [])}
+        target_uids = request.target_members or group_data.get("pending_members", [])
+        target_names = []
+        for uid in target_uids:
+            member_obj = member_map.get(uid)
+            name = await resolve_member_name(uid, member_obj)
+            target_names.append(name)
+
         context = {
             "group": group_data,
             "analytics": analytics,
             "reminder_type": request.reminder_type,
-            "target_members": request.target_members,
+            "target_members": target_names,
             "urgency": request.urgency,
             "auto_send": request.auto_send,
             "custom_message": request.custom_message
         }
-        
+
         ai_prompt = f"""
-        Generate personalized reminder for AMBAG financial group {request.group_id}
-        
-        Context:
-        - Platform: Filipino bill sharing and savings collaboration
-        - Reminder Type: {request.reminder_type}
-        - Urgency: {request.urgency}
-        - Target Members: {request.target_members or group_data.get('pending_members', [])}
-        - Custom Context: {request.custom_message or 'None'}
-        
-        Group Details:
-        - Title: {group_data.get('title', 'Unknown Group')}
-        - Goal: ₱{group_data.get('goal_amount', 0):,.2f}
-        - Current: ₱{group_data.get('current_amount', 0):,.2f}
-        - Progress: {analytics.get('progress_percentage', 0):.1f}%
-        - Remaining: ₱{analytics.get('remaining_amount', 0):,.2f}
-        - Deadline: {group_data.get('deadline', 'Not set')}
-        - Days Left: {analytics.get('days_remaining', 0)}
-        - Members: {len(group_data.get('members', []))}
-        - Pending: {', '.join(group_data.get('pending_members', []))}
-        
-        Recent Contributions:
-        {chr(10).join([f"• {c['member']}: ₱{c['amount']:,.2f} on {c['timestamp'][:10]}" for c in group_data.get('contributions', [])[-3:]])}
-        
-        Generate appropriate reminder message in Filipino-English mix (Taglish) that's:
-        - Friendly but motivating
-        - Includes specific amounts and deadlines
-        - Culturally appropriate for Filipino users
-        - Action-oriented with clear next steps
-        - Mentions actual group progress and member contributions
-        
-        Return JSON with: message, urgency_level, suggested_actions, and personalized_amount_due
-        """
-        
+Generate personalized reminder for AMBAG financial goal {request.group_id}
+
+Context:
+- Platform: Filipino bill sharing and savings collaboration
+- Reminder Type: {request.reminder_type}
+- Urgency: {request.urgency}
+- Target Members: {target_names}
+- Custom Context: {request.custom_message or 'None'}
+
+Goal Details:
+- Title: {group_data.get('title', 'Unknown Goal')}
+- Goal: ₱{group_data.get('goal_amount', 0):,.2f}
+- Current: ₱{group_data.get('current_amount', 0):,.2f}
+- Progress: {analytics.get('progress_percentage', 0):.1f}%
+- Remaining: ₱{analytics.get('remaining_amount', 0):,.2f}
+- Deadline: {group_data.get('deadline', 'Not set')}
+- Days Left: {analytics.get('days_remaining', 0)}
+- Members: {len(group_data.get('members', []))}
+- Pending: {', '.join(group_data.get('pending_members', []))}
+
+Recent Contributions:
+{chr(10).join([f"• {c['member']}: ₱{c['amount']:,.2f} on {c['timestamp'][:10]}" for c in group_data.get('contributions', [])[-3:]])}
+
+Generate appropriate reminder message in Filipino-English mix (Taglish) that's:
+- Friendly but motivating
+- Includes specific amounts and deadlines
+- Culturally appropriate for Filipino users
+- Action-oriented with clear next steps
+- Mentions actual goal progress and member contributions
+
+Return JSON with: message, urgency_level, suggested_actions, and personalized_amount_due
+"""
+
         # Get AI-generated reminder
         ai_reminder = await get_ai_analysis(ai_prompt)
-        
+
         # Store the reminder
         reminder_result = {
             "id": f"reminder_{request.group_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -809,16 +864,16 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
             "timestamp": datetime.now().isoformat(),
             "auto_send": request.auto_send
         }
-        
+
         await smart_reminders_collection.insert_one(reminder_result)
-        
+
         # AUTONOMOUS SENDING: If auto_send is enabled, send the reminder immediately
         send_results = []
         if request.auto_send:
             # Calculate realistic amounts for each target member
             target_members = request.target_members or group_data.get("pending_members", [])
             per_member_amount = analytics.get("remaining_amount", 0) / max(len(target_members), 1) if target_members else 0
-            
+
             # Execute autonomous action (let system decide best approach)
             background_tasks.add_task(
                 execute_autonomous_action,
@@ -837,7 +892,7 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
                 target_members
             )
             send_results = target_members
-        
+
         response = {
             "reminder_id": reminder_result["id"],
             "group_id": request.group_id,
@@ -846,11 +901,11 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
             "auto_sent_to": send_results if request.auto_send else [],
             "auto_send": request.auto_send
         }
-        
+
         logger.info(f"Smart reminder generated for group {request.group_id} - Auto-send: {request.auto_send}")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Smart reminder error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Reminder generation failed: {str(e)}")
@@ -865,36 +920,43 @@ async def trigger_agentic_action(group_id: str, background_tasks: BackgroundTask
         group_data = await convert_goal_to_group_format(group_id)
         if not group_data:
             raise HTTPException(status_code=404, detail=f"Goal {group_id} not found")
-        
-        analytics = calculate_group_analytics(group_data)
-        
-        # Execute pure agentic action (system decides everything)
-        background_tasks.add_task(
-            execute_autonomous_action,
-            None,  # Pure agentic mode - no action type specified
-            group_id,
-            {
-                "current_amount": group_data.get("current_amount", 0),
-                "goal_amount": group_data.get("goal_amount", 0),
-                "deadline": group_data.get("deadline", "soon"),
-                "remaining_amount": analytics.get("remaining_amount", 0),
-                "progress_percentage": analytics.get("progress_percentage", 0),
-                "days_remaining": analytics.get("days_remaining", 0),
-                "pending_members": group_data.get("pending_members", []),
-                "contributors": [c["member"] for c in group_data.get("contributions", [])]
-            },
-            group_data.get("pending_members", [])
-        )
-        
-        return {
-            "success": True,
-            "group_id": group_id,
-            "action_type": "agentic_autonomous",
-            "message": "System will autonomously determine and execute the best action",
-            "analytics": analytics,
+        analytics = calculate_group_analytics(group_data) if group_data is not None else {}
+
+        context = {
+            "goal": group_data,
+            "analytics": analytics
+        }
+
+        ai_prompt = f"""
+Generate personalized reminder for AMBAG financial goal {group_id}
+...existing code...
+"""
+
+        # Get AI-generated reminder
+        ai_reminder = await get_ai_analysis(ai_prompt)
+
+        # Store the reminder
+        reminder_result = {
+            "id": f"reminder_{group_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "goal_id": group_id,
+            "ai_reminder": ai_reminder,
+            "context": context,
             "timestamp": datetime.now().isoformat()
         }
-        
+
+        await smart_reminders_collection.insert_one(reminder_result)
+
+        # Optionally, trigger autonomous action (example: send reminder)
+        # background_tasks.add_task(execute_autonomous_action, "auto", group_id, {}, [])
+
+        logger.info(f"Agentic action triggered for group {group_id}")
+
+        return {
+            "reminder_id": reminder_result["id"],
+            "goal_id": group_id,
+            "generated_reminder": ai_reminder,
+            "timestamp": reminder_result["timestamp"]
+        }
     except Exception as e:
         logger.error(f"Agentic action error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Agentic action failed: {str(e)}")
