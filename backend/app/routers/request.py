@@ -34,22 +34,25 @@ async def approve_member_request(request_id: str, user=Depends(verify_token)):
         else:
             creator_name = user_doc.get("email", "Unknown User")
     user_role = request_user_doc.get("role", {}).get("role_type", "contributor") if request_user_doc else "contributor"
+    metadata = data.get("metadata", {})
+    # Accept both 'target_date' and 'dueDate' from metadata
+    target_date = metadata.get("target_date") or metadata.get("dueDate") or datetime.now().date().isoformat()
     goal_doc = {
         "goal_id": goal_id,
-        "group_id": data.get("metadata", {}).get("group_id", "abcd"),
-        "title": data.get("subject") or data.get("metadata", {}).get("title", "Untitled Goal"),
+        "group_id": metadata.get("group_id", "abcd"),
+        "title": data.get("subject") or metadata.get("title", "Untitled Goal"),
         "description": data.get("description", ""),
-        "goal_amount": data.get("metadata", {}).get("goal_amount", 0.0),
-        "goal_type": data.get("metadata", {}).get("goal_type", "Other"),
+        "goal_amount": metadata.get("goal_amount", 0.0),
+        "goal_type": metadata.get("goal_type", "Other"),
         "current_amount": 0.0,
         "creator_role": user_role,
         "creator_name": creator_name,
-        "target_date": data.get("metadata", {}).get("target_date", datetime.now().date().isoformat()),
+        "target_date": target_date,
         "is_paid": False,
         "status": "active",
         "created_at": data.get("created_at"),
         "approved_at": data.get("created_at"),
-        "auto_payment_settings": data.get("metadata", {}).get("auto_payment_settings", None)
+        "auto_payment_settings": metadata.get("auto_payment_settings", None)
     }
     await goals_collection.insert_one(goal_doc)
     await requests_collection.delete_one({"_id": ObjectId(request_id)})
@@ -96,22 +99,24 @@ async def create_member_request(request: MemberRequest, user=Depends(verify_toke
                 creator_name = profile.get("first_name", "") + " " + profile.get("last_name", "")
             else:
                 creator_name = user_doc.get("email", "Unknown User")
+        metadata = data.get("metadata", {})
+        target_date = metadata.get("target_date") or metadata.get("dueDate") or datetime.now().date().isoformat()
         goal_doc = {
             "goal_id": goal_id,
-            "group_id": data.get("metadata", {}).get("group_id", "abcd"),
-            "title": data.get("subject") or data.get("metadata", {}).get("title", "Untitled Goal"),
+            "group_id": metadata.get("group_id", "abcd"),
+            "title": data.get("subject") or metadata.get("title", "Untitled Goal"),
             "description": data.get("description", ""),
-            "goal_amount": data.get("metadata", {}).get("goal_amount", 0.0),
-            "goal_type": data.get("metadata", {}).get("goal_type", "Other"),
+            "goal_amount": metadata.get("goal_amount", 0.0),
+            "goal_type": metadata.get("goal_type", "Other"),
             "current_amount": 0.0,
             "creator_role": user_role,
             "creator_name": creator_name,
-            "target_date": data.get("metadata", {}).get("target_date", datetime.now().date().isoformat()),
+            "target_date": target_date,
             "is_paid": False,
             "status": "active",
             "created_at": data.get("created_at"),
             "approved_at": data.get("created_at"),
-            "auto_payment_settings": data.get("metadata", {}).get("auto_payment_settings", None)
+            "auto_payment_settings": metadata.get("auto_payment_settings", None)
         }
         result = await goals_collection.insert_one(goal_doc)
         return {"message": "Manager request submitted as goal", "goal_id": str(result.inserted_id)}

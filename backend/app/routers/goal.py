@@ -530,7 +530,12 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
             )
             goal_dict = new_goal.model_dump()
             goal_dict['creator_uid'] = user.get('uid') if user else None
-            # Convert target_date to ISO string if it's a datetime.date
+            # Ensure target_date is set from dueDate if missing
+            goal_dict = goal_data.model_dump() if hasattr(goal_data, 'model_dump') else dict(goal_data)
+            if not goal_dict.get('target_date') and goal_dict.get('dueDate'):
+                goal_dict['target_date'] = goal_dict['dueDate']
+            if goal_data.creator_role not in ["manager", "member"]:
+                raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'member'.")
             if isinstance(goal_dict.get('target_date'), date):
                 goal_dict['target_date'] = goal_dict['target_date'].isoformat()
             await goals_collection.insert_one(goal_dict)
@@ -887,9 +892,23 @@ class contributionData(BaseModel):
 
 @router.post("/{goal_id}/contribute")
 async def contribute_to_goal(goal_id: str, contribution: contributionData, user=Depends(verify_token)):
-    pool = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
-    if not pool.get("goal_id"):
-        raise HTTPException(status_code=404, detail="Goal not found")
+
+    pool = await pool_status_collection.find_one({"goal_id": goal_id})
+    if not pool:
+        # Try to find the goal in goals_collection
+        goal_item = await goals_collection.find_one({"goal_id": goal_id})
+        if not goal_item:
+            raise HTTPException(status_code=404, detail="Goal not found")
+        # Auto-create pool status entry for this goal
+        pool_doc = {
+            "goal_id": goal_id,
+            "current_amount": 0.0,
+            "is_paid": False,
+            "status": goal_item.get("status", "active"),
+            "contributors": []
+        }
+        await pool_status_collection.insert_one(pool_doc)
+        pool = pool_doc
 
     amount = float(contribution.amount)
     if amount <= 0:

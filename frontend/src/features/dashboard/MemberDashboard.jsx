@@ -36,7 +36,7 @@ const MemberDashboard = ({ onLoan }) => {
     ...g,
     amount: g.current_amount ?? 0,
     total: g.goal_amount ?? 0,
-    targetDate: g.target_date,
+    targetDate: g.target_date || g.dueDate || "",
   })).slice(0, 6);
 
   if (isUseMobile) {

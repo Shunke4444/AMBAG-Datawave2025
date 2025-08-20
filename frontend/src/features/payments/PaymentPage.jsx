@@ -10,7 +10,7 @@ import NumberPad from './NumberPad';
 import PaymentButton from './PaymentButton';
 
 import { usePaymentAmount } from '../../hooks/usePaymentAmount';
-import { contributeToGoal, getMyVirtualBalance } from '../../lib/api';
+import { contributeToGoal, getMyVirtualBalance, listGoals } from '../../lib/api';
 import { useEffect, useState } from 'react';
 import { getAuth } from "firebase/auth";
 
@@ -30,8 +30,32 @@ function PaymentPage() {
   // Virtual balance state
   const [availableBalance, setAvailableBalance] = useState(0);
   const [availableBalanceDisplay, setAvailableBalanceDisplay] = useState('P0');
-  // TODO: Replace with real remainingAmount from context or props
-  const remainingAmount = 6000;
+  // State for real goal data
+  const [goalName, setGoalName] = useState('');
+  const [remainingAmount, setRemainingAmount] = useState(0);
+
+  // Fetch goal data by goalId
+  useEffect(() => {
+    async function fetchGoal() {
+      try {
+        // listGoals returns all goals for the group, so find the one with goalId
+        // groupId is not available here, so fetch all and filter
+        const allGoals = await listGoals();
+        const goal = allGoals.find(g => String(g.goal_id) === String(goalId));
+        if (goal) {
+          setGoalName(goal.title || '');
+          // Calculate remaining amount: goal_amount - total_contributed (fallback to goal_amount if missing)
+          const contributed = goal.total_contributed ?? 0;
+          const target = goal.goal_amount ?? 0;
+          setRemainingAmount(Math.max(target - contributed, 0));
+        }
+      } catch (e) {
+        setGoalName('');
+        setRemainingAmount(0);
+      }
+    }
+    fetchGoal();
+  }, [goalId]);
 
   useEffect(() => {
     async function fetchBalance() {
@@ -52,6 +76,7 @@ function PaymentPage() {
 
   const {
     amount,
+    formattedAmount,
     shouldShake,
     handleNumberPress,
     handleDelete,
@@ -66,8 +91,10 @@ function PaymentPage() {
       if (!user) throw new Error("Not authenticated");
       const contributor_name = user.displayName || user.email || "Unknown User";
       if (!goalId) throw new Error("Goal ID not provided");
+      // Always send the unformatted value to backend
+      const numericAmount = parseFloat(amount.replace(/,/g, ''));
       await contributeToGoal(goalId, {
-        amount: parseFloat(amount),
+        amount: numericAmount,
         contributor_name,
         payment_method: "cash",
         reference_number: ""
@@ -108,13 +135,13 @@ function PaymentPage() {
           {/* Left Side - Payment Form */}
           <section className="bg-white rounded-2xl p-8 shadow-lg">
             <RemainingShareCard 
-              goalName="House Bills"
-              remainingAmount={`P${remainingAmount}`}
+              goalName={goalName}
+              remainingAmount={`P${remainingAmount.toLocaleString()}`}
               variant="desktop"
             />
 
             <PaymentAmountDisplay 
-              amount={amount}
+              amount={formattedAmount}
               availableBalance={availableBalanceDisplay}
               variant="desktop"
             />
@@ -163,13 +190,13 @@ function PaymentPage() {
       `}</style>
 
       <RemainingShareCard 
-        goalName="House Bills"
-        remainingAmount={`P${remainingAmount}`}
+        goalName={goalName}
+        remainingAmount={`P${remainingAmount.toLocaleString()}`}
         variant="mobile"
       />
 
       <PaymentAmountDisplay 
-        amount={amount}
+        amount={formattedAmount}
         availableBalance={availableBalanceDisplay}
         variant="mobile"
       />
