@@ -96,9 +96,19 @@ function PaymentPage() {
       await contributeToGoal(goalId, {
         amount: numericAmount,
         contributor_name,
-        payment_method: "cash",
+        payment_method: "virtual_balance",
         reference_number: ""
       });
+      // Refetch balance after successful payment
+      try {
+        const balance = await getMyVirtualBalance();
+        const bal = typeof balance === 'number' ? balance : (balance?.total_balance || 0);
+        setAvailableBalance(bal);
+        setAvailableBalanceDisplay(`P${bal.toLocaleString()}`);
+      } catch (e) {
+        setAvailableBalance(0);
+        setAvailableBalanceDisplay('P0');
+      }
       alert("Payment sent!");
     } catch (err) {
       alert("Payment failed: " + (err?.message || err));
