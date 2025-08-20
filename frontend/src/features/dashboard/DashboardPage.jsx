@@ -1,7 +1,6 @@
 import { useState } from "react";
 import ManagerDashboard from "./ManagerDashboard";
 import MemberDashboard from "./MemberDashboard";
-import NewUserDashboard from "./NewUserDashboard";
 import LoanRequestModal from "../loan/LoanRequestModal";
 import DashboardBtns from "./DashboardBtns";
 import useIsMobile from "../../hooks/useIsMobile"; // ✅ import your hook

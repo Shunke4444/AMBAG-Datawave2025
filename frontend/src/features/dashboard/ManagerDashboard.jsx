@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import CreateGoalModal from "../goals/CreateGoalModal";
 import CreateGroupModal from "../groups/CreateGroupModal";
+import SplitBill from "../manager/SplitBill";
 
 const ManagerDashboard = ({ onLoan }) => {
   const isMobile = useIsMobile();
@@ -27,6 +28,9 @@ const ManagerDashboard = ({ onLoan }) => {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const { user } = useAuthRole();
+  const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+
 
   // Fetch user first name
   useEffect(() => {
@@ -94,6 +98,23 @@ const ManagerDashboard = ({ onLoan }) => {
   const hasGoals = goals.length > 0;
   const hasGroup = group !== null;
   const hasData = !goalsLoading && !groupLoading && (hasGoals || hasGroup);
+
+  const handleOpenSplitBill = (member) => {
+    setSelectedMember(member || null); // optional, if you want to open for specific member
+    setIsSplitBillOpen(true);
+  };
+
+  const handleCloseSplitBill = () => {
+    setIsSplitBillOpen(false);
+    setSelectedMember(null);
+  };
+
+  const handleSaveQuota = (quota) => {
+    console.log("Quota saved:", quota);
+    // TODO: update backend / state with new quota
+    handleCloseSplitBill();
+  };
+
 
   // ---------- Mobile Layout ----------
   if (isMobile) {
@@ -168,6 +189,14 @@ const ManagerDashboard = ({ onLoan }) => {
             onCreateGoal={() => {}}
           />
         )}
+
+        {/* Quota Modal */}
+        <SplitBill
+          open={isSplitBillOpen}
+          member={selectedMember}
+          onClose={handleCloseSplitBill}
+          onSave={handleSaveQuota}
+        />
       </main>
     );
   }
@@ -209,18 +238,13 @@ const ManagerDashboard = ({ onLoan }) => {
         </div>
 
        {/* Bottom Left */}
-      <div className="bg-white rounded-2xl p-4 h-40 shadow-sm flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-4  shadow-sm flex items-center justify-center">
         {hasData ? <ConsistencyStat /> : null}
-        <>
-          <p className="text-gray-500">Group Consistency Report</p> 
-          <br />
-          <p className="text-gray-500">No Available Data</p>
-        </>
       </div>
 
         {/* Bottom Right */}
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
-          <DashboardBtns onLoan={onLoan} />
+          <DashboardBtns onLoan={onLoan}  onSplitBill={handleOpenSplitBill}/>
         </div>
       </div>
 
@@ -238,6 +262,13 @@ const ManagerDashboard = ({ onLoan }) => {
           onCreateGoal={() => {}}
         />
       )}
+      {/* Quota Modal */}
+      <SplitBill
+        open={isSplitBillOpen}
+        member={selectedMember}
+        onClose={handleCloseSplitBill}
+        onSave={handleSaveQuota}
+      />
     </main>
   );
 };

@@ -1,29 +1,37 @@
-import React, { useState } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, ListItemButton, ListItemText, Divider, Switch, FormControlLabel } from "@mui/material";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  Switch,
+  FormControlLabel,
+  TextField,
+} from "@mui/material";
 
-const membersData = [
+const mockMembers = [
   { id: 1, name: "Alice", quota: 0 },
   { id: 2, name: "Bob", quota: 0 },
   { id: 3, name: "Charlie", quota: 0 },
+  { id: 4, name: "Diana", quota: 0 },
+  { id: 5, name: "Ethan", quota: 0 },
 ];
 
-const SplitBill = () => {
-  const [open, setOpen] = useState(false);
-  const [members, setMembers] = useState(membersData);
+const SplitBill = ({ open, onClose, onSave }) => {
+  const [members, setMembers] = useState(mockMembers);
   const [selectedMember, setSelectedMember] = useState(null);
   const [inputQuota, setInputQuota] = useState("");
   const [equalSplit, setEqualSplit] = useState(false);
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => {
-    setSelectedMember(null);
-    setInputQuota("");
-    setOpen(false);
-  };
-
   const handleSelectMember = (member) => {
     setSelectedMember(member);
-    setInputQuota(member.quota);
+    setInputQuota(member.quota.toString());
   };
 
   const handleSaveQuota = () => {
@@ -33,72 +41,95 @@ const SplitBill = () => {
           m.id === selectedMember.id ? { ...m, quota: Number(inputQuota) } : m
         )
       );
+      setSelectedMember(null);
+      setInputQuota("");
     }
-    handleClose();
   };
 
   const handleEqualSplitToggle = () => {
     setEqualSplit(!equalSplit);
     if (!equalSplit) {
-      const totalQuota = members.reduce((acc, m) => acc + m.quota, 0);
-      const fairShare = totalQuota / members.length;
+      const total = 100; // EXAMPLE POOL BALANCE, adjust as needed 
+      const fairShare = Math.floor(total / members.length);
       setMembers(members.map((m) => ({ ...m, quota: fairShare })));
     }
   };
 
+  const handleFinalSave = () => {
+    onSave(members);
+    onClose();
+  };
+
   return (
-    <div className="p-4">
-      <Button variant="contained" color="primary" onClick={handleOpen}>
-        Split Quota
-      </Button>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle className="bg-primary text-secondary text-sm font-semibold">Allocate Monthly Quotas</DialogTitle>
+      <DialogContent dividers>
+        {/* Equal Split Option */}
+        <FormControlLabel
+          control={
+            <Switch checked={equalSplit} onChange={handleEqualSplitToggle} />
+          }
+          label="Fair Split (Equal for All)"
+        />
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>Split Contribution Quota</DialogTitle>
-        <DialogContent className="space-y-4">
-          <FormControlLabel
-            control={<Switch checked={equalSplit} onChange={handleEqualSplitToggle} />}
-            label="Fair Split (Equal for All)"
-          />
-
-          <List className="border rounded-md">
-            {members.map((member) => (
-              <div key={member.id}>
-                <ListItem disablePadding>
-                  <ListItemButton
-                    onClick={() => handleSelectMember(member)}
-                    className="flex justify-between"
-                  >
-                    <ListItemText primary={member.name} />
-                    <span>{member.quota}</span>
-                  </ListItemButton>
-                </ListItem>
-                <Divider />
-              </div>
-            ))}
-          </List>
-
-          {selectedMember && !equalSplit && (
-            <div className="mt-4">
-              <TextField
-                label={`Set quota for ${selectedMember.name}`}
-                type="number"
-                fullWidth
-                value={inputQuota}
-                onChange={(e) => setInputQuota(e.target.value)}
-              />
+        {/* Members List */}
+        <List
+          className="border rounded-md"
+          sx={{ maxHeight: 200, overflowY: "auto" }} // scrollable if >3
+        >
+          {members.map((member) => (
+            <div key={member.id}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleSelectMember(member)}
+                  className="flex justify-between"
+                >
+                  <ListItemText primary={member.name} />
+                  <span>{member.quota}</span>
+                </ListItemButton>
+              </ListItem>
+              <Divider />
             </div>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleSaveQuota} variant="contained" color="primary">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+          ))}
+        </List>
+
+        {/* Quota Input for selected member */}
+        {selectedMember && !equalSplit && (
+          <div className="mt-4 space-y-3">
+            <TextField
+              label={`Quota for ${selectedMember.name}`}
+              type="text"
+              fullWidth
+              value={inputQuota}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (/^\d*$/.test(value)) setInputQuota(value);
+              }}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSaveQuota}
+              fullWidth
+            >
+              Save Quota
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+
+      <DialogActions className="flex gap-4">
+        <button onClick={onClose} className="text-primary bg-gray-200 p-2 rounded cursor-pointer hover:bg-gray-300">
+          Cancel
+        </button>
+        <button
+          onClick={handleFinalSave}
+          className="bg-primary text-secondary p-2 rounded cursor-pointer hover:bg-shadow"
+        >
+          Save All
+        </button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
