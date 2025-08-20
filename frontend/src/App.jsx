@@ -24,7 +24,6 @@ import PreferencesTab from './features/settings/PreferencesTab';
 import PrivacyLegalTab from './features/settings/PrivacyLegalTab';
 import NotificationsTab from './features/notifications/NotificationsTab';
 import Payment from './features/payments/PaymentPage';
-import SelectGoalPage from './features/payments/SelectGoalPage';
 import Request from './features/members/RequestPage'
 import ConfirmPay from './features/payments/ConfirmPayPage';
 import Receipt from './features/payments/ReceiptPage';
@@ -90,7 +89,6 @@ const router = createBrowserRouter([
       {path: 'member-requests', element: <Request />},
       {path: 'requests', element: <Request />},
   {path: 'payment/:goalId', element: <Payment />},
-  {path: 'select-goal', element: <SelectGoalPage />},
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},
       {path: 'member-notification', element: <MemberNotification />},
