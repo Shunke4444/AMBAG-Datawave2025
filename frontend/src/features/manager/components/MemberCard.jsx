@@ -18,7 +18,8 @@ import {
  * @param {Function} props.onNudge - Nudge handler
  */
 const MemberCard = ({ member, onClick, onNudge }) => {
-  const progressPercentage = getProgressPercentage(member.paidAmount, member.targetAmount);
+  // Defensive: avoid NaN if targetAmount is 0 or undefined
+  const progressPercentage = member.targetAmount > 0 ? getProgressPercentage(member.paidAmount, member.targetAmount) : 0;
 
   const handleNudgeClick = (e) => {
     e.stopPropagation();
@@ -27,6 +28,8 @@ const MemberCard = ({ member, onClick, onNudge }) => {
 
   // Defensive: default paymentHistory to [] if undefined
   const paymentHistory = Array.isArray(member.paymentHistory) ? member.paymentHistory : [];
+  // Defensive: handle missing deadline
+  const deadline = member.deadline ? member.deadline : null;
   return (
     <article
       onClick={() => onClick(member)}
@@ -93,7 +96,7 @@ const MemberCard = ({ member, onClick, onNudge }) => {
           ></div>
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>{progressPercentage.toFixed(0)}% completed</span>
+          <span>{member.targetAmount > 0 ? `${progressPercentage.toFixed(0)}% completed` : '0% completed'}</span>
           {member.missedPayments > 0 && (
             <span className="text-primary font-medium">
               {member.missedPayments} missed payment{member.missedPayments > 1 ? 's' : ''}
@@ -105,12 +108,13 @@ const MemberCard = ({ member, onClick, onNudge }) => {
       <footer className="flex justify-between text-xs text-gray-600">
         <span>Recent: {formatCurrency(paymentHistory[0]?.amount || 0)}</span>
         <span>
-          Last paid: {member.lastPayment?.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          })}
+          Last paid: {member.lastPayment ? member.lastPayment.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No payment'}
         </span>
       </footer>
+      {/* Deadline display */}
+      <div className="text-xs text-gray-500 mt-2">
+        {deadline ? deadline : 'No deadline'}
+      </div>
     </article>
   );
 };
