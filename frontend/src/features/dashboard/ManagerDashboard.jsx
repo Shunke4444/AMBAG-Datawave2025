@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
 import { api, listGoals } from "../../lib/api";
+import ManagerBalanceCard from "../manager/components/ManagerBalanceCard";
 import useIsMobile from "../../hooks/useIsMobile";
 import { useAuthRole } from "../../contexts/AuthRoleContext";
 
@@ -124,7 +125,8 @@ const ManagerDashboard = ({ onLoan }) => {
           <div className="my-4">
             <MemberHeader userName={firstName || "Manager"} />
           </div>
-
+          {/* Manager Balance Card - mobile style */}
+          <ManagerBalanceCard />
           {hasData ? (
             <div className="p-4">
               <GoalCarouselMobile goals={mappedGoals} loading={goalsLoading} />
@@ -144,11 +146,9 @@ const ManagerDashboard = ({ onLoan }) => {
             </div>
           )}
         </div>
-
         <div className="p-4">
           <ActionButtons onLoan={onLoan} />
         </div>
-
         {!hasData && (
           <div className="p-32 mx-4 mt-6 rounded-2xl outline-1 outline-gray-200 shadow-md bg-white flex flex-col items-center justify-center gap-6">
             <p className="text-textcolor text-center text-sm sm:text-base md:text-lg">
@@ -163,7 +163,6 @@ const ManagerDashboard = ({ onLoan }) => {
             </button>
           </div>
         )}
-
         {hasData && (
           <>
             <div className="p-4">
@@ -174,14 +173,12 @@ const ManagerDashboard = ({ onLoan }) => {
         <div className="p-4 bg-white rounded-2xl shadow-sm h-40 flex items-center justify-center">
           {hasData ? <ConsistencyStat /> : null}
         </div>
-
         {isGroupModalOpen && (
           <CreateGroupModal
             isOpen={isGroupModalOpen}
             onClose={() => setIsGroupModalOpen(false)}
           />
         )}
-
         {isGoalModalOpen && (
           <CreateGoalModal
             open={isGoalModalOpen}
@@ -189,7 +186,6 @@ const ManagerDashboard = ({ onLoan }) => {
             onCreateGoal={() => {}}
           />
         )}
-
         {/* Quota Modal */}
         <SplitBill
           open={isSplitBillOpen}
@@ -221,9 +217,9 @@ const ManagerDashboard = ({ onLoan }) => {
             <ContributionDiv />
           </div>
         )}
-
-        {/* Top Right Boxes */}
-        <div className={`col-span-2 ${hasData ? "bg-secondary" : "bg-shadow"} rounded-2xl p-4 h-120 flex items-center justify-center`}>
+        {/* Top Right Boxes - ManagerBalanceCard above GoalCards */}
+        <div className={`col-span-2 ${hasData ? "bg-secondary" : "bg-shadow"} rounded-2xl p-4 h-120 flex flex-col items-center justify-start`}>
+          <ManagerBalanceCard />
           {!hasData ? (
             <button
               className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer"
@@ -236,25 +232,21 @@ const ManagerDashboard = ({ onLoan }) => {
             <GoalCards goals={mappedGoals} />
           )}
         </div>
-
        {/* Bottom Left */}
       <div className="bg-white rounded-2xl p-4  shadow-sm flex items-center justify-center">
         {hasData ? <ConsistencyStat /> : null}
       </div>
-
         {/* Bottom Right */}
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
           <DashboardBtns onLoan={onLoan}  onSplitBill={handleOpenSplitBill}/>
         </div>
       </div>
-
       {isGroupModalOpen && (
         <CreateGroupModal
           isOpen={isGroupModalOpen}
           onClose={() => setIsGroupModalOpen(false)}
         />
       )}
-
       {isGoalModalOpen && (
         <CreateGoalModal
           open={isGoalModalOpen}
