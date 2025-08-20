@@ -12,7 +12,8 @@ const ManagerBalanceCard = () => {
       try {
         setLoading(true);
         const data = await getMyVirtualBalance();
-        setBalance(data?.balance ?? 0);
+        // Use total_balance from backend response for real balance
+        setBalance(data?.total_balance ?? 0);
       } catch (err) {
         setBalance(0);
       } finally {
