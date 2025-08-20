@@ -1,69 +1,6 @@
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 
-export async function getMyVirtualBalance() {
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("Not authenticated");
-  const token = await user.getIdToken();
-  const owner_uid = user.uid;
-  const res = await api.get(`/balance/${owner_uid}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return res.data;
-}
-
-// Admin: Add a virtual balance for a user (manual top-up)
-export async function addVirtualBalance({ amount, goal_title = "Manual Top-up", status = "ready_for_external_payment", balance_type = "manual" }) {
-  // If user is logged in, use their UID automatically
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("Not authenticated");
-  const token = await user.getIdToken();
-  const owner_uid = user.uid;
-  const res = await api.post("/balance/add", {
-    owner_uid,
-    amount,
-    goal_title,
-    status,
-    balance_type
-  }, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return res.data;
-}
-
-// Approve a member request (manager only)
-export async function approveMemberRequest(requestId) {
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("Not authenticated");
-  const token = await user.getIdToken();
-  const res = await api.post(`/request/approve/${requestId}`, {}, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return res.data;
-}
-
-// Reject a member request (manager only)
-export async function rejectMemberRequest(requestId) {
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("Not authenticated");
-  const token = await user.getIdToken();
-  const res = await api.post(`/request/reject/${requestId}`, {}, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return res.data;
-}
-// Fetch all member requests (for managers)
-export async function fetchAllMemberRequests() {
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("Not authenticated");
-  const token = await user.getIdToken();
-  const res = await api.get("/request/", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return res.data;
-}
-
-
 const auth = getAuth();
 const user = auth.currentUser;
 const token = user && await user.getIdToken();
@@ -237,7 +174,79 @@ export async function listPendingGoals() {
   });
   return res.data;
 }
+// Allocate quotas to members for a goal/plan
+export async function allocateQuotas({ plan_id, members }) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post(
+    "/allocate/quotas",
+    { plan_id, members },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+}
+export async function getMyVirtualBalance() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const owner_uid = user.uid;
+  const res = await api.get(`/balance/${owner_uid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
 
+// Admin: Add a virtual balance for a user (manual top-up)
+export async function addVirtualBalance({ amount, goal_title = "Manual Top-up", status = "ready_for_external_payment", balance_type = "manual" }) {
+  // If user is logged in, use their UID automatically
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const owner_uid = user.uid;
+  const res = await api.post("/balance/add", {
+    owner_uid,
+    amount,
+    goal_title,
+    status,
+    balance_type
+  }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Approve a member request (manager only)
+export async function approveMemberRequest(requestId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post(`/request/approve/${requestId}`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Reject a member request (manager only)
+export async function rejectMemberRequest(requestId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.post(`/request/reject/${requestId}`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+// Fetch all member requests (for managers)
+export async function fetchAllMemberRequests() {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get("/request/", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
 // Approve or reject a pending goal
 export async function approveOrRejectGoal(goalId, isApproved, managerName, rejectionReason = null) {
   const user = getAuth().currentUser;
