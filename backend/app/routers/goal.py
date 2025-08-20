@@ -866,6 +866,13 @@ async def get_all_goals(user=Depends(verify_token)):
                         goal_data['target_date'] = goal_data['target_date'].date().isoformat()
                     elif hasattr(goal_data['target_date'], 'isoformat'):
                         goal_data['target_date'] = goal_data['target_date'].isoformat()
+                # Fetch current amount from pool_status_collection
+                pool = await pool_status_collection.find_one({"goal_id": goal_data["goal_id"]})
+                if pool and "current_amount" in pool:
+                    goal_data["current_amount"] = pool["current_amount"]
+                else:
+                    goal_data["current_amount"] = 0.0
+                
                 goal_obj = goal(**goal_data)
                 validated_goals.append(goal_obj)
             except Exception:
