@@ -13,11 +13,11 @@ export default function ConfirmPay() {
 
   const paymentStateData = location.state || {};
   const paymentData = {
-    remainingBalance: 'P6000',
-    amountToSend: paymentStateData.amount || 'P0',
-    totalAmount: paymentStateData.amount || 'P0',
-    goalName: paymentStateData.goalName || 'House Bills',
-    availableBalance: paymentStateData.availableBalance || 8000
+    remainingBalance: paymentStateData.remainingBalance,
+    amountToSend: paymentStateData.amount ?? paymentStateData.amountToSend,
+    totalAmount: paymentStateData.totalAmount ?? paymentStateData.amount ?? paymentStateData.amountToSend,
+    goalName: paymentStateData.goalName,
+    availableBalance: paymentStateData.availableBalance
   };
 
   // Check if payment amount exceeds available balance

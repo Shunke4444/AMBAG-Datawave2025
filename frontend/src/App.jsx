@@ -86,7 +86,6 @@ const router = createBrowserRouter([
       {path: 'member-requests', element: <Request />},
       {path: 'requests', element: <Request />},
   {path: 'payment/:goalId', element: <Payment />},
-  {path: 'select-goal', element: <SelectGoalPage />},
       {path: 'payment/confirm', element: <ConfirmPay />},
       {path: 'receipt', element: <Receipt />},
       {path: 'member-notification', element: <MemberNotification />},
