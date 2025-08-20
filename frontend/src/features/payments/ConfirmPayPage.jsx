@@ -58,7 +58,7 @@ export default function ConfirmPay() {
   const desktopLayout = (
     <div className="min-h-screen bg-secondary overflow-hidden">
       {/* Global styles to disable scrolling */}
-      <style jsx global>{`
+      <style>{`
         html, body {
           overflow: hidden !important;
           height: 100vh !important;

@@ -10,11 +10,13 @@ import NumberPad from './NumberPad';
 import PaymentButton from './PaymentButton';
 
 import { usePaymentAmount } from '../../hooks/usePaymentAmount';
-import { contributeToGoal, getMyVirtualBalance, listGoals } from '../../lib/api';
+import { getMyVirtualBalance, listGoals } from '../../lib/api';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getAuth } from "firebase/auth";
 
 function PaymentPage() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
 
@@ -83,26 +85,20 @@ function PaymentPage() {
     handleDot
   } = usePaymentAmount(availableBalance, remainingAmount);
 
-  // Payment handler
-  const handlePayment = async () => {
-    try {
-      // Get contributor_name from Firebase Auth
-      const user = getAuth().currentUser;
-      if (!user) throw new Error("Not authenticated");
-      const contributor_name = user.displayName || user.email || "Unknown User";
-      if (!goalId) throw new Error("Goal ID not provided");
-      // Always send the unformatted value to backend
-      const numericAmount = parseFloat(amount.replace(/,/g, ''));
-      await contributeToGoal(goalId, {
-        amount: numericAmount,
-        contributor_name,
-        payment_method: "cash",
-        reference_number: ""
-      });
-      alert("Payment sent!");
-    } catch (err) {
-      alert("Payment failed: " + (err?.message || err));
-    }
+  // Payment handler: navigate to confirm page with payment data
+  const handlePayment = () => {
+    // Only allow navigation if amount is valid
+    const numericAmount = parseFloat(amount.replace(/,/g, '')) || 0;
+    if (numericAmount < 1) return;
+    navigate('/payment/confirm', {
+      state: {
+        amount: amount,
+        goalName: goalName,
+        availableBalance: availableBalance,
+        remainingAmount: remainingAmount,
+        goalId: goalId
+      }
+    });
   };
 
   const desktopLayout = (

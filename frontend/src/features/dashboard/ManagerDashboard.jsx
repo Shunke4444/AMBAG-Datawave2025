@@ -12,6 +12,7 @@ import GoalCards from "../goals/GoalCards";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import MemberHeader from "../members/MemberHeader";
 import ActionButtons from "./ActionButtons";
+import SelectGoalModal from '../payments/SelectGoalModal';
 import {
   Add as AddIcon,
 } from '@mui/icons-material';
@@ -20,13 +21,13 @@ import CreateGroupModal from "../groups/CreateGroupModal";
 import SplitBill from "../manager/SplitBill";
 
 const ManagerDashboard = ({ onLoan }) => {
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const [firstName, setFirstName] = useState("");
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
   const [group, setGroup] = useState(null);
   const [groupLoading, setGroupLoading] = useState(true);
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const { user } = useAuthRole();
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
@@ -120,7 +121,7 @@ const ManagerDashboard = ({ onLoan }) => {
   // ---------- Mobile Layout ----------
   if (isMobile) {
     return (
-      <main className="flex flex-col min-h-screen bg-white mb-16">
+      <main className="flex flex-col min-h-screen bg-white mb-16 overflow-x-hidden">
         <div className="bg-primary text-white px-4 pb-4 rounded-b-3xl">
           <div className="my-4">
             <MemberHeader userName={firstName || "Manager"} />
@@ -147,8 +148,9 @@ const ManagerDashboard = ({ onLoan }) => {
           )}
         </div>
         <div className="p-4">
-          <ActionButtons onLoan={onLoan} />
+          <ActionButtons onLoan={onLoan} onPayShare={() => setIsGoalModalOpen(true)} />
         </div>
+        <SelectGoalModal open={isGoalModalOpen} onClose={() => setIsGoalModalOpen(false)} />
         {!hasData && (
           <div className="p-32 mx-4 mt-6 rounded-2xl outline-1 outline-gray-200 shadow-md bg-white flex flex-col items-center justify-center gap-6">
             <p className="text-textcolor text-center text-sm sm:text-base md:text-lg">
@@ -238,7 +240,7 @@ const ManagerDashboard = ({ onLoan }) => {
       </div>
         {/* Bottom Right */}
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
-          <DashboardBtns onLoan={onLoan}  onSplitBill={handleOpenSplitBill}/>
+          <DashboardBtns onLoan={onLoan} onSplitBill={handleOpenSplitBill} onPayShare={() => setIsGoalModalOpen(true)} />
         </div>
       </div>
       {isGroupModalOpen && (

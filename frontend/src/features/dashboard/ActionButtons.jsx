@@ -5,11 +5,11 @@ import Loan from '../../assets/icons/loan.svg';
 import PayShare from '../../assets/icons/payshare.svg';
 import Deposit from '../../assets/icons/DEPOSIT.svg';
 
-const ActionButtons = ({ onLoan }) => {
+const ActionButtons = ({ onPayShare, onLoan }) => {
   const navigate = useNavigate();
 
   const handlePayShare = () => {
-    navigate('/payment');
+    if (onPayShare) onPayShare();
   };
 
   const handleRequest = () => {

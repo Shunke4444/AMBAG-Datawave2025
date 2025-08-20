@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-const DashboardBtns = ({onLoan , onSplitBill}) => {
+const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   const authRole = "Manager"; // later replace with useAuthRole()
 ;
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
   };
   // Role-specific buttons
   const managerButtons = [
-    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment") },
+    { icon: <PayShareIcon />, label: "Pay Share", action: onPayShare},
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
     { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
@@ -30,7 +30,7 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
   ];
 
   const memberButtons = [
-    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment")},
+    { icon: <PayShareIcon />, label: "Pay Share", action: onPayShare ? onPayShare : () => navigate("/payment")},
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests")},
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
