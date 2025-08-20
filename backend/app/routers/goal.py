@@ -887,13 +887,14 @@ async def get_goal(goal_id: str, user=Depends(verify_token)):
 class contributionData(BaseModel):
     amount: float
     contributor_name: str
-    payment_method: Optional[str] = "cash"
+    payment_method: Optional[str] = "virtual_balance"
     reference_number: Optional[str] = None
 
 @router.post("/{goal_id}/contribute")
 async def contribute_to_goal(goal_id: str, contribution: contributionData, user=Depends(verify_token)):
 
     pool = await pool_status_collection.find_one({"goal_id": goal_id})
+    goal_item = None
     if not pool:
         # Try to find the goal in goals_collection
         goal_item = await goals_collection.find_one({"goal_id": goal_id})
@@ -909,12 +910,15 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
         }
         await pool_status_collection.insert_one(pool_doc)
         pool = pool_doc
+    if goal_item is None:
+        goal_item = await goals_collection.find_one({"goal_id": goal_id})
 
     amount = float(contribution.amount)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    # Update contribution
+
+    # Update contribution in pool_status_collection
     await pool_status_collection.update_one(
         {"goal_id": goal_id},
         {
@@ -923,7 +927,7 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
                 "contributors": {
                     "name": contribution.contributor_name,
                     "amount": amount,
-                    "payment_method": contribution.payment_method or "cash",
+                        "payment_method": contribution.payment_method or "virtual_balance",
                     "reference_number": contribution.reference_number or "",
                     "timestamp": datetime.now().isoformat()
                 }
@@ -931,14 +935,46 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
         }
     )
 
-    # Check goal completion
+    # Update current_amount in goals_collection as well
+    await goals_collection.update_one(
+        {"goal_id": goal_id},
+        {"$inc": {"current_amount": amount}}
+    )
+
+
+    # Always resolve owner_uid from user or contributor_name
+    owner_uid = None
+    if user and isinstance(user, dict):
+        owner_uid = user.get("uid") or user.get("firebase_uid")
+    if not owner_uid:
+        owner_uid = contribution.contributor_name
+
+    # Insert a negative 'contribution' record for deduction
+    # First, check if user has enough available balance
+    total_balance = await virtual_balances_collection.aggregate([
+        {"$match": {"owner_uid": owner_uid, "status": {"$ne": "used"}}},
+        {"$group": {"_id": None, "sum": {"$sum": "$amount"}}}
+    ]).to_list(length=1)
+    available = total_balance[0]["sum"] if total_balance else 0
+    if available < amount:
+        raise HTTPException(status_code=400, detail="Not enough virtual balance to contribute.")
+
+    vb_doc = {
+        "owner_uid": owner_uid,
+        "amount": -abs(amount),
+        "goal_title": goal_item.get("title", "Goal Contribution") if goal_item else "Goal Contribution",
+        "type": "contribution",
+        "status": "ready_for_external_payment",
+        "created_at": datetime.now().isoformat()
+    }
+    await virtual_balances_collection.insert_one(vb_doc)
+
+    # Prepare response as before
     updated_pool = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
     goal_item = await goals_collection.find_one({"goal_id": goal_id}) or {}
-
     current = float(updated_pool.get("current_amount", 0))
     target = float(goal_item.get("goal_amount", 1))  # Avoid division by zero
     progress = min(100, (current / target) * 100) if target > 0 else 0
-
     response = {
         "message": f"₱{amount:,.2f} contributed",
         "remaining": max(0, target - current),
@@ -947,7 +983,13 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
 
     # Handle goal completion
     if current >= target:
-        if goal_item.get("auto_payment_settings", {}).get("enabled"):
+        auto_payment_settings = {}
+        if goal_item and isinstance(goal_item, dict):
+            aps = goal_item.get("auto_payment_settings", {})
+            if aps is None:
+                aps = {}
+            auto_payment_settings = aps
+        if isinstance(auto_payment_settings, dict) and auto_payment_settings.get("enabled"):
             response["auto_payment"] = await process_bank_free_auto_payment(goal_id)
         else:
             await goals_collection.update_one(
