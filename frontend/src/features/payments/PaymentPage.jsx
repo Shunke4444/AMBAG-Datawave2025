@@ -1,20 +1,54 @@
 
 import { useTheme, useMediaQuery } from '@mui/material';
+import { useParams } from 'react-router-dom';
+import SelectGoalModal from './SelectGoalModal';
 import MobileLayout from './PaymentLayout';
 import PaymentHeader from './PaymentHeader';
 import RemainingShareCard from './RemainingShareCard';
 import PaymentAmountDisplay from './PaymentAmountDisplay';
 import NumberPad from './NumberPad';
 import PaymentButton from './PaymentButton';
-import { usePaymentAmount } from '../../hooks/usePaymentAmount';
 
-export default function Payment() {
+import { usePaymentAmount } from '../../hooks/usePaymentAmount';
+import { contributeToGoal, getMyVirtualBalance } from '../../lib/api';
+import { useEffect, useState } from 'react';
+import { getAuth } from "firebase/auth";
+
+function PaymentPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
-  
-  const availableBalance = 8000;
-  const availableBalanceDisplay = 'P8000';
+
+  // Get goalId from URL params
+  const { goalId } = useParams();
+  const [showGoalModal, setShowGoalModal] = useState(!goalId);
+
+  // Show modal if no goalId
+  if (!goalId) {
+    return <SelectGoalModal open={showGoalModal} onClose={() => setShowGoalModal(false)} />;
+  }
+
+  // Virtual balance state
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [availableBalanceDisplay, setAvailableBalanceDisplay] = useState('P0');
+  // TODO: Replace with real remainingAmount from context or props
   const remainingAmount = 6000;
+
+  useEffect(() => {
+    async function fetchBalance() {
+      try {
+        const balance = await getMyVirtualBalance();
+        // Use total_balance from backend response
+        const bal = typeof balance === 'number' ? balance : (balance?.total_balance || 0);
+        setAvailableBalance(bal);
+        setAvailableBalanceDisplay(`P${bal.toLocaleString()}`);
+      } catch (e) {
+        setAvailableBalance(0);
+        setAvailableBalanceDisplay('P0');
+      }
+    }
+    fetchBalance();
+  }, []);
+
 
   const {
     amount,
@@ -24,10 +58,30 @@ export default function Payment() {
     handleDot
   } = usePaymentAmount(availableBalance, remainingAmount);
 
+  // Payment handler
+  const handlePayment = async () => {
+    try {
+      // Get contributor_name from Firebase Auth
+      const user = getAuth().currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const contributor_name = user.displayName || user.email || "Unknown User";
+      if (!goalId) throw new Error("Goal ID not provided");
+      await contributeToGoal(goalId, {
+        amount: parseFloat(amount),
+        contributor_name,
+        payment_method: "cash",
+        reference_number: ""
+      });
+      alert("Payment sent!");
+    } catch (err) {
+      alert("Payment failed: " + (err?.message || err));
+    }
+  };
+
   const desktopLayout = (
     <div className="min-h-screen bg-secondary overflow-hidden">
       {/* Add shake animation styles and disable scrolling */}
-      <style jsx global>{`
+      <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
@@ -70,6 +124,7 @@ export default function Payment() {
               availableBalance={availableBalance}
               variant="desktop"
               goalName="House Bills"
+              onClick={handlePayment}
             >
               Continue Payment
             </PaymentButton>
@@ -93,7 +148,7 @@ export default function Payment() {
   const mobileLayout = (
     <MobileLayout title="Mobile Payment">
       {/* Add shake animation styles and disable scrolling */}
-      <style jsx global>{`
+      <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
@@ -132,6 +187,7 @@ export default function Payment() {
           availableBalance={availableBalance}
           variant="mobile"
           goalName="House Bills"
+          onClick={handlePayment}
         >
           Next
         </PaymentButton>
@@ -141,3 +197,5 @@ export default function Payment() {
 
   return isMobile ? mobileLayout : desktopLayout;
 }
+
+export default PaymentPage;

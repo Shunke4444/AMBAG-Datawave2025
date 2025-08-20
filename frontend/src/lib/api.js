@@ -261,7 +261,25 @@ export async function createMemberRequest(requestData) {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
-  const res = await api.post("/request/", requestData, {
+  // Always fetch group_id from user profile and inject into metadata
+  let group_id = null;
+  try {
+    const profileRes = await api.get(`/users/profile/${user.uid}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    group_id = profileRes?.data?.role?.group_id || null;
+  } catch (e) {
+    // fallback: do nothing, group_id stays null
+  }
+  // Ensure metadata exists and inject group_id
+  const payload = {
+    ...requestData,
+    metadata: {
+      ...(requestData.metadata || {}),
+      group_id
+    }
+  };
+  const res = await api.post("/request/", payload, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;
@@ -303,6 +321,34 @@ export async function getUserProfile(firebase_uid) {
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
   const res = await api.get(`/users/profile/${firebase_uid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Contribute to a goal (send payment info to manager)
+export async function contributeToGoal(goalId, { amount, contributor_name, payment_method = "cash", reference_number = "" }) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const payload = {
+    amount,
+    contributor_name,
+    payment_method,
+    reference_number
+  };
+  const res = await api.post(`/goal/${goalId}/contribute`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
+// Get contributors for a goal
+export async function getGoalContributors(goalId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/goal/${goalId}/contributors`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;

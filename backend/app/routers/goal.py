@@ -194,6 +194,7 @@ async def notify_goal_approval_decision(goal_id: str, approval_data: Dict):
         if not pending_goal:
             return
         
+        
         # Create notification for goal creator
         approval_notification = {
             "id": f"goal_approval_{goal_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -502,61 +503,90 @@ async def process_virtual_balance_payment(goal_id: str) -> Dict:
 
 @router.post("/", response_model=goal)
 async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
-    logger.info(f"Creating goal: {goal_data.title} by {goal_data.creator_name} ({goal_data.creator_role})")
-    if goal_data.creator_role not in ["manager", "member"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'member'.")
-    goal_id = str(uuid.uuid4())
-    current_time = datetime.now().isoformat()
-    if goal_data.creator_role == "manager":
-        logger.info(f"Creating goal directly (manager)")
-        new_goal = goal(
-            goal_id=goal_id,
-            group_id = goal_data.group_id,
-            title=goal_data.title,
-            description=goal_data.description,
-            goal_amount=goal_data.goal_amount,
-            goal_type=goal_data.goal_type,
-            creator_role=goal_data.creator_role,
-            creator_name=goal_data.creator_name,
-            target_date=goal_data.target_date,
-            created_at=current_time,
-            approved_at=current_time,
-            auto_payment_settings=goal_data.auto_payment_settings
-        )
-        goal_dict = new_goal.model_dump()
-        goal_dict['creator_uid'] = user.get('uid') if user else None
-        await goals_collection.insert_one(goal_dict)
-        pool_status = {
-            "goal_id": goal_id,
-            "current_amount": 0.0,
-            "is_paid": False,
-            "status": "active",
-            "contributors": []
-        }
-        await pool_status_collection.insert_one(pool_status)
-        return new_goal
-    else:
-        logger.info(f"⏳ MEMBER REQUEST: Creating pending goal for approval")
-        pending_goal_obj = pendingGoal(
-            goal_id=goal_id,
-            group_id=goal_data.group_id,
-            title=goal_data.title,
-            description=goal_data.description,
-            goal_amount=goal_data.goal_amount,
-            goal_type=goal_data.goal_type,
-            creator_role=goal_data.creator_role,
-            creator_name=goal_data.creator_name,
-            target_date=goal_data.target_date,
-            status="pending",
-            created_at=current_time
-        )
-        await pending_goals_collection.insert_one(pending_goal_obj.model_dump())
-        return pendingGoalResponse(
-            message="Goal submitted for approval",
-            goal_id=goal_id,
-            status="pending",
-            pending_goal=pending_goal_obj
-        )
+    import json
+    try:
+        logger.info(f"Received goal creation request body: {goal_data}")
+        logger.info(f"Raw request body: {json.dumps(goal_data.model_dump(), default=str)}")
+        logger.info(f"Creating goal: {goal_data.title} by {goal_data.creator_name} ({goal_data.creator_role})")
+        if goal_data.creator_role not in ["manager", "member"]:
+            raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'member'.")
+        goal_id = str(uuid.uuid4())
+        current_time = datetime.now().isoformat()
+        if goal_data.creator_role == "manager":
+            logger.info(f"Creating goal directly (manager)")
+            new_goal = goal(
+                goal_id=goal_id,
+                group_id = goal_data.group_id,
+                title=goal_data.title,
+                description=goal_data.description,
+                goal_amount=goal_data.goal_amount,
+                goal_type=goal_data.goal_type,
+                creator_role=goal_data.creator_role,
+                creator_name=goal_data.creator_name,
+                target_date=goal_data.target_date,
+                created_at=current_time,
+                approved_at=current_time,
+                auto_payment_settings=goal_data.auto_payment_settings
+            )
+            goal_dict = new_goal.model_dump()
+            goal_dict['creator_uid'] = user.get('uid') if user else None
+            # Convert target_date to ISO string if it's a datetime.date
+            if isinstance(goal_dict.get('target_date'), date):
+                goal_dict['target_date'] = goal_dict['target_date'].isoformat()
+            await goals_collection.insert_one(goal_dict)
+            pool_status = {
+                "goal_id": goal_id,
+                "current_amount": 0.0,
+                "is_paid": False,
+                "status": "active",
+                "contributors": []
+            }
+            await pool_status_collection.insert_one(pool_status)
+            return new_goal
+        else:
+            logger.info(f"⏳ MEMBER REQUEST: Creating pending goal for approval")
+            pending_goal_obj = pendingGoal(
+                goal_id=goal_id,
+                group_id=goal_data.group_id,
+                title=goal_data.title,
+                description=goal_data.description,
+                goal_amount=goal_data.goal_amount,
+                goal_type=goal_data.goal_type,
+                creator_role=goal_data.creator_role,
+                creator_name=goal_data.creator_name,
+                target_date=goal_data.target_date,
+                status="pending",
+                created_at=current_time
+            )
+            await pending_goals_collection.insert_one(pending_goal_obj.model_dump())
+            return pendingGoalResponse(
+                message="Goal submitted for approval",
+                goal_id=goal_id,
+                status="pending",
+                pending_goal=pending_goal_obj
+            )
+    except Exception as e:
+        logger.error(f"Goal creation error: {e}")
+        raise
+        #     goal_id=goal_id,
+        #     group_id=goal_data.group_id,
+        #     title=goal_data.title,
+        #     description=goal_data.description,
+        #     goal_amount=goal_data.goal_amount,
+        #     goal_type=goal_data.goal_type,
+        #     creator_role=goal_data.creator_role,
+        #     creator_name=goal_data.creator_name,
+        #     target_date=goal_data.target_date,
+        #     status="pending",
+        #     created_at=current_time
+        # )
+        # await pending_goals_collection.insert_one(pending_goal_obj.model_dump())
+        # return pendingGoalResponse(
+        #     message="Goal submitted for approval",
+        #     goal_id=goal_id,
+        #     status="pending",
+        #     pending_goal=pending_goal_obj
+        # )
 
 @router.get("/pending", response_model=List[pendingGoal])
 async def get_pending_goals(user=Depends(verify_token)):
@@ -815,7 +845,7 @@ async def get_all_goals(user=Depends(verify_token)):
         user_doc = await users_collection.find_one({"firebase_uid": user_uid})
         user_role = user_doc.get("role", {}).get("role_type", "contributor") if user_doc else "contributor"
 
-        user_group_id = user_doc.get("group_id")
+        user_group_id = user_doc.get("role", {}).get("group_id") if user_doc and user_doc.get("role") else None
         goals = await goals_collection.find({"group_id" : user_group_id}).to_list(length=None)
         logger.info(f"User {user_uid} ({user_role}): Found {len(goals)} total goals")
 

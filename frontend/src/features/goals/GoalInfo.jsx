@@ -1,20 +1,22 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { MoreVert as MoreIcon } from "@mui/icons-material";
 import { Card, CardContent, IconButton, Menu, MenuItem } from "@mui/material";
-import { AuthRoleContext } from "../../contexts/AuthRoleContext";
+import { useMembersContext } from "../../features/manager/contexts/MembersContext.jsx";
 import { listGoals } from "../../lib/api";
 
 const GoalInfo = () => {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useContext(AuthRoleContext);
+  const { groupId } = useMembersContext();
 
   useEffect(() => {
     const fetchGoals = async () => {
       try {
         setLoading(true);
-        const goalsData = await listGoals();
+        console.log('[GoalInfo] Fetching goals for groupId:', groupId);
+        const goalsData = await listGoals(groupId);
+        console.log('[GoalInfo] Fetched goals:', goalsData);
         setGoals(goalsData || []);
         setError(null);
       } catch (err) {
@@ -23,8 +25,9 @@ const GoalInfo = () => {
         setLoading(false);
       }
     };
-    fetchGoals();
-  }, []);
+    if (groupId) fetchGoals();
+    else console.log('[GoalInfo] No groupId available, cannot fetch goals');
+  }, [groupId]);
 
   // Menu state
   const [anchorEl, setAnchorEl] = useState(null);

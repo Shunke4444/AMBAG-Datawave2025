@@ -19,8 +19,9 @@ import {
 import MobileLayout from '../payments/PaymentLayout';
 import MobileHeader from '../../components/MobileHeader';
 import RequestSubmittedModal from './RequestSubmittedModal';
-import { createGoal, createMemberRequest } from '../../lib/api';
+import { createGoal, createMemberRequest, getUserProfile } from '../../lib/api';
 export default function Request() {
+  const [groupId, setGroupId] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const [searchParams] = useSearchParams();
@@ -54,6 +55,20 @@ export default function Request() {
         subject: 'Loan Request from Group Members'
       }));
     }
+    // Fetch group_id from user profile
+    async function fetchGroupId() {
+      try {
+        const user = window.firebase?.auth?.currentUser || (await import('firebase/auth')).getAuth().currentUser;
+        if (user) {
+          const profile = await getUserProfile(user.uid);
+          const group_id = profile?.role?.group_id;
+          if (group_id) setGroupId(group_id);
+        }
+      } catch (err) {
+        // Optionally handle error
+      }
+    }
+    fetchGroupId();
   }, [searchParams]);
 
   const handleInputChange = (field, value) => {
@@ -78,18 +93,25 @@ export default function Request() {
 
     try {
       // Always use createMemberRequest for all request types
+      const metadata = {
+        startingDate: formData.startingDate || null,
+        dueDate: formData.dueDate || null,
+        paymentPeriod: formData.paymentPeriod || null,
+        interestRate: formData.interestRate || null,
+        group_id: groupId || null
+      };
+      // For add-goal and loan-request, send goal_amount instead of amount
+      if (formData.requestType === 'add-goal' || formData.requestType === 'loan-request') {
+        metadata.goal_amount = formData.amount || null;
+      } else {
+        metadata.amount = formData.amount || null;
+      }
       const requestData = {
         type: formData.requestType,
         subject: formData.subject,
         description: formData.description,
         priority: formData.priority,
-        metadata: {
-          amount: formData.amount || null,
-          startingDate: formData.startingDate || null,
-          dueDate: formData.dueDate || null,
-          paymentPeriod: formData.paymentPeriod || null,
-          interestRate: formData.interestRate || null
-        }
+        metadata
       };
       await createMemberRequest(requestData);
       setRecentRequests(prev => [{ id: Date.now(), type: formData.requestType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), description: formData.subject, status: "Pending", statusColor: "orange", submittedDate: "Just now" }, ...prev.slice(0, 1)]);

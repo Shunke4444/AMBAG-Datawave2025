@@ -7,7 +7,8 @@ export default function PaymentButton({
   disabled = false, 
   children, 
   variant = 'desktop',
-  goalName = 'House Bills'
+  goalName = 'House Bills',
+  onClick
 }) {
   const navigate = useNavigate();
   const isDesktop = variant === 'desktop';
@@ -19,7 +20,11 @@ export default function PaymentButton({
   // Button should be disabled only if amount is 0 or explicitly disabled
   const isButtonDisabled = disabled || isAmountZero;
 
-  const handleClick = () => {
+  const handleClick = (e) => {
+    if (typeof onClick === 'function') {
+      onClick(e);
+      return;
+    }
     if (!isButtonDisabled && numericAmount >= 1) {
       // Navigate to confirm payment page with the payment data
       navigate('/payment/confirm', { 
