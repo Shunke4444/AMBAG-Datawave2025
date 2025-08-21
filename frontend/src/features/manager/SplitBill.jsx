@@ -35,7 +35,7 @@ const SplitBill = ({ open, onClose, planId, onSave }) => {
         setGoalsLoading(true);
         const data = await listGoals();
         // Normalize to { id, title }
-        setGoals((data || []).map(g => ({ id: g.goal_id || g.id, title: g.title })));
+  setGoals((data || []).map(g => ({ id: g.goal_id || g.id, title: g.title, amount: g.goal_amount || g.amount })));
       } catch (err) {
         setGoals([]);
       } finally {
@@ -86,10 +86,15 @@ const SplitBill = ({ open, onClose, planId, onSave }) => {
 
   const handleEqualSplitToggle = () => {
     setEqualSplit(!equalSplit);
-    if (!equalSplit && members.length > 0) {
-      const total = 100; // EXAMPLE POOL BALANCE, adjust as needed
+    if (!equalSplit && members.length === 2 && selectedGoal && selectedGoal.amount) {
+      const total = Number(selectedGoal.amount);
+      const fairShare = Math.floor(total / 2);
+      setMembers(members.map((m, idx) => ({ ...m, quota: idx === 0 ? fairShare : total - fairShare })));
+    } else if (!equalSplit && members.length > 0 && selectedGoal && selectedGoal.amount) {
+      const total = Number(selectedGoal.amount);
       const fairShare = Math.floor(total / members.length);
-      setMembers(members.map((m) => ({ ...m, quota: fairShare })));
+      let remainder = total - fairShare * members.length;
+      setMembers(members.map((m, idx) => ({ ...m, quota: fairShare + (idx === 0 ? remainder : 0) })));
     }
   };
 
@@ -181,6 +186,7 @@ const SplitBill = ({ open, onClose, planId, onSave }) => {
         {/* 🔹 Show quota allocation ONLY if a goal is selected */}
         {selectedGoal && (
           <>
+            <div className="my-3 text-lg font-semibold text-primary">Goal Amount: <span className="text-black">₱{selectedGoal.amount}</span></div>
             <FormControlLabel
               control={
                 <Switch

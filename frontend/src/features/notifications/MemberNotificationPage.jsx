@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import AgenticReminderCard from '../../components/AgenticReminderCard.jsx';
+import AgenticReminderCard from './AgenticReminderCard.jsx';
+import WelcomeNotificationCard from '../../components/WelcomeNotificationCard.jsx';
 import { useNavigate } from 'react-router-dom';
 import { fetchAgenticNotifications, fetchSmartReminders } from '../../lib/api';
 import { useMembersContext } from '../manager/contexts/MembersContext.jsx';
-import {
-  CheckCircle,
-  Warning,
-  TrendingUp,
-  AccountBalance,
-  Group,
-  Close,
-  Schedule,
-  Flag,
-  Notifications
-} from '@mui/icons-material';
+import { Notifications} from '@mui/icons-material';
 import MobileLayout from '../payments/PaymentLayout';
 import GoalNotifModal from './GoalNotifModal.jsx';
 
@@ -23,6 +14,7 @@ export default function MemberNotification({ goalId }) {
     loan_suggestion: null
   });
   const [notifications, setNotifications] = useState([]);
+  const [oldNotifications, setOldNotifications] = useState([]);
   const [agenticNotifications, setAgenticNotifications] = useState([]);
   const { currentUser } = useMembersContext();
   const [loading, setLoading] = useState(true);
@@ -54,7 +46,8 @@ export default function MemberNotification({ goalId }) {
           const tb = new Date(b.timestamp || b.created_at || 0).getTime();
           return tb - ta;
         });
-        setNotifications(sorted);
+  setNotifications(sorted);
+  setOldNotifications([]); // Reset old notifications 
 
         // Agentic notifications (smart reminders)
   console.log('Fetching agentic reminders with ID:', effectiveGoalId);
@@ -201,6 +194,14 @@ export default function MemberNotification({ goalId }) {
     if (notificationActions[actionName]) {
       const result = await notificationActions[actionName](notificationId, ...params);
       console.log('Action result:', result);
+      // If paid or snoozed, move to old notifications
+      if (['notification_snoozed', 'marked_as_read'].includes(result.action)) {
+        setNotifications(prev => prev.filter(n => n.id !== notificationId && n._id !== notificationId));
+        setOldNotifications(prev => [
+          ...prev,
+          ...notifications.filter(n => n.id === notificationId || n._id === notificationId)
+        ]);
+      }
       return result;
     } else {
       console.error('Unknown action:', actionName);
@@ -209,15 +210,31 @@ export default function MemberNotification({ goalId }) {
   };
 
   // Render
+  // Helper to categorize notifications by date
+  const categorizeNotifications = (notifs) => {
+    const today = [];
+    const yesterday = [];
+    const old = [];
+    const now = new Date();
+    notifs.forEach(n => {
+      const ts = new Date(n.timestamp || n.created_at || 0);
+      const diff = (now - ts) / (1000 * 60 * 60 * 24);
+      if (diff < 1 && ts.getDate() === now.getDate()) {
+        today.push(n);
+      } else if (diff < 2 && ts.getDate() === now.getDate() - 1) {
+        yesterday.push(n);
+      } else {
+        old.push(n);
+      }
+    });
+    return { today, yesterday, old };
+  };
+
+  const { today, yesterday, old } = categorizeNotifications(notifications);
+
   return (
-    <MobileLayout title="Notifications">
-      <GoalNotifModal
-        notification={selectedNotification}
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onAction={handleNotificationAction}
-      />
-      <section className="pt-6 pb-6" aria-label="Notifications">
+ <MobileLayout title="Notifications">
+      <section className="pt-6 pb-6 bg-primary" aria-label="Notifications">
         <div className="max-w-4xl mx-auto">
           {loading ? (
             <div className="text-center py-8">Loading notifications...</div>
@@ -227,18 +244,16 @@ export default function MemberNotification({ goalId }) {
             <>
               {/* Agentic Notifications Section */}
               {(() => {
-                console.log('Agentic reminders:', agenticNotifications);
                 if (!agenticNotifications || agenticNotifications.length === 0) return null;
                 return (
                   <section className="mb-8" aria-label="Agentic Notifications">
-                    <h2 className="text-lg font-bold text-primary mb-4">Agentic Reminders</h2>
+                    <h2 className="text-lg font-bold text-whit mb-4">Agentic Reminders</h2>
                     <ul className="space-y-3 sm:space-y-4" role="list">
                       {agenticNotifications.map(reminder => (
                         <li key={reminder.id || reminder._id}>
                           <AgenticReminderCard 
                             reminder={reminder}
                             onPayShare={(goalId) => {
-                              // Pass goal name and amount if available
                               const goalName = reminder?.goal_name || reminder?.ai_reminder?.goal_name || reminder?.context?.goal_name || '';
                               const goalAmount = reminder?.goal_amount || reminder?.ai_reminder?.goal_amount || reminder?.context?.goal_amount || 0;
                               navigate(`/payment/${goalId}`, {
@@ -256,8 +271,80 @@ export default function MemberNotification({ goalId }) {
                   </section>
                 );
               })()}
-              {/* Standard Notifications Section */}
-              {notifications.length === 0 ? (
+              {/* Today Section */}
+              {today.length > 0 && (
+                <section className="mb-8" aria-label="Today">
+                  <h2 className="text-lg font-bold text-white mb-4">Today</h2>
+                  <ul className="space-y-3 sm:space-y-4" role="list">
+                    {today.map(notification => (
+                      <li key={notification.id || notification._id}>
+                        <WelcomeNotificationCard
+                          title={notification.title}
+                          message={notification.message}
+                          timestamp={notification.timestamp}
+                          textColor="white"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {/* Yesterday Section */}
+              {yesterday.length > 0 && (
+                <section className="mb-8" aria-label="Yesterday">
+                  <h2 className="text-lg font-bold text-white mb-4">Yesterday</h2>
+                  <ul className="space-y-3 sm:space-y-4" role="list">
+                    {yesterday.map(notification => (
+                      <li key={notification.id || notification._id}>
+                        <WelcomeNotificationCard
+                          title={notification.title}
+                          message={notification.message}
+                          timestamp={notification.timestamp}
+                          textColor="white"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {/* Completed Actions Section */}
+              {oldNotifications.length > 0 && (
+                <section className="mb-8" aria-label="Completed Actions">
+                  <h2 className="text-lg font-bold text-secondary mb-4">Completed Actions</h2>
+                  <ul className="space-y-3 sm:space-y-4" role="list">
+                    {oldNotifications.map(notification => (
+                      <li key={notification.id || notification._id} className="opacity-50 grayscale">
+                        <WelcomeNotificationCard
+                          title={notification.title}
+                          message={notification.message}
+                          timestamp={notification.timestamp}
+                          textColor="white"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {/* Old Notifications Section */}
+              {old.length > 0 && (
+                <section className="mb-8" aria-label="Old Notifications">
+                  <h2 className="text-lg font-bold text-secondary mb-4">Old Notifications</h2>
+                  <ul className="space-y-3 sm:space-y-4" role="list">
+                    {old.map(notification => (
+                      <li key={notification.id || notification._id}>
+                        <WelcomeNotificationCard
+                          title={notification.title}
+                          message={notification.message}
+                          timestamp={notification.timestamp}
+                          textColor="white"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {/* Empty State */}
+              {today.length === 0 && yesterday.length === 0 && old.length === 0 && oldNotifications.length === 0 && (
                 <section className="text-center py-12 sm:py-16" aria-labelledby="empty-state-title">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
                     <Notifications className="w-8 h-8 sm:w-10 sm:h-10 text-secondary/60" />
@@ -265,43 +352,6 @@ export default function MemberNotification({ goalId }) {
                   <h3 id="empty-state-title" className="text-lg sm:text-xl font-semibold text-secondary/80 mb-2">All caught up!</h3>
                   <p className="text-sm sm:text-base text-secondary/60">No new notifications at the moment.</p>
                 </section>
-              ) : (
-                <ul className="space-y-3 sm:space-y-4" role="list">
-                  {notifications.map((notification) => {
-                    const config = getNotificationConfig(notification.type);
-                    return (
-                      <li key={notification.id || notification._id}>
-                        <article
-                          className={`relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${config.style}`}
-                          aria-labelledby={`notification-title-${notification.id}`}
-                          aria-describedby={`notification-content-${notification.id} notification-time-${notification.id}`}
-                          data-notification-type={notification.type}
-                          data-priority={config.priority}
-                          data-ai-accessible={config.aiAccessible}
-                          onClick={() => {
-                            setSelectedNotification(notification);
-                            setModalOpen(true);
-                          }}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {/* ...existing code for notification rendering... */}
-                          <div className="flex items-start gap-3 sm:gap-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 id={`notification-title-${notification.id}`} className="font-semibold text-sm sm:text-base text-textcolor mb-1">
-                                {notification.title || notification.message?.slice(0, 30) || 'Notification'}
-                              </h3>
-                              <p id={`notification-content-${notification.id}`} className="text-xs sm:text-sm text-textcolor/80 leading-relaxed mb-2">
-                                {notification.message}
-                              </p>
-                              <time id={`notification-time-${notification.id}`} className="text-xs text-textcolor/60" dateTime={notification.timestamp || ''}>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time>
-                              {/* ...existing code for actions... */}
-                            </div>
-                          </div>
-                        </article>
-                      </li>
-                    );
-                  })}
-                </ul>
               )}
             </>
           )}
