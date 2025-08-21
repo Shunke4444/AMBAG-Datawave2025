@@ -1,3 +1,4 @@
+
 import { useReducer, useState } from "react";
 import { Modal } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,9 @@ import GoalCreated from "./GoalCreated";
 import { useMembersContext } from "../../features/manager/contexts/MembersContext.jsx";
 import { useEffect } from "react";
 const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
+    // Debug: Track when modal is mounted and opened
+    console.log('CreateGoalModal mounted. open:', open);
+  
   const [state, dispatch] = useReducer(createGoalReducer, initialGoalState);
   // Use MembersContext to get user and group_id
 
@@ -122,7 +126,7 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
 
   return (
     <>
-      <Modal open={true} onClose={onClose}>
+      <Modal open={open} onClose={onClose}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 mx-4">
             <h2 className="text-lg font-bold mb-4">Create Goal</h2>

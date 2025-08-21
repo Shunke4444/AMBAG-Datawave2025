@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { allocateQuotas } from "../../lib/api";
 import {
   Dialog,
   DialogTitle,
@@ -14,20 +15,27 @@ import {
   FormControlLabel,
   TextField,
 } from "@mui/material";
+import { useMembersContext } from "./contexts/MembersContext.jsx";
 
-const mockMembers = [
-  { id: 1, name: "Alice", quota: 0 },
-  { id: 2, name: "Bob", quota: 0 },
-  { id: 3, name: "Charlie", quota: 0 },
-  { id: 4, name: "Diana", quota: 0 },
-  { id: 5, name: "Ethan", quota: 0 },
-];
-
-const SplitBill = ({ open, onClose, onSave }) => {
-  const [members, setMembers] = useState(mockMembers);
+const SplitBill = ({ open, onClose, planId, onSave }) => {
+  const { members: groupMembers, loading: membersLoading } = useMembersContext();
+  const [members, setMembers] = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
   const [inputQuota, setInputQuota] = useState("");
   const [equalSplit, setEqualSplit] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Sync members state with groupMembers from context
+  useEffect(() => {
+    if (groupMembers && groupMembers.length > 0) {
+      setMembers(groupMembers.map(m => ({
+        id: m.id,
+        name: m.name || `${m.first_name || ''} ${m.last_name || ''}`.trim(),
+        quota: m.quota || 0
+      })));
+    }
+  }, [groupMembers]);
 
   const handleSelectMember = (member) => {
     setSelectedMember(member);
@@ -55,15 +63,28 @@ const SplitBill = ({ open, onClose, onSave }) => {
     }
   };
 
-  const handleFinalSave = () => {
-    onSave(members);
-    onClose();
+  const handleFinalSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Call backend to allocate quotas
+      await allocateQuotas({ plan_id: planId, members });
+      if (onSave) onSave(members);
+      onClose();
+    } catch (err) {
+      setError("Failed to allocate quotas. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle className="bg-primary text-secondary text-sm font-semibold">Allocate Monthly Quotas</DialogTitle>
       <DialogContent dividers>
+        {error && (
+          <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>
+        )}
         {/* Equal Split Option */}
         <FormControlLabel
           control={
@@ -125,8 +146,9 @@ const SplitBill = ({ open, onClose, onSave }) => {
         <button
           onClick={handleFinalSave}
           className="bg-primary text-secondary p-2 rounded cursor-pointer hover:bg-shadow"
+          disabled={loading}
         >
-          Save All
+          {loading ? "Saving..." : "Save All"}
         </button>
       </DialogActions>
     </Dialog>

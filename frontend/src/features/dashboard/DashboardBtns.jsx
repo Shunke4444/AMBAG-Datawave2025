@@ -1,5 +1,3 @@
-
-import { useAuthRole } from "../../contexts/AuthRoleContext";
 import {
   Addchart as AddGoalIcon,
   SettingsAccessibility as MemberSettingsIcon,
@@ -9,10 +7,13 @@ import {
   CallSplit as SplitBillIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-
-const DashboardBtns = ({onLoan , onSplitBill}) => {
-  const authRole = "Manager"; // later replace with useAuthRole()
-;
+import { useMembersContext } from "../manager/contexts/MembersContext.jsx";
+import SelectGoalModal from '../payments/SelectGoalModal';
+import { useState } from 'react';
+const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
+  const { members, currentUser } = useMembersContext();
+  const authRole = currentUser?.role?.role_type || currentUser?.role || "Member";
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLoan = () => {
@@ -20,7 +21,7 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
   };
   // Role-specific buttons
   const managerButtons = [
-    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment") },
+  { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
     { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
@@ -28,22 +29,21 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
   ];
 
   const memberButtons = [
-    { icon: <PayShareIcon />, label: "Pay Share", action: () => navigate("/payment")},
+  { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests")},
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
 
-  // Select which set to use buttons
-  const selectedButtons = authRole === "Manager" ? managerButtons : memberButtons;
+  // Select which set to use
+  const selectedButtons = authRole?.toLowerCase() === "manager" ? managerButtons : memberButtons;
   
-
+console.log("DashboardBtns currentUser:", currentUser);
+console.log("DashboardBtns detected role:", authRole);
   return (
-    <div className='flex w-full max-w-5xl'>
-      <div>
-        <h1 className='flex font-bold text-sm p-4 text-primary'>
-          {["Manager", "Member"].includes(authRole) ? "Current Members: 4" : ""}
-        </h1>
-      </div>
+    <div className='flex flex-col w-full max-w-5xl'>
+      <h1 className='flex font-bold text-sm p-4 text-primary justify-center'>
+        {(["manager", "member"].includes(authRole?.toLowerCase()) && members) ? `Current Members: ${members.length}` : ""}
+      </h1>
       <div className='flex flex-wrap justify-center gap-4'>
         {selectedButtons.map(({ icon, label, action }, index) => (
           <button 
@@ -58,6 +58,17 @@ const DashboardBtns = ({onLoan , onSplitBill}) => {
           </button>
         ))}
       </div>
+      {/* SelectGoalModal for Pay Share */}
+      {isGoalModalOpen && (
+        <SelectGoalModal 
+          open={isGoalModalOpen} 
+          onClose={() => setIsGoalModalOpen(false)} 
+          onSelect={goalId => {
+            setIsGoalModalOpen(false);
+            navigate(`/payment/${goalId}`);
+          }} 
+        />
+      )}
     </div>
   );
 };

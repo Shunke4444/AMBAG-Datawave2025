@@ -61,7 +61,7 @@ const MemberDashboard = ({ onLoan }) => {
 
         {/* Top Right Boxes */}
         <div className="col-span-2">
-          <GoalCards goals={mappedGoals} />
+          <GoalCards goals={mappedGoals}  loading={goalsLoading} />
         </div>
 
         {/* Bottom Right Boxes */}

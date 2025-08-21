@@ -10,6 +10,7 @@ from routers import (
     users,
     request,
     balance,
+    allocate,
 )
 from routers.scheduler import start_scheduler
 from typing import List
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 
+
 app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(goal.router)
@@ -43,6 +45,7 @@ app.include_router(ai_tools_clean.router)
 app.include_router(simulation_old.router)
 app.include_router(request.router)
 app.include_router(balance.router)
+app.include_router(allocate.router)
 
 group_balances = {}
 transactions = []
