@@ -4,7 +4,7 @@ import { Modal } from '@mui/material';
 import { listGoals } from '../../lib/api';
 import { useMembersContext } from '../manager/contexts/MembersContext.jsx';
 
-export default function SelectGoalModal({ open, onClose }) {
+export default function SelectGoalModal({ open, onClose, onSelect }) {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,15 +28,15 @@ export default function SelectGoalModal({ open, onClose }) {
   }, [open, groupId]);
 
   const handleSelect = (goalId) => {
-    onClose();
-    // No navigation, just close modal
+  if (onSelect) onSelect(goalId);
+  onClose();
   };
 
   return (
     <Modal open={open} onClose={onClose}>
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         {/* Blurred and dark overlay */}
-        <div className="absolute inset-0 bg-black/80 bg-opacity-60 backdrop-blur-sm transition-all" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/30 bg-opacity bakdrop-blur-sm transition-all" onClick={onClose} />
         {/* Modal content */}
         <div className="relative z-10 w-full max-w-md mx-4 rounded-2xl shadow-2xl p-0">
           <section className="bg-primary rounded-2xl p-8">
