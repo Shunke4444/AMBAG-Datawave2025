@@ -906,6 +906,16 @@ class contributionData(BaseModel):
 @router.post("/{goal_id}/contribute")
 async def contribute_to_goal(goal_id: str, contribution: contributionData, user=Depends(verify_token)):
 
+
+    amount = float(contribution.amount)
+
+    # Always resolve owner_uid from user or contributor_name
+    owner_uid = None
+    if user and isinstance(user, dict):
+        owner_uid = user.get("uid") or user.get("firebase_uid")
+    if not owner_uid:
+        owner_uid = contribution.contributor_name
+
     pool = await pool_status_collection.find_one({"goal_id": goal_id})
     goal_item = None
     if not pool:
@@ -926,11 +936,8 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
     if goal_item is None:
         goal_item = await goals_collection.find_one({"goal_id": goal_id})
 
-    amount = float(contribution.amount)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
-
-
     # Update contribution in pool_status_collection
     await pool_status_collection.update_one(
         {"goal_id": goal_id},
@@ -939,8 +946,9 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
             "$push": {
                 "contributors": {
                     "name": contribution.contributor_name,
+                    "uid": owner_uid,
                     "amount": amount,
-                        "payment_method": contribution.payment_method or "virtual_balance",
+                    "payment_method": contribution.payment_method or "virtual_balance",
                     "reference_number": contribution.reference_number or "",
                     "timestamp": datetime.now().isoformat()
                 }
@@ -951,7 +959,7 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
     # Update current_amount in goals_collection as well
     await goals_collection.update_one(
         {"goal_id": goal_id},
-        {"$inc": {"current_amount": amount}}
+        {"$inc": {"current_amount": contribution.amount}}
     )
 
 
@@ -962,29 +970,65 @@ async def contribute_to_goal(goal_id: str, contribution: contributionData, user=
     if not owner_uid:
         owner_uid = contribution.contributor_name
 
-    # Insert a negative 'contribution' record for deduction
-    # First, check if user has enough available balance
-    total_balance = await virtual_balances_collection.aggregate([
-        {"$match": {"owner_uid": owner_uid, "status": {"$ne": "used"}}},
-        {"$group": {"_id": None, "sum": {"$sum": "$amount"}}}
-    ]).to_list(length=1)
-    available = total_balance[0]["sum"] if total_balance else 0
-    if available < amount:
+
+    # Deduct from user's positive virtual balances (oldest first)
+    # 1. Get all positive, unused balances
+    balances = await virtual_balances_collection.find({
+        "owner_uid": owner_uid,
+        "status": {"$ne": "used"},
+        "amount": {"$gt": 0}
+    }).sort("created_at", 1).to_list(length=None)
+    total_available = sum(b["amount"] for b in balances)
+    if total_available < amount:
         raise HTTPException(status_code=400, detail="Not enough virtual balance to contribute.")
 
+    to_deduct = amount
+    for b in balances:
+        if to_deduct <= 0:
+            break
+        deduct_amt = min(b["amount"], to_deduct)
+        remaining = b["amount"] - deduct_amt
+        if remaining == 0:
+            # Mark this balance as used
+            await virtual_balances_collection.update_one({"_id": b["_id"]}, {"$set": {"status": "used", "used_at": datetime.now().isoformat()}})
+        else:
+            # Reduce the amount
+            await virtual_balances_collection.update_one({"_id": b["_id"]}, {"$set": {"amount": remaining}})
+        to_deduct -= deduct_amt
+
+    # Optionally, insert a record for the deduction for audit trail
     vb_doc = {
         "owner_uid": owner_uid,
         "amount": -abs(amount),
         "goal_title": goal_item.get("title", "Goal Contribution") if goal_item else "Goal Contribution",
         "type": "contribution",
-        "status": "ready_for_external_payment",
+        "status": "used",
         "created_at": datetime.now().isoformat()
     }
     await virtual_balances_collection.insert_one(vb_doc)
 
+
     # Prepare response as before
     updated_pool = await pool_status_collection.find_one({"goal_id": goal_id}) or {}
     goal_item = await goals_collection.find_one({"goal_id": goal_id}) or {}
+
+    # --- Quota logic: If user finishes their quota, set it to 0 in the goal's members list ---
+    # Move this after the pool is updated and re-fetched so the latest payment is included
+    if updated_pool and "contributors" in updated_pool and goal_item and "members" in goal_item and isinstance(goal_item["members"], list):
+        user_total_contribution = sum(
+            c.get("amount", 0) for c in updated_pool["contributors"]
+            if str(c.get("uid")) == str(owner_uid)
+        )
+        for member in goal_item["members"]:
+            logger.info(f"Checking member id: {member.get('id')} vs owner_uid: {owner_uid}")
+            if str(member.get("id")) == str(owner_uid):
+                member_quota = member.get("quota", 0)
+                logger.info(f"User {owner_uid} total contribution: {user_total_contribution}, quota: {member_quota}")
+                if member_quota > 0 and user_total_contribution >= member_quota:
+                    logger.info(f"Setting quota to 0 for member {owner_uid}")
+                    member["quota"] = 0
+        await goals_collection.update_one({"goal_id": goal_id}, {"$set": {"members": goal_item["members"]}})
+
     current = float(updated_pool.get("current_amount", 0))
     target = float(goal_item.get("goal_amount", 1))  # Avoid division by zero
     progress = min(100, (current / target) * 100) if target > 0 else 0
