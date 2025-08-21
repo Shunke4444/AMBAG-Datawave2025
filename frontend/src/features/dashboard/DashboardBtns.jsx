@@ -1,5 +1,3 @@
-
-// import { useAuthRole } from "../../contexts/AuthRoleContext";
 import {
   Addchart as AddGoalIcon,
   SettingsAccessibility as MemberSettingsIcon,
@@ -9,11 +7,11 @@ import {
   CallSplit as SplitBillIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-
-
+import { useMembersContext } from "../manager/contexts/MembersContext.jsx";
 
 const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
-  const authRole = "Manager"; // later replace with useAuthRole()
+  const { members, currentUser } = useMembersContext();
+  const authRole = currentUser?.role?.role_type || currentUser?.role || "Member";
 ;
   const navigate = useNavigate();
 
@@ -43,7 +41,7 @@ const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
     <div className='flex w-full max-w-5xl'>
       <div>
         <h1 className='flex font-bold text-sm p-4 text-primary'>
-          {["Manager", "Member"].includes(authRole) ? "Current Members: 4" : ""}
+          {(["Manager", "Member"].includes(authRole) && members) ? `Current Members: ${members.length}` : ""}
         </h1>
       </div>
       <div className='flex flex-wrap justify-center gap-4'>

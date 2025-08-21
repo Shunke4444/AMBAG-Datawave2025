@@ -4,7 +4,6 @@ import { api, listGoals } from "../../lib/api";
 import ManagerBalanceCard from "../manager/components/ManagerBalanceCard";
 import useIsMobile from "../../hooks/useIsMobile";
 import { useAuthRole } from "../../contexts/AuthRoleContext";
-
 import ConsistencyStat from "./ConsistencyStat";
 import ContributionDiv from "./ContributionDiv";
 import DashboardBtns from "./DashboardBtns";
@@ -28,7 +27,7 @@ const ManagerDashboard = ({ onLoan }) => {
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
   const [group, setGroup] = useState(null);
-  const { groupId } = useMembersContext();
+  const { groupId, members } = useMembersContext();
   const [groupLoading, setGroupLoading] = useState(true);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const { user } = useAuthRole();
@@ -134,6 +133,9 @@ const ManagerDashboard = ({ onLoan }) => {
           </div>
           {/* Manager Balance Card - mobile style */}
           <ManagerBalanceCard />
+          <div className="flex justify-end pr-4 pt-2">
+            <span className="text-md font-semibold text-white">Current Members: {members.length}</span>
+          </div>
           {hasData ? (
             <div className="p-4">
               <GoalCarouselMobile goals={mappedGoals} loading={goalsLoading} />
@@ -226,6 +228,9 @@ const ManagerDashboard = ({ onLoan }) => {
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
       <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4 auto-rows-min">
+        <div className="col-span-3 flex justify-end pr-4 pt-2">
+          {/* <span className="text-md font-semibold text-primary">Current Members: {members.length}</span> */}
+        </div>
         {/* Left Column */}
         {!hasData ? (
           <div className="bg-gray-50 rounded-2xl p-4 col-span-1 flex items-center justify-center border border-gray-200">
