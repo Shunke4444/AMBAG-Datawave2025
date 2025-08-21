@@ -467,12 +467,6 @@ async def send_contributor_reminder(group_id: str, action_data: Dict, target_mem
         Your ₱{action_data.get('amount_due', 0)} share is due by {action_data.get('deadline', 'soon')}.
         
         Current status: Only ₱{action_data.get('remaining_amount', 0)} left to reach your goal! 🎯
-        
-        Quick actions:
-        • Pay via BPI: Manager's Account
-        • Request payment plan: Go to Request page
-        • Check group progress
-        
         Your group is counting on you! 💪
         """
         
@@ -873,7 +867,7 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
         
         # Get AI-generated reminder
         ai_reminder = await get_ai_analysis(ai_prompt)
-        
+         
         # Always store both goal_id and group_id
         goal_doc = await goals_collection.find_one({"goal_id": request.group_id})
         group_id = None
