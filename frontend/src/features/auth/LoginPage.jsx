@@ -80,8 +80,10 @@ export default function Login() {
         if (group_id) {
           if (role_type === 'manager') {
             navigate('/dashboard');
-          } else {
+          } else if (role_type === 'member') {
             navigate('/member');
+          } else {
+            navigate('/dashboard'); // fallback
           }
         } else {
           navigate('/onboarding');

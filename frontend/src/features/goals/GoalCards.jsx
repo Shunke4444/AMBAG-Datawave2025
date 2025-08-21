@@ -1,9 +1,22 @@
 import { Card, CardContent, LinearProgress, Box } from '@mui/material';
+import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { useState, useRef, useEffect } from 'react';
 
 const formatMoney = (n) => {
   const safe = Number(n) || 0;
   return "₱" + safe.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ".00";
 };
+
+// Custom scrollbar styles
+const scrollbarStyles = `
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+`;
 
 // Helper function to calculate days left
 export const calculateDaysLeft = (targetDate) => {
@@ -84,9 +97,11 @@ const GoalCardGlassMobile = ({ goal }) => {
   );
 };
 
-// ✅ Fixed GoalCards with normalization
 const GoalCards = ({ goals = [] }) => {
   console.log('GoalCards received goals:', goals);
+  const scrollContainerRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const mappedGoals = goals.map((g) => ({
     id: g.goal_id || g.id || g.title,
@@ -96,15 +111,81 @@ const GoalCards = ({ goals = [] }) => {
     targetDate: g.target_date ?? g.targetDate ?? null,
   }));
 
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    checkScrollButtons();
+  }, [goals]); // Re-run when goals change
+
   if (!mappedGoals.length) {
     return <div className="text-gray-500">No goals found.</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {mappedGoals.map((goal) => (
-        <GoalCardGlassMobile key={goal.id} goal={goal} />
-      ))}
+    <div className="w-full relative">
+      <style>{scrollbarStyles}</style>
+      
+      {/* Left Arrow */}
+      {canScrollLeft && (
+        <button
+          onClick={scrollLeft}
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          style={{ marginLeft: '12px' }}
+        >
+          <ChevronLeft className="text-gray-600" />
+        </button>
+      )}
+
+      {/* Right Arrow */}
+      {canScrollRight && (
+        <button
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          style={{ marginRight: '12px' }}
+        >
+          <ChevronRight className="text-gray-600" />
+        </button>
+      )}
+
+      <div 
+        ref={scrollContainerRef}
+        className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-4"
+        style={{
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch',
+          scrollSnapType: 'x mandatory'
+        }}
+        onScroll={checkScrollButtons}
+        onLoad={checkScrollButtons}
+      >
+        {mappedGoals.map((goal) => (
+          <div 
+            key={goal.id} 
+            className="flex-shrink-0 w-80 h-64 px-8"
+            style={{ scrollSnapAlign: 'start' }}
+          >
+            <GoalCardGlassMobile goal={goal} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

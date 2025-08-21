@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getMyVirtualBalance } from "../../../lib/api";
 import useIsMobile from "../../../hooks/useIsMobile";
 
@@ -6,6 +7,7 @@ const ManagerBalanceCard = () => {
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -34,15 +36,27 @@ const ManagerBalanceCard = () => {
     );
   }
 
-  if (isMobile) {
-    // Mobile: mimic member balance card style
-    return (
-   <div className="flex flex-col w-full ml-5 mb-5 text-left">
-        <span className="text-lg font mb-2 text text-left"> Balance</span>
-        <span className="text-3xl font-medium text-left">{formatCurrency(balance)}</span>
-      </div>
-    );
-  }
+    if (isMobile) {
+      // Mobile view
+      return (
+        <div className="flex items-center justify-between w-full ml-5 mb-5">
+          <div className="flex flex-col text-left">
+            <span className="text-lg mb-2">Balance</span>
+            <span className="text-4xl font-semibold">
+              {formatCurrency(balance)}
+            </span>
+          </div>
+
+          {/* Right: Button to Add Virtual Balance */}
+          <button
+            onClick={() => navigate("/transactions/balance")}
+            className="mr-8 bg-accent hover:bg-accent/90 text-white text-xs px-3 py-1.5 rounded-lg shadow-md cursor-pointer"
+          >
+            + Add
+          </button>
+        </div>
+      );
+    }
 
   // Desktop: prominent card/banner above goals
     return (

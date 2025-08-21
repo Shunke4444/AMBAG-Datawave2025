@@ -20,7 +20,7 @@ import { MemberNotifs } from "../../features/notifications/MemberNotifs";
 import MobileHeader from "../../components/MobileHeader";// import { useAuthRole } from "../../contexts/AuthRoleContext";
 import useSidebar from "../../hooks/useSidebar";
 
-const authRole = "Manager";
+const authRole = "member";
 const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
 
 const Layout = () => {
