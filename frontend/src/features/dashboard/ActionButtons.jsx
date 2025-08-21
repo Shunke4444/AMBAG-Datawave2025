@@ -1,19 +1,32 @@
-
 import { useNavigate } from 'react-router-dom';
-import { Handshake } from '@mui/icons-material';
+import { Handshake, Add as AddIcon } from '@mui/icons-material';
 import Loan from '../../assets/icons/loan.svg';
 import PayShare from '../../assets/icons/payshare.svg';
 import Deposit from '../../assets/icons/DEPOSIT.svg';
+import CreateGoalModal from '../goals/CreateGoalModal';
+import { useState } from 'react';
+import { useMembersContext } from "../../features/manager/contexts/MembersContext.jsx";
+import { useAuthRole } from '../../contexts/AuthRoleContext';
 
-const ActionButtons = ({ onPayShare, onLoan }) => {
+const ActionButtons = ({ onPayShare, onLoan, onCreateGoal }) => {
+  const { user } = useAuthRole();
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  // Debug: Track when modal is opened
+  console.log('ActionButtons rendered. isGoalModalOpen:', isGoalModalOpen);
   const navigate = useNavigate();
 
   const handlePayShare = () => {
     if (onPayShare) onPayShare();
   };
-
+  const { members, loading, currentUser } = useMembersContext();
+  const member = currentUser || {};
   const handleRequest = () => {
-    navigate('/member-requests');
+    if (member?.role?.role_type === 'manager' || member?.role === 'manager' || member?.role_type === 'manager') {
+      console.log('Create Goal button clicked, opening modal');
+      setIsGoalModalOpen(true);
+    } else {
+      navigate('/member-requests');
+    }
   };
 
   const handleDeposit = () => {
@@ -30,11 +43,17 @@ const ActionButtons = ({ onPayShare, onLoan }) => {
       label: 'Pay Share',
       onClick: handlePayShare
     },
-    {
-      icon: <Handshake fontSize='large' className="w-12 h-12 text-black" />,
-      label: 'Request',
-      onClick: handleRequest
-    },
+    (member?.role?.role_type === 'manager' || member?.role === 'manager' || member?.role_type === 'manager')
+      ? {
+          icon: <AddIcon fontSize='large' className="w-12 h-12 text-black" />,
+          label: 'Create Goal',
+          onClick: handleRequest
+        }
+      : {
+          icon: <Handshake fontSize='large' className="w-12 h-12 text-black" />,
+          label: 'Request',
+          onClick: handleRequest
+        },
     {
       icon: <img src={Deposit} alt="Deposit" className="w-12 h-12 text-textcolor" style={{filter: 'brightness(0)'}} />,
       label: 'Deposit',
@@ -63,6 +82,13 @@ const ActionButtons = ({ onPayShare, onLoan }) => {
           </button>
         ))}
       </div>
+      {(member?.role?.role_type === 'manager' || member?.role === 'manager' || member?.role_type === 'manager') && (
+        <CreateGoalModal
+          open={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onCreateGoal={onCreateGoal}
+        />
+      )}
     </main>
   );
 };

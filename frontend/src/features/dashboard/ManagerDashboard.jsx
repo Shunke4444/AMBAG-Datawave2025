@@ -154,7 +154,14 @@ const ManagerDashboard = ({ onLoan }) => {
           )}
         </div>
         <div className="p-4">
-          <ActionButtons onLoan={onLoan} onPayShare={() => setIsGoalModalOpen(true)} />
+          <ActionButtons
+            onLoan={onLoan}
+            onPayShare={() => setIsGoalModalOpen(true)}
+            onCreateGoal={async (goalData) => {
+              const { createGoal } = await import("../../lib/api");
+              return await createGoal(goalData);
+            }}
+          />
         </div>
         <SelectGoalModal open={isGoalModalOpen} onClose={() => setIsGoalModalOpen(false)} />
         {!hasData && (
@@ -163,12 +170,28 @@ const ManagerDashboard = ({ onLoan }) => {
               You are not in a group yet
             </p>
             <button
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
+              className="flex items-center gap-2 bg-accent text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
               onClick={() => setIsGroupModalOpen(true)}
             >
-              <AddIcon className="text-textcolor text-sm sm:text-base" />
-              <span>Create a Group</span>
+              <AddIcon className="text font-semibold sm:text-base" />
+              <h1>Find Your AMBAG Pals!</h1>
             </button>
+          </div>
+        )}
+        {isGroupModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm flex flex-col items-center">
+              <h2 className="text-lg font-bold mb-4 ">Your Group ID</h2>
+              <div className="mb-4 p-2 bg-gray-100 rounded text-center text-lg font-mono text-primary select-all">
+                {groupId ? groupId : "No group ID found"}
+              </div>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded-xl"
+                onClick={() => setIsGroupModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
         {hasData && (
@@ -181,12 +204,6 @@ const ManagerDashboard = ({ onLoan }) => {
         <div className="p-4 bg-white rounded-2xl shadow-sm h-40 flex items-center justify-center">
           {hasData ? <ConsistencyStat /> : null}
         </div>
-        {isGroupModalOpen && (
-          <CreateGroupModal
-            isOpen={isGroupModalOpen}
-            onClose={() => setIsGroupModalOpen(false)}
-          />
-        )}
         {isGoalModalOpen && (
           <CreateGoalModal
             open={isGoalModalOpen}
