@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { listGoals } from "../../lib/api";
 import { allocateQuotas } from "../../lib/api"; 
 import {
   Dialog,
@@ -24,12 +25,25 @@ import { useMembersContext } from "./contexts/MembersContext.jsx";
 const SplitBill = ({ open, onClose, planId, onSave }) => {
   const { members: groupMembers } = useMembersContext();
 
-  // 🔹 Mock goals instead of fetching
-  const [goals] = useState([
-    { id: 1, title: "🏠 House Bill" },
-    { id: 2, title: "📱 New Phone" },
-    { id: 3, title: "✈️ Travel Fund" },
-  ]);
+  // Fetch real goals
+  const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setGoalsLoading(true);
+        const data = await listGoals();
+        // Normalize to { id, title }
+        setGoals((data || []).map(g => ({ id: g.goal_id || g.id, title: g.title })));
+      } catch (err) {
+        setGoals([]);
+      } finally {
+        setGoalsLoading(false);
+      }
+    };
+    if (open) fetchGoals();
+  }, [open]);
   const [selectedGoal, setSelectedGoal] = useState(null);
 
   const [members, setMembers] = useState([]);
@@ -88,11 +102,34 @@ const SplitBill = ({ open, onClose, planId, onSave }) => {
     setLoading(true);
     setError(null);
     try {
-      await allocateQuotas({
+      // Send IDs as strings (Firebase UID), quotas as numbers
+      const membersPayload = members.map(m => ({
+        id: m.id, // keep as string
+        name: m.name,
+        quota: Number(m.quota)
+      }));
+      // Try to get group_id from first group member (if available)
+      let group_id = groupMembers && groupMembers.length > 0 && groupMembers[0].group_id ? groupMembers[0].group_id : undefined;
+      // Fallback: fetch group_id from user profile if not present
+      if (!group_id) {
+        try {
+          const user = await import("firebase/auth").then(mod => mod.getAuth().currentUser);
+          if (user) {
+            const res = await import("../../lib/api").then(api => api.getUserProfile(user.uid));
+            group_id = res?.role?.group_id || undefined;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      const payload = {
         plan_id: planId,
-        goal_id: selectedGoal.id, // 👈 use chosen mock goal
-        members,
-      });
+        goal_id: selectedGoal.id, // backend now accepts this
+        members: membersPayload,
+        ...(group_id ? { group_id } : {})
+      };
+      console.log('ALLOCATE QUOTAS PAYLOAD:', payload);
+      await allocateQuotas(payload);
       if (onSave) onSave(members, selectedGoal);
       onClose();
     } catch (err) {
