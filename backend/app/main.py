@@ -16,6 +16,9 @@ from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 

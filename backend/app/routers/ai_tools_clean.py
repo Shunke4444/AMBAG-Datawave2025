@@ -1,33 +1,3 @@
-async def notify_manager_member_request(group_id: str, member_name: str, request_detail: str):
-    """Send a notification to all managers when a member sends a request."""
-    group = await groups_collection.find_one({"group_id": group_id})
-    if not group:
-        logger.warning(f"[NOTIF] No group found for group_id={group_id}")
-        return False
-    managers = [m for m in group.get("members", []) if m.get("role", "").lower() == "manager"]
-    notifications = []
-    timestamp = datetime.now().isoformat()
-    for manager in managers:
-        recipient_id = manager.get("user_id") or manager.get("firebase_uid")
-        if not recipient_id:
-            continue
-        notification = {
-            "type": "member_request",
-            "recipient": recipient_id,
-            "group_id": group_id,
-            "title": "Member Request",
-            "message": f"Hi Manager, {member_name} has requested for {request_detail}! Check your Requests page for further details!",
-            "timestamp": timestamp,
-            "auto_generated": True
-        }
-        notifications.append(notification)
-    if notifications:
-        await notifications_collection.insert_many(notifications)
-        logger.info(f"[NOTIF] Sent member request notifications to managers in group_id={group_id}")
-    else:
-        logger.warning(f"[NOTIF] No manager notifications to send for group_id={group_id}")
-    return True
-
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Optional
@@ -89,6 +59,43 @@ async def send_welcome_notification(group_id: str, user_name: str, user_role: st
                     })
     if notifications:
         await notifications_collection.insert_many(notifications)
+    return True
+
+async def notify_manager_member_request(group_id: str, member_name: str, request_detail: str):
+    """Send a notification to all managers when a member sends a request."""
+    logger.debug(f"[NOTIF-DEBUG] Called notify_manager_member_request with group_id={group_id}, member_name={member_name}, request_detail={request_detail}")
+    group = await groups_collection.find_one({"group_id": group_id})
+    logger.debug(f"[NOTIF-DEBUG] Group lookup result: {group}")
+    if not group:
+        logger.warning(f"[NOTIF] No group found for group_id={group_id}")
+        return False
+    managers = [m for m in group.get("members", []) if m.get("role", "").lower() == "manager"]
+    logger.debug(f"[NOTIF-DEBUG] Managers found: {managers}")
+    notifications = []
+    timestamp = datetime.now().isoformat()
+    for manager in managers:
+        recipient_id = manager.get("user_id") or manager.get("firebase_uid")
+        logger.debug(f"[NOTIF-DEBUG] Processing manager: {manager}, recipient_id: {recipient_id}")
+        if not recipient_id:
+            logger.warning(f"[NOTIF-DEBUG] Manager missing recipient_id: {manager}")
+            continue
+        notification = {
+            "type": "member_request",
+            "recipient": recipient_id,
+            "group_id": group_id,
+            "title": "Member Request",
+            "message": f"Hi Manager, {member_name} has requested for {request_detail}! Check your Requests page for further details!",
+            "timestamp": timestamp,
+            "auto_generated": True
+        }
+        logger.debug(f"[NOTIF-DEBUG] Created notification: {notification}")
+        notifications.append(notification)
+    if notifications:
+        logger.debug(f"[NOTIF-DEBUG] Notifications to insert: {notifications}")
+        await notifications_collection.insert_many(notifications)
+        logger.info(f"[NOTIF] Sent member request notifications to managers in group_id={group_id}")
+    else:
+        logger.warning(f"[NOTIF] No manager notifications to send for group_id={group_id}")
     return True
 
 async def notify_group_members_new_goal(goal_doc):
@@ -963,28 +970,63 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
         # AUTONOMOUS SENDING: If auto_send is enabled, send the reminder immediately
         send_results = []
         if request.auto_send:
-            # Calculate realistic amounts for each target member
-            target_members = request.target_members or group_data.get("pending_members", [])
-            per_member_amount = analytics.get("remaining_amount", 0) / max(len(target_members), 1) if target_members else 0
-            
-            # Execute autonomous action (let system decide best approach)
-            background_tasks.add_task(
-                execute_autonomous_action,
-                "auto",  # Agentic mode - system decides best action
-                request.group_id,
-                {
-                    "reminder_message": ai_reminder.get("message", "Payment reminder"),
-                    "urgency": request.urgency or "medium",
-                    "reminder_type": request.reminder_type or "payment_due",
-                    "deadline": group_data.get("deadline", "soon"),
-                    "amount_due": per_member_amount,
-                    "remaining_amount": analytics.get("remaining_amount", 0),
-                    "group_progress": analytics.get("progress_percentage", 0),
-                    "days_remaining": analytics.get("days_remaining", 0)
-                },
-                target_members
-            )
-            send_results = target_members
+            # Always loop through all group members and send personalized notifications
+            all_members = group_data.get("members", [])
+            member_objs = []
+            member_uids = []
+            # Support both string and dict member formats
+            for m in all_members:
+                if isinstance(m, dict):
+                    uid = m.get("user_id") or m.get("firebase_uid")
+                    name = m.get("first_name") or m.get("name") or uid
+                else:
+                    uid = m
+                    name = str(m)
+                member_objs.append({"uid": uid, "name": name})
+                member_uids.append(uid)
+            per_member_amount = analytics.get("remaining_amount", 0) / max(len(member_objs), 1) if member_objs else 0
+            for member in member_objs:
+                # Insert member name into the message (replace placeholder or prepend)
+                base_message = ai_reminder.get("message", "Goal completed!")
+                if "{{name}}" in base_message:
+                    personalized_message = base_message.replace("{{name}}", member["name"])
+                else:
+                    personalized_message = f"Hi {member['name']}! " + base_message
+                # Create notification document for each member (like goal_created)
+                notification_doc = {
+                    "id": f"reminder_{request.group_id}_{member['uid']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    "type": request.reminder_type or "goal_completed",
+                    "recipient": member["uid"],
+                    "group_id": request.group_id,
+                    "goal_id": request.goal_id if hasattr(request, 'goal_id') else request.group_id,
+                    "message": personalized_message,
+                    "channel": "push notification",
+                    "status": "sent",
+                    "timestamp": datetime.now().isoformat(),
+                    "auto_generated": True,
+                    "target_members": member_uids
+                }
+                await notifications_collection.insert_one(notification_doc)
+                background_tasks.add_task(
+                    execute_autonomous_action,
+                    "auto",
+                    request.group_id,
+                    {
+                        "reminder_message": personalized_message,
+                        "urgency": request.urgency or "medium",
+                        "reminder_type": request.reminder_type or "goal_completed",
+                        "deadline": group_data.get("deadline", "soon"),
+                        "amount_due": per_member_amount,
+                        "remaining_amount": analytics.get("remaining_amount", 0),
+                        "group_progress": analytics.get("progress_percentage", 0),
+                        "days_remaining": analytics.get("days_remaining", 0),
+                        "recipient": member["uid"],
+                        "recipient_name": member["name"],
+                        "target_members": member_uids
+                    },
+                    [member["uid"]]
+                )
+                send_results.append(member["uid"])
         
         response = {
             "reminder_id": reminder_result["id"],

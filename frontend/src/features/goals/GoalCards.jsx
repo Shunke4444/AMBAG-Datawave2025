@@ -1,4 +1,6 @@
 import { Card, CardContent, LinearProgress, Box } from '@mui/material';
+import { getAuth } from 'firebase/auth';
+import { getMemberQuota } from '../../lib/api';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useState, useRef, useEffect } from 'react';
 
@@ -87,6 +89,10 @@ const GoalCardGlassMobile = ({ goal }) => {
         <p className="text-xs font-medium mt-4">
           {formatMoney(goal.amount)} / {formatMoney(goal.total)}
         </p>
+        {/* Your Share (desktop) */}
+        <p className="text-xs font-bold text-primary mt-2">
+          Your Share: {formatMoney(goal.yourShare ?? 0)}
+        </p>
 
         {/* Days Left */}
         <p className="text-xxs text-gray-500 mt-4">
@@ -103,13 +109,41 @@ const GoalCards = ({ goals = [] }) => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const [userShareMap, setUserShareMap] = useState({});
+  const [loadingShares, setLoadingShares] = useState(true);
+  useEffect(() => {
+    let isMounted = true;
+    const fetchShares = async () => {
+      setLoadingShares(true);
+      const user = getAuth().currentUser;
+      if (!user) {
+        setLoadingShares(false);
+        return;
+      }
+      const uid = user.uid;
+      const shares = {};
+      for (const g of goals) {
+        try {
+          const res = await getMemberQuota({ goal_id: g.goal_id || g.id, user_id: uid });
+          shares[g.goal_id || g.id] = res?.quota ?? 0;
+        } catch (e) {
+          shares[g.goal_id || g.id] = 0;
+        }
+      }
+      console.log('userShareMap:', shares); // Debug log
+      if (isMounted) {
+        setUserShareMap(shares);
+        setLoadingShares(false);
+      }
+    };
+    fetchShares();
+    return () => { isMounted = false; };
+  }, [goals]);
   const mappedGoals = goals.map((g) => ({
-    id: g.goal_id || g.id || g.title,
-    title: g.title,
-    amount: g.current_amount ?? g.amount ?? 0,
-    total: g.goal_amount ?? g.total ?? 0,
-    targetDate: g.target_date ?? g.targetDate ?? null,
+    ...g,
+    yourShare: userShareMap[g.goal_id || g.id] ?? 0,
   }));
+  console.log('mappedGoals:', JSON.stringify(mappedGoals, null, 2)); // More explicit debug log
 
   const checkScrollButtons = () => {
     if (scrollContainerRef.current) {
@@ -135,6 +169,9 @@ const GoalCards = ({ goals = [] }) => {
     checkScrollButtons();
   }, [goals]); // Re-run when goals change
 
+  if (loadingShares) {
+    return <div className="text-gray-500">Loading your shares...</div>;
+  }
   if (!mappedGoals.length) {
     return <div className="text-gray-500">No goals found.</div>;
   }
@@ -177,11 +214,7 @@ const GoalCards = ({ goals = [] }) => {
         onLoad={checkScrollButtons}
       >
         {mappedGoals.map((goal) => (
-          <div 
-            key={goal.id} 
-            className="flex-shrink-0 w-80 h-64 px-8"
-            style={{ scrollSnapAlign: 'start' }}
-          >
+          <div key={goal.id} className="flex-shrink-0 w-80 h-64 px-8" style={{ scrollSnapAlign: 'start' }}>
             <GoalCardGlassMobile goal={goal} />
           </div>
         ))}

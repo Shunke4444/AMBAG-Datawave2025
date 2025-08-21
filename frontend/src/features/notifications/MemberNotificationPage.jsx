@@ -307,12 +307,30 @@ export default function MemberNotification({ goalId }) {
                   </ul>
                 </section>
               )}
+              {/* Completed Actions Section */}
+              {oldNotifications.length > 0 && (
+                <section className="mb-8" aria-label="Completed Actions">
+                  <h2 className="text-lg font-bold text-secondary mb-4">Completed Actions</h2>
+                  <ul className="space-y-3 sm:space-y-4" role="list">
+                    {oldNotifications.map(notification => (
+                      <li key={notification.id || notification._id} className="opacity-50 grayscale">
+                        <WelcomeNotificationCard
+                          title={notification.title}
+                          message={notification.message}
+                          timestamp={notification.timestamp}
+                          textColor="white"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               {/* Old Notifications Section */}
-              {(old.length > 0 || oldNotifications.length > 0) && (
+              {old.length > 0 && (
                 <section className="mb-8" aria-label="Old Notifications">
                   <h2 className="text-lg font-bold text-secondary mb-4">Old Notifications</h2>
                   <ul className="space-y-3 sm:space-y-4" role="list">
-                    {[...old, ...oldNotifications].map(notification => (
+                    {old.map(notification => (
                       <li key={notification.id || notification._id}>
                         <WelcomeNotificationCard
                           title={notification.title}
