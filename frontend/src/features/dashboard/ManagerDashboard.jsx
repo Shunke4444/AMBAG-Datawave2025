@@ -3,7 +3,6 @@ import { getAuth } from "firebase/auth";
 import { api, listGoals } from "../../lib/api";
 import ManagerBalanceCard from "../manager/components/ManagerBalanceCard";
 import useIsMobile from "../../hooks/useIsMobile";
-import { useAuthRole } from "../../contexts/AuthRoleContext";
 import ConsistencyStat from "./ConsistencyStat";
 import ContributionDiv from "./ContributionDiv";
 import DashboardBtns from "./DashboardBtns";
@@ -12,6 +11,7 @@ import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import ManagerHeader from "../manager/ManagerHeader";
 import ActionButtons from "./ActionButtons";
 import SelectGoalModal from '../payments/SelectGoalModal';
+import MemberHeader from "../members/MemberHeader";
 import {
   Add as AddIcon,
 } from '@mui/icons-material';
@@ -25,13 +25,13 @@ const ManagerDashboard = ({ onLoan }) => {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const [firstName, setFirstName] = useState("");
+  const [profileGroupId, setProfileGroupId] = useState("");
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
   const [group, setGroup] = useState(null);
   const { groupId, members } = useMembersContext();
   const [groupLoading, setGroupLoading] = useState(true);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const { user } = useAuthRole();
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   // Fetch user first name
@@ -67,36 +67,55 @@ const ManagerDashboard = ({ onLoan }) => {
 
     console.log('[AMBAG DEBUG] members:', members);
   console.log('[AMBAG DEBUG] user:', user);
+        setProfileGroupId(res?.role?.group_id || "");
+        console.log("Fetched profile:", res);
+        console.log("Extracted group ID:", res?.role?.group_id);
+          } catch (err) {
+            setProfileGroupId("");
+          }
+      };
+      fetchProfile();
+    }, []);
+
 
   // Fetch goals
   useEffect(() => {
     const fetchGoals = async () => {
       try {
+        console.log("🔍 Fetching goals for groupId:", groupId);
         setGoalsLoading(true);
-        const data = await listGoals();
+        const data = await listGoals(groupId);
+        console.log("✅ Goals fetched:", data);
         setGoals(data || []);
       } catch (err) {
-        console.error("Error fetching goals:", err);
+        console.error("❌ Error fetching goals:", err);
         setGoals([]);
       } finally {
         setGoalsLoading(false);
       }
     };
-    fetchGoals();
-  }, []);
+    if (groupId) {
+      fetchGoals();
+    } else {
+      console.log("⚠️ No groupId available, skipping goals fetch");
+      setGoalsLoading(false);
+    }
+  }, [groupId]);
 
   // Fetch group
   useEffect(() => {
     const fetchGroup = async () => {
       try {
+        console.log("🔍 Fetching group...");
         setGroupLoading(true);
         const token = await getAuth().currentUser.getIdToken();
         const res = await api.get(`/groups/my-group`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log("✅ Group fetched:", res?.data);
         setGroup(res?.data || null);
       } catch (err) {
-        console.error("Error fetching group:", err);
+        console.error("❌ Error fetching group:", err);
         setGroup(null);
       } finally {
         setGroupLoading(false);
@@ -115,18 +134,38 @@ const ManagerDashboard = ({ onLoan }) => {
     }))
     .slice(0, 6);
 
-    // Flags
-    const hasGoals = goals.length > 0;
-    const hasGroup = group !== null;
+  console.log("📊 ManagerDashboard State:", {
+    goals: goals.length,
+    mappedGoals: mappedGoals.length,
+    goalsLoading,
+    group: group ? "exists" : "null",
+    groupLoading,
+    hasGoals: goals.length > 0,
+    hasGroup: group !== null,
+    showGoals: !goalsLoading && goals.length > 0,
+    showGroup: !groupLoading && group !== null,
+    hasData: (!goalsLoading && goals.length > 0) || (!groupLoading && group !== null),
+    isLoading: goalsLoading || groupLoading,
+    firstName,
+    profileGroupId,
+    groupId,
+    membersCount: members.length
+  });
 
-    const showGoals = !goalsLoading && hasGoals;
-    const showGroup = !groupLoading && hasGroup;
+  // Flags
+  const hasGoals = goals.length > 0;
+  const hasGroup = group !== null;
+  const hasMembers = Array.isArray(members) && members.length > 0;
 
-    // Only true if either has goals or group after loading finished
-    const hasData = showGoals || showGroup;
+  const showGoals = !goalsLoading && hasGoals;
+  const showGroup = (!groupLoading && hasGroup) || hasMembers;
 
-    // Loading flag
-    const isLoading = goalsLoading || groupLoading;
+  // Only true if either has goals or group after loading finished
+  const hasData = showGoals || showGroup;
+
+  // Loading flags
+  const isLeftColumnLoading = groupLoading && !hasMembers;
+  const isLoading = goalsLoading || groupLoading;
 
   console.log('[AMBAG DEBUG] members:', members);
   console.log('[AMBAG DEBUG] user:', user);
@@ -235,6 +274,60 @@ const ManagerDashboard = ({ onLoan }) => {
             </div>
           )}
         </div>
+            {/* Main Content */}
+            {isLoading ? (
+              // ⏳ Show skeleton while fetching
+              <div className="flex items-center justify-center py-12">
+                <p className="text-gray-200">Loading...</p>
+              </div>
+            ) : hasData ? (
+              // ✅ Show data
+              <>
+                {showGoals && (
+                  <div className="p-4">
+                    <GoalCarouselMobile goals={mappedGoals} />
+                  </div>
+                )}
+              </>
+            ) : (
+              // 🚫 Empty placeholders
+              <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
+                <p className="text-secondary text-center text-sm sm:text-base md:text-lg lg:text-xl">
+                  No data yet
+                </p>
+                <button
+                  className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
+                  onClick={() => setIsGoalModalOpen(true)}
+                >
+                  <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
+                  <span>Create a Goal</span>
+                </button>
+                <button
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
+                  onClick={() => setIsGroupModalOpen(true)}
+                >
+                  <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
+                  <span>Find Your AMBAG Pals!</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Contribution Div */}
+          {showGroup && (
+            <div className="p-4">
+              <ContributionDiv 
+                members={members} 
+                  loading={groupLoading} 
+                  error={groupLoading ? null : (group ? null : "Failed to load group")}
+                />
+                  </div>
+            )}
+
+          {/* Consistency Stat */}
+          <div className="bg-white row-span-3 rounded-2xl p-4 shadow-sm flex items-center justify-center">
+            <ConsistencyStat />
+          </div>
 
         {/* Modals */}
         {isGoalModalOpen && (
@@ -259,21 +352,19 @@ const ManagerDashboard = ({ onLoan }) => {
     return (
       <main className="flex flex-col w-full h-full min-h-screen justify-start mt-24">
         <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4 auto-rows-min">
-          {/* Current Members (optional to show in desktop) */}
-          <div className="col-span-3 flex justify-end pr-4 pt-2">
-            <span className="text-md font-semibold text-white">
-              Current Members: {members.length}
-            </span>
-          </div>
 
           {/* LEFT COLUMN */}
-          {isLoading ? (
+          {isLeftColumnLoading ? (
             <div className="bg-gray-100 rounded-2xl p-6 col-span-1 flex items-center justify-center">
               <p className="text-gray-500">Loading group...</p>
             </div>
           ) : hasData && showGroup ? (
             <div className="bg-secondary rounded-2xl p-4">
-              <ContributionDiv />
+              <ContributionDiv 
+                members={members} 
+                loading={groupLoading} 
+                error={groupLoading ? null : (group ? null : "Failed to load group")}
+              />
             </div>
           ) : (
             <div className="bg-gray-50 rounded-2xl p-4 col-span-1 flex items-center justify-center border border-gray-200">
@@ -302,26 +393,8 @@ const ManagerDashboard = ({ onLoan }) => {
                 <p className="text-gray-500">Loading goals...</p>
               </div>
             ) : hasData && showGoals ? (
-              <div
-                className={`
-                  grid gap-4 w-full mt-4
-                  ${mappedGoals.length === 1 ? "grid-cols-1" : ""}
-                  ${mappedGoals.length === 2 ? "grid-cols-2" : ""}
-                  ${mappedGoals.length === 3 ? "grid-cols-3" : ""}
-                  ${mappedGoals.length === 4 ? "grid-cols-2" : ""}
-                  ${mappedGoals.length === 5 ? "grid-cols-2" : ""}
-                  ${mappedGoals.length === 6 ? "grid-cols-3" : ""}
-                `}
-              >
-                {mappedGoals.map((goal, index) =>
-                  mappedGoals.length === 5 && index === 4 ? (
-                    <div key={goal.id || index} className="col-span-full">
-                      <GoalCards goal={goal} />
-                    </div>
-                  ) : (
-                    <GoalCards key={goal.id || index} goal={goal} />
-                  )
-                )}
+              <div className="w-full mt-4">
+                <GoalCards goals={mappedGoals} />
               </div>
             ) : (
               <button
@@ -335,7 +408,7 @@ const ManagerDashboard = ({ onLoan }) => {
           </div>
 
           {/* BOTTOM LEFT */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center">
+          <div className="bg-white row-span-3 rounded-2xl p-4 shadow-sm flex items-center justify-center">
             {hasData ? <ConsistencyStat /> : <p className="text-gray-400">No stats yet</p>}
           </div>
 

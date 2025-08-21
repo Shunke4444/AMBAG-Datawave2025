@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { contributeToGoal } from '../../lib/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme, useMediaQuery } from '@mui/material';
 import MobileLayout from './PaymentLayout';
@@ -24,20 +25,39 @@ export default function ConfirmPay() {
   const amountNumeric = parseFloat(paymentData.amountToSend.replace(/[P,]/g, '')) || 0;
   const isExceeded = amountNumeric > paymentData.availableBalance;
 
-  const handleSendPayment = () => {
-    console.log('Payment sent:', paymentData);
-    // Navigate to receipt page with payment data
-    navigate('/receipt', {
-      state: {
-        amount: paymentData.amountToSend,
-        goalName: paymentData.goalName,
-        memberName: 'John Doe', // This would come from user context
-        timestamp: new Date().toISOString(),
-        transactionId: generateTransactionId(),
-        remainingBalance: calculateRemainingBalance(),
-        ...paymentStateData
-      }
-    });
+  const handleSendPayment = async () => {
+    try {
+      // Call backend to contribute to goal
+      // Try to get goalId from state or paymentStateData
+      const goalId = paymentStateData.goalId || paymentStateData.goal_id || paymentStateData.goalID || paymentStateData.goal_id;
+      if (!goalId) throw new Error('Missing goalId');
+      // Use current user as contributor_name if not provided
+      const user = window?.firebase?.auth?.()?.currentUser;
+      let contributor_name = paymentStateData.memberName || (user ? user.displayName || user.email || user.uid : '');
+      if (!contributor_name) contributor_name = 'Anonymous';
+      // Remove currency symbol and commas
+      const amount = String(paymentData.amountToSend).replace(/[^\d.]/g, '');
+      await contributeToGoal(goalId, {
+        amount,
+        contributor_name,
+        payment_method: 'virtual_balance',
+        reference_number: ''
+      });
+      // Navigate to receipt page with payment data
+      navigate('/receipt', {
+        state: {
+          amount: paymentData.amountToSend,
+          goalName: paymentData.goalName,
+          memberName: contributor_name,
+          timestamp: new Date().toISOString(),
+          transactionId: generateTransactionId(),
+          remainingBalance: calculateRemainingBalance(),
+          ...paymentStateData
+        }
+      });
+    } catch (err) {
+      alert('Payment failed: ' + (err?.message || err));
+    }
   };
 
   // Helper function to generate transaction ID

@@ -2,9 +2,6 @@ import { useState } from "react";
 import ManagerDashboard from "./ManagerDashboard";
 import MemberDashboard from "./MemberDashboard";
 import LoanRequestModal from "../loan/LoanRequestModal";
-import DashboardBtns from "./DashboardBtns";
-import useIsMobile from "../../hooks/useIsMobile"; // ✅ import your hook
-
 
 import { useEffect } from "react";
 import { getAuth } from "firebase/auth";
@@ -13,7 +10,6 @@ import { api } from "../../lib/api";
 const Dashboard = () => {
   const [isLoanOpen, setIsLoanOpen] = useState(false);
   const [authRole, setAuthRole] = useState(null);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -41,9 +37,6 @@ const Dashboard = () => {
       {authRole === "Member" && (
         <MemberDashboard onLoan={() => setIsLoanOpen(true)} />
       )}
-
-      {!isMobile && <DashboardBtns onLoan={() => setIsLoanOpen(true)} />}
-
       <LoanRequestModal
         isOpen={isLoanOpen}
         onClose={() => setIsLoanOpen(false)}

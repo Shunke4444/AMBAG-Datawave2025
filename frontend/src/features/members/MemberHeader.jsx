@@ -3,6 +3,9 @@ import { Notifications, AccountCircle, Settings } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import bot from '../../assets/icons/chatbot-speech-bubble.svg'
 import userIcon from '../../assets/images/USER.png';    
+import {
+  Logout as LogoutIcon
+} from '@mui/icons-material'
 const MemberHeader = ({ userName = "User" }) => {
   const navigate = useNavigate();
     const handleChatClick = () => {

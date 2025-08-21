@@ -1,12 +1,12 @@
 
-import { ArrowBack } from '@mui/icons-material';
+import { Logout } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 export default function MobileHeader({ title = "Page Title" }) {
   const navigate = useNavigate();
 
   const handleGoBack = () => {
-    navigate(-1);
+    navigate('/login');
   };
 
   return (
@@ -17,7 +17,7 @@ export default function MobileHeader({ title = "Page Title" }) {
         aria-label="Go back"
         onClick={handleGoBack}
       >
-        <ArrowBack className="text-lg sm:text-xl" />
+        <Logout className="text-lg sm:text-xl" />
       </button>
 
       {/* Title */}

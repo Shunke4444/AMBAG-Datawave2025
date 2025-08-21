@@ -1,18 +1,38 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getMyVirtualBalance } from "../../../lib/api";
+import { getAuth } from "firebase/auth";
 import useIsMobile from "../../../hooks/useIsMobile";
 
-const ManagerBalanceCard = () => {
+const ManagerBalanceCard = ({ userUid }) => {
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentUid, setCurrentUid] = useState("");
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
         setLoading(true);
-        const data = await getMyVirtualBalance();
-        // Use total_balance from backend response for real balance
+        let uid = userUid;
+        let authUid = "";
+        if (!uid) {
+          const user = getAuth().currentUser;
+          uid = user?.uid;
+          authUid = user?.uid || "Not logged in";
+        } else {
+          const user = getAuth().currentUser;
+          authUid = user?.uid || "Not logged in";
+        }
+        setCurrentUid(authUid);
+        if (!uid) {
+          setBalance(0);
+          setLoading(false);
+          return;
+        }
+        // Fetch balance for the specified user (or manager if not provided)
+        const data = await getMyVirtualBalance(uid);
         setBalance(data?.total_balance ?? 0);
       } catch (err) {
         setBalance(0);
@@ -21,7 +41,7 @@ const ManagerBalanceCard = () => {
       }
     };
     fetchBalance();
-  }, []);
+  }, [userUid]);
 
   // Format currency (PHP)
   const formatCurrency = (amount) => {
@@ -34,15 +54,27 @@ const ManagerBalanceCard = () => {
     );
   }
 
-  if (isMobile) {
-    // Mobile: mimic member balance card style
-    return (
-   <div className="flex flex-col w-full ml-5 mb-5 text-left">
-        <span className="text-lg font mb-2 text text-left"> Balance</span>
-        <span className="text-3xl font-medium text-left">{formatCurrency(balance)}</span>
-      </div>
-    );
-  }
+    if (isMobile) {
+      // Mobile view
+      return (
+        <div className="flex items-center justify-between w-full ml-5 mb-5">
+          <div className="flex flex-col text-left">
+            <span className="text-lg mb-2">Balance</span>
+            <span className="text-4xl font-semibold">
+              {formatCurrency(balance)}
+            </span>
+          </div>
+
+          {/* Right: Button to Add Virtual Balance */}
+          <button
+            onClick={() => navigate("/transactions/balance")}
+            className="mr-8 bg-accent hover:bg-accent/90 text-white text-xs px-3 py-1.5 rounded-lg shadow-md cursor-pointer"
+          >
+            + Add
+          </button>
+        </div>
+      );
+    }
 
   // Desktop: prominent card/banner above goals
     return (

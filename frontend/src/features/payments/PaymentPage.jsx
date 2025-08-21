@@ -1,4 +1,3 @@
-
 import { useTheme, useMediaQuery } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import SelectGoalModal from './SelectGoalModal';
@@ -10,7 +9,7 @@ import NumberPad from './NumberPad';
 import PaymentButton from './PaymentButton';
 
 import { usePaymentAmount } from '../../hooks/usePaymentAmount';
-import { getMyVirtualBalance, listGoals } from '../../lib/api';
+import { getMyVirtualBalance, listGoals, getMemberQuota } from '../../lib/api';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuth } from "firebase/auth";
@@ -35,28 +34,36 @@ function PaymentPage() {
   // State for real goal data
   const [goalName, setGoalName] = useState('');
   const [remainingAmount, setRemainingAmount] = useState(0);
+  const [quotaLoading, setQuotaLoading] = useState(true);
 
-  // Fetch goal data by goalId
+  // Fetch goal data by goalId and assigned quota for this user
   useEffect(() => {
-    async function fetchGoal() {
+    async function fetchGoalAndQuota() {
       try {
         // listGoals returns all goals for the group, so find the one with goalId
-        // groupId is not available here, so fetch all and filter
         const allGoals = await listGoals();
         const goal = allGoals.find(g => String(g.goal_id) === String(goalId));
         if (goal) {
           setGoalName(goal.title || '');
-          // Calculate remaining amount: goal_amount - total_contributed (fallback to goal_amount if missing)
-          const contributed = goal.total_contributed ?? 0;
-          const target = goal.goal_amount ?? 0;
-          setRemainingAmount(Math.max(target - contributed, 0));
+        }
+        // Fetch assigned quota for this user for this goal (from SplitBill allocation)
+        const user = getAuth().currentUser;
+        if (user && goalId) {
+          setQuotaLoading(true);
+          // Try to get quota from backend allocation (SplitBill)
+          const quotaRes = await getMemberQuota({ goal_id: goalId, user_id: user.uid });
+          setRemainingAmount(Number(quotaRes?.quota || 0));
+        } else {
+          setRemainingAmount(0);
         }
       } catch (e) {
         setGoalName('');
         setRemainingAmount(0);
+      } finally {
+        setQuotaLoading(false);
       }
     }
-    fetchGoal();
+    fetchGoalAndQuota();
   }, [goalId]);
 
   useEffect(() => {

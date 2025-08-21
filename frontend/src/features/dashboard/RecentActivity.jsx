@@ -69,7 +69,7 @@ const RecentActivity = ({
         <h3 className="text-lg font-semibold text-textcolor">Recent Activity</h3>
         <button 
           onClick={handleRecentActivityClick} 
-          className="w-10 h-10 bg-primary hover:bg-primary/90 rounded-full flex items-center justify-center transition-colors"
+          className="w-10 h-10 bg-primary hover:bg-primary/90 rounded-full flex items-center justify-center transition-colors cursor-pointer"
         >
           <ArrowForward className="w-5 h-5 text-white" />
         </button>

@@ -1,4 +1,6 @@
-import { useState , useEffect} from "react";
+import { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
+import { getUserProfile } from "../../lib/api";
 import Sidebar from "./Sidebar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -20,27 +22,50 @@ import { MemberNotifs } from "../../features/notifications/MemberNotifs";
 import MobileHeader from "../../components/MobileHeader";// import { useAuthRole } from "../../contexts/AuthRoleContext";
 import useSidebar from "../../hooks/useSidebar";
 
-const authRole = "Manager";
-const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
+// Remove hardcoded authRole. We'll fetch it dynamically.
 
 const Layout = () => {
   const { isCollapsed, setIsFullScreenPage } = useSidebar();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
+  const [authRole, setAuthRole] = useState(null);
+  const [roleError, setRoleError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isUseMobile = useIsMobile();
 
+  // Fetch user role on mount
+  useEffect(() => {
+    async function fetchRole() {
+      try {
+        setRoleError(null);
+        const user = getAuth().currentUser;
+        if (!user) {
+          setRoleError("Not authenticated");
+          return;
+        }
+        const profile = await getUserProfile(user.uid);
+        setAuthRole(profile?.role?.name || "Member");
+      } catch (e) {
+        setRoleError("Failed to fetch user role");
+      }
+    }
+    fetchRole();
+  }, []);
+
   const isFullScreenPage = location.pathname === '/ai-assistant' || 
-                        location.pathname.includes('/payment') || 
-                        location.pathname.includes('/confirm') || 
-                        location.pathname.includes('/receipt') ||
-                        location.pathname.includes('/what-if') ||
-                        (location.pathname.includes('/request') && !location.pathname.includes('requests-approval')) ||
-                        location.pathname.includes('member-requests') ||
-                        location.pathname.includes('notification');
+    location.pathname.includes('/payment') || 
+    location.pathname.includes('/confirm') || 
+    location.pathname.includes('/receipt') ||
+    location.pathname.includes('/what-if') ||
+    (location.pathname.includes('/request') && !location.pathname.includes('requests-approval')) ||
+    location.pathname.includes('member-requests') ||
+    location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
+
+  // Choose notifications based on real role
+  const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
 
   useEffect(() => {
     setIsFullScreenPage(isFullScreenPage);
@@ -82,6 +107,8 @@ const Layout = () => {
 
   // MOBILE LAYOUT
   if (isUseMobile) {
+    // Wait for role to load
+    if (!authRole) return null;
     return (
       <>
         {!isFullScreenPage && 
@@ -148,12 +175,11 @@ const Layout = () => {
   }
 
   // DESKTOP LAYOUT
+  if (!authRole) return null;
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:block">
-        <Sidebar
-          isMobile={false}
-        />
+        <Sidebar isMobile={false} />
       </div>
 
       <main
@@ -185,19 +211,19 @@ const Layout = () => {
         )}
 
         <Outlet />
-          {notifDialogOpen && (
-            <>
-              <div
-                className="fixed inset-0 bg-black/50 z-40"
-                onClick={closeNotifDialog}
-              />
-              <Notifications
-                notifs={notifs}
-                onApprove={handleApprove}
-                onDecline={handleDecline}
-              />
-            </>
-          )}
+        {notifDialogOpen && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={closeNotifDialog}
+            />
+            <Notifications
+              notifs={notifs}
+              onApprove={handleApprove}
+              onDecline={handleDecline}
+            />
+          </>
+        )}
       </main>
     </div>
   );

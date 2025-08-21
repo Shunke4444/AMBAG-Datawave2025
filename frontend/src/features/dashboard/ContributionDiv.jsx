@@ -9,51 +9,35 @@ import {
 
 import { useState, useEffect } from 'react';
 
-const ContributionDiv = () => {
+const ContributionDiv = ({ members = [], loading = false, error = null }) => {
 
   const [contributionsList, setContributionsList] = useState([]);
 
   useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        // Get current user
-        const { getAuth } = await import('firebase/auth');
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) return;
-        const token = await user.getIdToken();
-        const firebase_uid = user.uid;
-
-        const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
-        const userRes = await fetch(`${baseURL}/users/profile/${firebase_uid}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const userData = await userRes.json();
-        const group_id = userData?.role?.group_id;
-        if (!group_id) return;
-        // Fetch group members
-        const groupRes = await fetch(`${baseURL}/groups/${group_id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const groupData = await groupRes.json();
-        
-        const members = groupData.members.filter(m => m.role !== 'manager');
-        // Map to display format
-        const formatted = members.map(m => ({
-          first_name: m.first_name,
-          last_name: m.last_name,
-          name: m.first_name && m.last_name ? `${m.first_name} ${m.last_name}` : m.firebase_uid,
-          role: 'Member',
-          amount: '+ 2,500.00 PHP', // Replace with actual amount if available
-          date: new Date().toLocaleDateString(), // Replace with actual date if available
-        }));
-        setContributionsList(formatted);
-      } catch (err) {
-        setContributionsList([]);
-      }
-    };
-    fetchMembers();
-  }, []);
+    if (members && members.length > 0) {
+      console.log("📊 ContributionDiv: Received members from props:", members);
+      
+      // Filter out manager and format members
+      const nonManagerMembers = members.filter(m => m.role !== 'manager');
+      console.log("📊 ContributionDiv: Filtered non-manager members:", nonManagerMembers);
+      
+      // Map to display format
+      const formatted = nonManagerMembers.map(m => ({
+        first_name: m.first_name,
+        last_name: m.last_name,
+        name: m.first_name && m.last_name ? `${m.first_name} ${m.last_name}` : m.firebase_uid,
+        role: 'Member',
+        amount: '+ 2,500.00 PHP', // Replace with actual amount if available
+        date: new Date().toLocaleDateString(), // Replace with actual date if available
+      }));
+      
+      console.log("📝 ContributionDiv: Formatted contributions list:", formatted);
+      setContributionsList(formatted);
+    } else {
+      console.log("📊 ContributionDiv: No members received or empty array");
+      setContributionsList([]);
+    }
+  }, [members]);
 
  //MUI Functions for Automatic Avatar Coloring!!!
   function stringToColor(string) {
@@ -89,7 +73,16 @@ const ContributionDiv = () => {
       <h1 className="flex justify-center sm:mt-4 md:text-sm font-bold text-primary">
             Group Contribution Status
           </h1>
-        {contributionsList.length === 0 ? (
+      
+        {loading ? (
+            <Typography variant="body2" className="flex justify-center sm:mt-4 md:text-md font-bold text-gray-600">
+              Loading contributions...
+            </Typography>
+          ) : error ? (
+            <Typography variant="body2" className="flex justify-center sm:mt-4 md:text-md font-bold text-red-600">
+              Error: {error}
+            </Typography>
+          ) : contributionsList.length === 0 ? (
             <Typography variant="body2" className="flex justify-center sm:mt-4 md:text-md font-bold text-gray-600">
               No member contributions yet.
             </Typography>

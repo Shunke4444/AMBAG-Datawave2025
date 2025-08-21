@@ -1,7 +1,7 @@
-
 import React, { useEffect, useState } from "react";
 import { getMyVirtualBalance, addVirtualBalance } from "../../lib/api";
 import PaymentLayout from "../payments/PaymentLayout";
+import { getAuth } from "firebase/auth";
 
 export default function Balance() {
     const [balance, setBalance] = useState(null);
@@ -39,12 +39,19 @@ export default function Balance() {
 			return;
 		}
 		try {
-            await addVirtualBalance({
-                amount: Number(amount),
-                goal_title: goalTitle,
-                status,
-                balance_type: balanceType
-            });
+			const user = getAuth().currentUser;
+			if (!user) {
+				setError("Not authenticated");
+				return;
+			}
+			await addVirtualBalance({
+				amount: Number(amount),
+				goal_title: goalTitle,
+				status,
+				balance_type: balanceType,
+				// owner_uid is always set in the backend API, but we ensure it's correct here
+				owner_uid: user.uid
+			});
 			setSuccess("Balance added!");
 			setAmount("");
 			setGoalTitle("");
