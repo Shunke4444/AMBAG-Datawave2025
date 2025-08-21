@@ -1,3 +1,13 @@
+// Fetch smart reminders for a goal/group
+export async function fetchSmartReminders(goalId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  const res = await api.get(`/ai-tools/smart-reminders/${goalId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 

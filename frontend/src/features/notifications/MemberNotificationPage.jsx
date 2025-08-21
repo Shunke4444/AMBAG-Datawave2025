@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import AgenticReminderCard from '../../components/AgenticReminderCard.jsx';
 import { useNavigate } from 'react-router-dom';
-import { fetchAgenticNotifications } from '../../lib/api';
+import { fetchAgenticNotifications, fetchSmartReminders } from '../../lib/api';
 import { useMembersContext } from '../manager/contexts/MembersContext.jsx';
 import {
   CheckCircle,
@@ -22,6 +23,7 @@ export default function MemberNotification({ goalId }) {
     loan_suggestion: null
   });
   const [notifications, setNotifications] = useState([]);
+  const [agenticNotifications, setAgenticNotifications] = useState([]);
   const { currentUser } = useMembersContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,21 +36,38 @@ export default function MemberNotification({ goalId }) {
 
   useEffect(() => {
     async function loadNotifications() {
+      if (!currentUser) {
+        setLoading(true);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
-        // Use currentUser from MembersContext
+        // Standard notifications
         const firebaseUid = currentUser?.firebase_uid || null;
-        console.log('[DEBUG] Calling fetchAgenticNotifications with group_id:', effectiveGoalId);
         const res = await fetchAgenticNotifications(effectiveGoalId);
-        console.log('[DEBUG] Raw notifications from backend:', res.notifications);
-        console.log('[DEBUG] Current user firebaseUid:', firebaseUid);
-        // Filter notifications for current user
-  const allNotifs = res.notifications || [];
-  // Patch: filter by 'recipient' field instead of 'firebase_uid'
-  const filtered = firebaseUid ? allNotifs.filter(n => n.recipient === firebaseUid) : allNotifs;
-        console.log('[DEBUG] Filtered notifications for user:', filtered);
-        setNotifications(filtered);
+        const allNotifs = res.notifications || [];
+  const filtered = firebaseUid ? allNotifs.filter(n => n.recipient === firebaseUid || n.recipient === currentUser?.user_id) : allNotifs;
+  console.log('Filtered notifications for member:', filtered);
+        const sorted = [...filtered].sort((a, b) => {
+          const ta = new Date(a.timestamp || a.created_at || 0).getTime();
+          const tb = new Date(b.timestamp || b.created_at || 0).getTime();
+          return tb - ta;
+        });
+        setNotifications(sorted);
+
+        // Agentic notifications (smart reminders)
+  console.log('Fetching agentic reminders with ID:', effectiveGoalId);
+  const agenticRes = await fetchSmartReminders(effectiveGoalId);
+        // Filter for current group and auto_send true
+        const agenticFiltered = (agenticRes.reminders || []).filter(r => r.group_id === effectiveGoalId && r.auto_send);
+        // Sort by timestamp
+        const agenticSorted = [...agenticFiltered].sort((a, b) => {
+          const ta = new Date(a.timestamp || 0).getTime();
+          const tb = new Date(b.timestamp || 0).getTime();
+          return tb - ta;
+        });
+        setAgenticNotifications(agenticSorted);
       } catch (err) {
         setError('Failed to load notifications');
         console.error('[DEBUG] Error loading notifications:', err);
@@ -204,128 +223,87 @@ export default function MemberNotification({ goalId }) {
             <div className="text-center py-8">Loading notifications...</div>
           ) : error ? (
             <div className="text-center py-8 text-red">{error}</div>
-          ) : notifications.length === 0 ? (
-            <section className="text-center py-12 sm:py-16" aria-labelledby="empty-state-title">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
-                <Notifications className="w-8 h-8 sm:w-10 sm:h-10 text-secondary/60" />
-              </div>
-              <h3 id="empty-state-title" className="text-lg sm:text-xl font-semibold text-secondary/80 mb-2">All caught up!</h3>
-              <p className="text-sm sm:text-base text-secondary/60">No new notifications at the moment.</p>
-            </section>
           ) : (
-            <ul className="space-y-3 sm:space-y-4" role="list">
-              {notifications.map((notification) => {
-                console.log('[DEBUG] Rendering notification:', notification);
-                const config = getNotificationConfig(notification.type);
+            <>
+              {/* Agentic Notifications Section */}
+              {(() => {
+                console.log('Agentic reminders:', agenticNotifications);
+                if (!agenticNotifications || agenticNotifications.length === 0) return null;
                 return (
-                  <li key={notification.id || notification._id}>
-                    <article
-                      className={`relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${config.style}`}
-                      aria-labelledby={`notification-title-${notification.id}`}
-                      aria-describedby={`notification-content-${notification.id} notification-time-${notification.id}`}
-                      data-notification-type={notification.type}
-                      data-priority={config.priority}
-                      data-ai-accessible={config.aiAccessible}
-                      onClick={() => {
-                        setSelectedNotification(notification);
-                        setModalOpen(true);
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {/* New Badge */}
-                      {notification.isNew && (
-                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-accent rounded-full border-2 border-secondary" aria-label="New notification"></div>
-                      )}
-                      <div className="flex items-start gap-3 sm:gap-4">
-                        <div className="flex-1 min-w-0">
-                          <h3 id={`notification-title-${notification.id}`} className="font-semibold text-sm sm:text-base text-textcolor mb-1">
-                            {notification.title || notification.message?.slice(0, 30) || 'Notification'}
-                          </h3>
-                          <p id={`notification-content-${notification.id}`} className="text-xs sm:text-sm text-textcolor/80 leading-relaxed mb-2">
-                            {notification.message}
-                          </p>
-                          <time id={`notification-time-${notification.id}`} className="text-xs text-textcolor/60" dateTime={notification.timestamp || ''}>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time>
-                          {/* Action Buttons for Loan Suggestion */}
-                          {notification.hasActions && notification.actionId === 'loan_suggestion' && (
-                            <div className="mt-4 pt-4 border-t border-textcolor/10" role="group" aria-labelledby={`actions-label-${notification.id}`}>
-                              {actionNotifications[notification.actionId] ? (
-                                <div className="flex items-center gap-2 text-sm text-green" role="status" aria-live="polite">
-                                  <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                                  <span>
-                                    {actionNotifications[notification.actionId] === 'member' && 'Request sent to group members'}
-                                    {actionNotifications[notification.actionId] === 'bpi' && 'BPI loan application initiated'}
-                                    {actionNotifications[notification.actionId] === 'reject' && 'Suggestion dismissed'}
-                                  </span>
-                                </div>
-                              ) : (
-                                <>
-                                  <p id={`actions-label-${notification.id}`} className="text-xs text-textcolor/70 mb-3">Choose an option:</p>
-                                  <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`actions-label-${notification.id}`}>
-                                    <button
-                                      onClick={() => handleNotificationAction('requestLoanFromMembers', notification.id)}
-                                      className="flex items-center gap-2 px-3 py-2 bg-primary text-secondary text-xs sm:text-sm font-medium rounded-lg hover:bg-shadow transition-colors"
-                                      aria-describedby={`notification-content-${notification.id}`}
-                                      data-action="requestLoanFromMembers"
-                                      data-notification-id={notification.id}
-                                    >
-                                      <Group className="w-4 h-4" aria-hidden="true" />
-                                      Ask Members
-                                    </button>
-                                    <button
-                                      onClick={() => handleNotificationAction('requestBPILoan', notification.id)}
-                                      className="flex items-center gap-2 px-3 py-2 bg-accent text-primary text-xs sm:text-sm font-medium rounded-lg hover:bg-accent/90 transition-colors"
-                                      aria-describedby={`notification-content-${notification.id}`}
-                                      data-action="requestBPILoan"
-                                      data-notification-id={notification.id}
-                                    >
-                                      <AccountBalance className="w-4 h-4" aria-hidden="true" />
-                                      BPI Loan
-                                    </button>
-                                    <button
-                                      onClick={() => handleNotificationAction('dismissSuggestion', notification.id)}
-                                      className="flex items-center gap-2 px-3 py-2 bg-textcolor/10 text-textcolor text-xs sm:text-sm font-medium rounded-lg hover:bg-textcolor/20 transition-colors"
-                                      aria-describedby={`notification-content-${notification.id}`}
-                                      data-action="dismissSuggestion"
-                                      data-notification-id={notification.id}
-                                    >
-                                      <Close className="w-4 h-4" aria-hidden="true" />
-                                      Not Now
-                                    </button>
-                                  </div>
-                                </>
-                              )}
+                  <section className="mb-8" aria-label="Agentic Notifications">
+                    <h2 className="text-lg font-bold text-primary mb-4">Agentic Reminders</h2>
+                    <ul className="space-y-3 sm:space-y-4" role="list">
+                      {agenticNotifications.map(reminder => (
+                        <li key={reminder.id || reminder._id}>
+                          <AgenticReminderCard 
+                            reminder={reminder}
+                            onPayShare={(goalId) => {
+                              // Pass goal name and amount if available
+                              const goalName = reminder?.goal_name || reminder?.ai_reminder?.goal_name || reminder?.context?.goal_name || '';
+                              const goalAmount = reminder?.goal_amount || reminder?.ai_reminder?.goal_amount || reminder?.context?.goal_amount || 0;
+                              navigate(`/payment/${goalId}`, {
+                                state: {
+                                  goalName,
+                                  goalAmount,
+                                  reminderId: reminder.id || reminder._id
+                                }
+                              });
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })()}
+              {/* Standard Notifications Section */}
+              {notifications.length === 0 ? (
+                <section className="text-center py-12 sm:py-16" aria-labelledby="empty-state-title">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
+                    <Notifications className="w-8 h-8 sm:w-10 sm:h-10 text-secondary/60" />
+                  </div>
+                  <h3 id="empty-state-title" className="text-lg sm:text-xl font-semibold text-secondary/80 mb-2">All caught up!</h3>
+                  <p className="text-sm sm:text-base text-secondary/60">No new notifications at the moment.</p>
+                </section>
+              ) : (
+                <ul className="space-y-3 sm:space-y-4" role="list">
+                  {notifications.map((notification) => {
+                    const config = getNotificationConfig(notification.type);
+                    return (
+                      <li key={notification.id || notification._id}>
+                        <article
+                          className={`relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${config.style}`}
+                          aria-labelledby={`notification-title-${notification.id}`}
+                          aria-describedby={`notification-content-${notification.id} notification-time-${notification.id}`}
+                          data-notification-type={notification.type}
+                          data-priority={config.priority}
+                          data-ai-accessible={config.aiAccessible}
+                          onClick={() => {
+                            setSelectedNotification(notification);
+                            setModalOpen(true);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {/* ...existing code for notification rendering... */}
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 id={`notification-title-${notification.id}`} className="font-semibold text-sm sm:text-base text-textcolor mb-1">
+                                {notification.title || notification.message?.slice(0, 30) || 'Notification'}
+                              </h3>
+                              <p id={`notification-content-${notification.id}`} className="text-xs sm:text-sm text-textcolor/80 leading-relaxed mb-2">
+                                {notification.message}
+                              </p>
+                              <time id={`notification-time-${notification.id}`} className="text-xs text-textcolor/60" dateTime={notification.timestamp || ''}>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time>
+                              {/* ...existing code for actions... */}
                             </div>
-                          )}
-                          {/* Generic Action Buttons for other notification types */}
-                          {!notification.hasActions && config.aiAccessible && (
-                            <div className="mt-3 flex gap-2">
-                              <button
-                                onClick={() => handleNotificationAction('markAsRead', notification.id)}
-                                className="text-xs text-textcolor/60 hover:text-textcolor transition-colors"
-                                data-action="markAsRead"
-                                data-notification-id={notification.id}
-                              >
-                                Mark as read
-                              </button>
-                              {config.actions.includes('snoozeNotification') && (
-                                <button
-                                  onClick={() => handleNotificationAction('snoozeNotification', notification.id, '1hour')}
-                                  className="text-xs text-textcolor/60 hover:text-textcolor transition-colors"
-                                  data-action="snoozeNotification"
-                                  data-notification-id={notification.id}
-                                >
-                                  Snooze
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </article>
-                  </li>
-                  );
-                })}
-              </ul>
+                          </div>
+                        </article>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </section>

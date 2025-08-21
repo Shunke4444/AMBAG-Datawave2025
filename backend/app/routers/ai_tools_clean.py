@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Optional
@@ -566,9 +565,31 @@ async def escalate_to_manager(group_id: str, action_data: Dict):
         "requires_action": True,
         "auto_generated": True
     }
-    
+
+
+    # Store manager notification in notifications_collection and smart_reminders_collection
     await notifications_collection.insert_one(manager_notification)
-    
+    await smart_reminders_collection.insert_one(manager_notification)
+
+    # Also create notifications for late contributors (if any)
+    late_members = action_data.get('late_members', [])
+    for member in late_members:
+        contributor_notification = {
+            "id": f"mgr_alert_{group_id}_{member}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "type": "manager_alert_contributor",
+            "recipient": member,
+            "group_id": group_id,
+            "message": f"You are behind on contributions for group {group_id}. Please take action!\nSituation: {situation}\nDeadline: {action_data.get('deadline', 'Soon')}\nContact your manager for details.",
+            "urgency": urgency,
+            "channel": "push",
+            "status": "sent",
+            "timestamp": datetime.now().isoformat(),
+            "requires_action": True,
+            "auto_generated": True
+        }
+        await notifications_collection.insert_one(contributor_notification)
+        await smart_reminders_collection.insert_one(contributor_notification)
+
     await executed_actions_collection.insert_one({
         "action_type": "escalate_manager",
         "group_id": group_id,
@@ -576,9 +597,9 @@ async def escalate_to_manager(group_id: str, action_data: Dict):
         "timestamp": datetime.now().isoformat(),
         "autonomous": True
     })
-    
+
     logger.info(f"Manager escalation sent for group {group_id} - urgency: {urgency}")
-    
+
     return {
         "executed": True,
         "action": "manager_escalated",
@@ -853,17 +874,29 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
         # Get AI-generated reminder
         ai_reminder = await get_ai_analysis(ai_prompt)
         
-        # Store the reminder
+        # Always store both goal_id and group_id
+        goal_doc = await goals_collection.find_one({"goal_id": request.group_id})
+        group_id = None
+        goal_id = request.group_id
+        if goal_doc:
+            group_id = goal_doc.get("group_id")
+        else:
+            # Try to get group from groups_collection
+            group_doc = await groups_collection.find_one({"group_id": request.group_id})
+            if group_doc:
+                group_id = group_doc.get("group_id")
+        # Fallback: if group_id is still None, use request.group_id
         reminder_result = {
-            "id": f"reminder_{request.group_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            "group_id": request.group_id,
+            "id": f"reminder_{goal_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "goal_id": goal_id,
+            "group_id": group_id or request.group_id,
             "reminder_type": request.reminder_type,
             "ai_reminder": ai_reminder,
             "context": context,
             "timestamp": datetime.now().isoformat(),
             "auto_send": request.auto_send
         }
-        
+
         await smart_reminders_collection.insert_one(reminder_result)
         
         # AUTONOMOUS SENDING: If auto_send is enabled, send the reminder immediately
@@ -908,6 +941,28 @@ async def smart_reminder(request: SmartReminderRequest, background_tasks: Backgr
     except Exception as e:
         logger.error(f"Smart reminder error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Reminder generation failed: {str(e)}")
+
+@router.get("/smart-reminders/{id}")
+async def get_smart_reminders(id: str):
+    """Get all smart reminders for a specific group or goal (id can be group_id or goal_id)"""
+    reminders = await smart_reminders_collection.find({"$or": [{"group_id": id}, {"goal_id": id}]}).to_list(length=None)
+    # Serialize ObjectId and datetime fields for JSON compatibility
+    def serialize_reminder(doc):
+        doc = dict(doc)
+        if "_id" in doc:
+            doc["_id"] = str(doc["_id"])
+        for k, v in doc.items():
+            if hasattr(v, "isoformat"):
+                doc[k] = v.isoformat()
+        return doc
+    serialized_reminders = [serialize_reminder(r) for r in reminders]
+    return {
+        "query_id": id,
+        "reminders": serialized_reminders,
+        "count": len(serialized_reminders)
+    }
+
+
 
 @router.post("/agentic-action")
 async def trigger_agentic_action(group_id: str, background_tasks: BackgroundTasks):
