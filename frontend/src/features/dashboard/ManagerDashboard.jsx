@@ -9,7 +9,7 @@ import ContributionDiv from "./ContributionDiv";
 import DashboardBtns from "./DashboardBtns";
 import GoalCards from "../goals/GoalCards";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
-import MemberHeader from "../members/MemberHeader";
+import ManagerHeader from "../manager/ManagerHeader";
 import ActionButtons from "./ActionButtons";
 import SelectGoalModal from '../payments/SelectGoalModal';
 import {
@@ -21,6 +21,7 @@ import SplitBill from "../manager/SplitBill";
 import { useMembersContext } from "../manager/contexts/MembersContext.jsx";
 
 const ManagerDashboard = ({ onLoan }) => {
+  // Debug: Log members and user
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const [firstName, setFirstName] = useState("");
@@ -33,8 +34,6 @@ const ManagerDashboard = ({ onLoan }) => {
   const { user } = useAuthRole();
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
-
-
   // Fetch user first name
   useEffect(() => {
     const fetchProfile = async () => {
@@ -44,7 +43,19 @@ const ManagerDashboard = ({ onLoan }) => {
       try {
         const res = await api.getUserProfile(currentUser.uid);
         setFirstName(res?.profile?.first_name || "Manager");
-    setProfileGroupId(res?.role?.group_id || "");
+  setProfileGroupId(res?.role?.group_id || "");
+  // Helper: Get non-manager members
+  const getNonManagerMembers = () => {
+    if (!members || members.length <= 1) return [];
+    // Use firebase_uid for manager filtering
+    return members.filter(m => m.firebase_uid !== user?.firebase_uid);
+  };
+
+  // Helper: Should show Find Your AMBAG Pals
+  const shouldShowFindAmbagPals = () => {
+    // Show if members array length is 1 (just manager)
+    return members && getNonManagerMembers().length === 0;
+  };
     console.log("Fetched profile:", res);
     console.log("Extracted group ID:", res?.role?.group_id);
       } catch (err) {
@@ -53,6 +64,9 @@ const ManagerDashboard = ({ onLoan }) => {
     };
     fetchProfile();
   }, []);
+
+    console.log('[AMBAG DEBUG] members:', members);
+  console.log('[AMBAG DEBUG] user:', user);
 
   // Fetch goals
   useEffect(() => {
@@ -114,7 +128,8 @@ const ManagerDashboard = ({ onLoan }) => {
     // Loading flag
     const isLoading = goalsLoading || groupLoading;
 
-
+  console.log('[AMBAG DEBUG] members:', members);
+  console.log('[AMBAG DEBUG] user:', user);
 
   const handleOpenSplitBill = (member) => {
     setSelectedMember(member || null); // optional, if you want to open for specific member
@@ -135,85 +150,109 @@ const ManagerDashboard = ({ onLoan }) => {
 
     // ---------- Mobile Layout ----------
     if (isMobile) {
-      return (
-        <main className="flex flex-col min-h-screen bg-white mb-16 overflow-x-hidden">
-          <div className="bg-primary text-white px-4 pb-4 rounded-b-3xl">
-            {/* Header */}
-            <div className="my-4">
-              <MemberHeader userName={firstName || "Manager"} />
-            </div>
-
-            {/* Manager Balance */}
-            <ManagerBalanceCard />
-
-            {/* Member count */}
-            <div className="flex justify-end pr-4 pt-2">
-              <span className="text-md font-semibold text-white">
-                Current Members: {members.length}
-              </span>
-            </div>
-
-            {/* Main Content */}
-            {isLoading ? (
-              // ⏳ Show skeleton while fetching
-              <div className="flex items-center justify-center py-12">
-                <p className="text-gray-200">Loading...</p>
-              </div>
-            ) : hasData ? (
-              // ✅ Show data
-              <>
-                {showGoals && (
-                  <div className="p-4">
-                    <GoalCarouselMobile goals={mappedGoals} />
-                  </div>
-                )}
-                {showGroup && (
-                  <div className="p-4">
-                    <ContributionDiv />
-                  </div>
-                )}
-              </>
-            ) : (
-              // 🚫 Empty placeholders
-              <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
-                <p className="text-secondary text-center text-sm sm:text-base md:text-lg lg:text-xl">
-                  No data yet
-                </p>
-                <button
-                  className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
-                  onClick={() => setIsGoalModalOpen(true)}
-                >
-                  <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
-                  <span>Create a Goal</span>
-                </button>
-                <button
-                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
-                  onClick={() => setIsGroupModalOpen(true)}
-                >
-                  <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
-                  <span>Find Your AMBAG Pals!</span>
-                </button>
-              </div>
-            )}
+    return (
+      <main className="flex flex-col min-h-screen bg-white mb-16 overflow-x-hidden">
+        <div className="bg-primary text-white px-4 pb-4 rounded-b-3xl">
+          {/* Header */}
+          <div className="my-4">
+            {/* Use ManagerHeader for managers so notification button routes correctly */}
+            <ManagerHeader userName={firstName || "Manager"} />
           </div>
 
-          {/* Modals */}
-          {isGoalModalOpen && (
-            <CreateGoalModal
-              open={isGoalModalOpen}
-              onClose={() => setIsGoalModalOpen(false)}
-              onCreateGoal={() => {}}
-            />
-          )}
+          {/* Manager Balance */}
+          <ManagerBalanceCard />
 
-          <SplitBill
-            open={isSplitBillOpen}
-            member={selectedMember}
-            onClose={handleCloseSplitBill}
-            onSave={handleSaveQuota}
+          {/* Member count */}
+          <div className="flex justify-end pr-4 pt-2">
+            <span className="text-md font-semibold text-white">
+              Current Members: {members.length}
+            </span>
+          </div>
+
+          {/* Main Content */}
+          {isLoading ? (
+            // ⏳ Show skeleton while fetching
+            <div className="flex items-center justify-center py-12">
+              <p className="text-gray-200">Loading...</p>
+            </div>
+          ) : hasData ? (
+            // ✅ Show data
+            <>
+              {showGroup && (
+                <div className="p-4">
+                  {shouldShowFindAmbagPals() ? (
+                    <button
+                      className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
+                      onClick={() => setIsGroupModalOpen(true)}
+                    >
+                      <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
+                      <span>Find Your AMBAG Pals!</span>
+                    </button>
+                  ) : (
+                    <>
+                      <ContributionDiv />
+                      {/* List non-manager members */}
+                      <div className="mt-4">
+                        <h3 className="font-semibold text-primary mb-2">Group Members</h3>
+                        <ul className="space-y-2">
+                          {getNonManagerMembers().map(m => (
+                            <li key={m.user_id} className="text-black text-sm bg-secondary rounded px-3 py-1">
+                              {m.name || m.first_name || m.email || m.user_id}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              {showGoals && (
+                <div className="p-4">
+                  <GoalCarouselMobile goals={mappedGoals} />
+                </div>
+              )}
+            </>
+          ) : (
+            // 🚫 Empty placeholders
+            <div className="flex flex-col items-center justify-center gap-8 bg-shadow rounded-xl px-6 py-12 shadow-md mb-4">
+              <p className="text-secondary text-center text-sm sm:text-base md:text-lg lg:text-xl">
+                No data yet
+              </p>
+              <button
+                className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
+                onClick={() => setIsGoalModalOpen(true)}
+              >
+                <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
+                <span>Create a Goal</span>
+              </button>
+              <button
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm sm:text-base md:text-lg px-4 py-2 rounded-xl cursor-pointer"
+                onClick={() => setIsGroupModalOpen(true)}
+              >
+                <AddIcon className="text-white text-sm sm:text-base md:text-lg" />
+                <span>Find Your AMBAG Pals!</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Modals */}
+        {isGoalModalOpen && (
+          <CreateGoalModal
+            open={isGoalModalOpen}
+            onClose={() => setIsGoalModalOpen(false)}
+            onCreateGoal={() => {}}
           />
-        </main>
-      );
+        )}
+
+        <SplitBill
+          open={isSplitBillOpen}
+          member={selectedMember}
+          onClose={handleCloseSplitBill}
+          onSave={handleSaveQuota}
+        />
+      </main>
+    );
     }
 
     // ---------- Desktop Layout ----------

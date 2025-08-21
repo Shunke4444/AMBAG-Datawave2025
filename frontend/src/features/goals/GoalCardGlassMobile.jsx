@@ -54,7 +54,7 @@ const getStatus = (amount, total) => {
     };
 
     return (
-      <main className="mt-5 w-[80vw] max-w-[33rem] h-[12rem] xs:h-[13rem] sm:h-[14rem] md:h-[15rem] rounded-2xl bg-white/10 backdrop-blur-md border border-white/30 shadow-xl flex overflow-hidden mx-auto">
+      <main className="mt-5 w-[80vw] max-w-[33rem] h-[12rem] xs:h-[13rem] sm:h-[14rem] md:h-[15rem] rounded-2xl bg-white/10 border border-white/30 shadow-xl flex overflow-hidden mx-auto">
         <aside className="flex-shrink-0 flex flex-col items-center justify-center p-2 xs:p-3 sm:p-4 md:p-5 w-[30%] relative">
           <figure className="w-20 h-20 xs:w-24 xs:h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 relative">
             <Doughnut data={chartData} options={chartOptions} />

@@ -1,3 +1,33 @@
+async def notify_manager_member_request(group_id: str, member_name: str, request_detail: str):
+    """Send a notification to all managers when a member sends a request."""
+    group = await groups_collection.find_one({"group_id": group_id})
+    if not group:
+        logger.warning(f"[NOTIF] No group found for group_id={group_id}")
+        return False
+    managers = [m for m in group.get("members", []) if m.get("role", "").lower() == "manager"]
+    notifications = []
+    timestamp = datetime.now().isoformat()
+    for manager in managers:
+        recipient_id = manager.get("user_id") or manager.get("firebase_uid")
+        if not recipient_id:
+            continue
+        notification = {
+            "type": "member_request",
+            "recipient": recipient_id,
+            "group_id": group_id,
+            "title": "Member Request",
+            "message": f"Hi Manager, {member_name} has requested for {request_detail}! Check your Requests page for further details!",
+            "timestamp": timestamp,
+            "auto_generated": True
+        }
+        notifications.append(notification)
+    if notifications:
+        await notifications_collection.insert_many(notifications)
+        logger.info(f"[NOTIF] Sent member request notifications to managers in group_id={group_id}")
+    else:
+        logger.warning(f"[NOTIF] No manager notifications to send for group_id={group_id}")
+    return True
+
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Optional
@@ -6,7 +36,6 @@ import logging
 import json
 import re
 from uuid import uuid4
-
 from .ai_client import get_ai_client
 
 # from .goal import goals, pool_status
@@ -25,6 +54,43 @@ router = APIRouter(prefix="/ai-tools", tags=["ai-tools"])
 # def get_group_by_id(group_id: str):
 #     return groups_collection.find_one({"group_id": group_id})
 # Notify all group members when a new goal is created
+async def send_welcome_notification(group_id: str, user_name: str, user_role: str, is_first_time: bool):
+    """Send welcome notification based on user role and join status."""
+    group = await groups_collection.find_one({"group_id": group_id})
+    group_name = group.get("name", "your group") if group else "your group"
+    notifications = []
+    timestamp = datetime.now().isoformat()
+    if user_role == "contributor" and is_first_time:
+        # Welcome message for first-time contributor
+        notifications.append({
+            "type": "welcome",
+            "recipient": user_name,
+            "group_id": group_id,
+            "title": "Welcome!",
+            "message": f"Welcome to {group_name}! We're excited to have you join and contribute.",
+            "timestamp": timestamp,
+            "auto_generated": True
+        })
+    else:
+        # Notify all managers and contributors about new member
+        # Find all members except the new joiner
+        if group:
+            for member in group.get("members", []):
+                recipient_id = member.get("user_id")
+                if recipient_id != user_name:
+                    notifications.append({
+                        "type": "member_joined",
+                        "recipient": recipient_id,
+                        "group_id": group_id,
+                        "title": "New Member!",
+                        "message": f"{user_name} just dropped in!",
+                        "timestamp": timestamp,
+                        "auto_generated": True
+                    })
+    if notifications:
+        await notifications_collection.insert_many(notifications)
+    return True
+
 async def notify_group_members_new_goal(goal_doc):
     """Create a notification for each group member when a new goal is created."""
     group_id = goal_doc.get("group_id")
@@ -53,6 +119,7 @@ async def notify_group_members_new_goal(goal_doc):
             "recipient": recipient_id,
             "group_id": group_id,
             "goal_id": goal_doc.get("goal_id"),
+            "title": "New Goal!",
             "message": f"A new goal '{goal_doc.get('title', 'Untitled')}' has been created for your group.",
             "channel": "push notification",
             "status": "sent",

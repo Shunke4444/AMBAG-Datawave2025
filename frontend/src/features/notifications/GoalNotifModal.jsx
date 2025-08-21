@@ -4,7 +4,7 @@ export default function GoalNotifModal({ notification, open, onClose, onAction }
   if (!open || !notification) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 relative">
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-700"
@@ -18,11 +18,12 @@ export default function GoalNotifModal({ notification, open, onClose, onAction }
         <div className="text-xs text-gray-500 mb-4">
           {notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}
         </div>
+        
         {/* Render action buttons if provided */}
         {notification.hasActions && (
           <div className="flex gap-2 mt-2">
             <button
-              className="px-3 py-2 bg-primary text-secondary rounded-lg text-xs font-medium hover:bg-shadow"
+              className="px-3 py-2 bg-white text-secondary rounded-lg text-xs font-medium hover:bg-shadow"
               onClick={() => onAction('requestLoanFromMembers', notification.id)}
             >
               Ask Members

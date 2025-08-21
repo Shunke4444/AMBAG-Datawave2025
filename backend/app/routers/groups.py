@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from .mongo import users_collection, groups_collection
 from .verify_token import verify_token
+from .ai_tools_clean import send_welcome_notification
 import logging
 import random, string
 
@@ -176,6 +177,14 @@ async def add_member_to_group(group_id: str, member_request: AddMemberRequest, u
             "role.group_id": group_id,
             "role.role_type": member_request.role
         }}
+    )
+
+    # Send welcome notification to the new member
+    await send_welcome_notification(
+        group_id=group_id,
+        user_name=member_request.firebase_uid,
+        user_role=member_request.role,
+        is_first_time=True
     )
 
     updated_group = await groups_collection.find_one({"group_id": group_id})
