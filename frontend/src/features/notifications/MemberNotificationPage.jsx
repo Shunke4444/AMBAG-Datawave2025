@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAgenticNotifications } from '../../lib/api';
+import { useMembersContext } from '../manager/contexts/MembersContext.jsx';
 import {
   CheckCircle,
   Warning,
@@ -13,6 +14,7 @@ import {
   Notifications
 } from '@mui/icons-material';
 import MobileLayout from '../payments/PaymentLayout';
+import GoalNotifModal from './GoalNotifModal.jsx';
 
 export default function MemberNotification({ goalId }) {
   const navigate = useNavigate();
@@ -20,28 +22,42 @@ export default function MemberNotification({ goalId }) {
     loan_suggestion: null
   });
   const [notifications, setNotifications] = useState([]);
+  const { currentUser } = useMembersContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
-  // Demo: fallback goalId if not provided
-  const effectiveGoalId = goalId || 'demo-goal-id';
+  // Use groupId from MembersContext if goalId is not provided
+  const { groupId } = useMembersContext();
+  const effectiveGoalId = goalId || groupId;
 
   useEffect(() => {
     async function loadNotifications() {
       setLoading(true);
       setError(null);
       try {
+        // Use currentUser from MembersContext
+        const firebaseUid = currentUser?.firebase_uid || null;
+        console.log('[DEBUG] Calling fetchAgenticNotifications with group_id:', effectiveGoalId);
         const res = await fetchAgenticNotifications(effectiveGoalId);
-        // Flatten notifications for UI (customize as needed)
-        setNotifications(res.notifications || []);
+        console.log('[DEBUG] Raw notifications from backend:', res.notifications);
+        console.log('[DEBUG] Current user firebaseUid:', firebaseUid);
+        // Filter notifications for current user
+  const allNotifs = res.notifications || [];
+  // Patch: filter by 'recipient' field instead of 'firebase_uid'
+  const filtered = firebaseUid ? allNotifs.filter(n => n.recipient === firebaseUid) : allNotifs;
+        console.log('[DEBUG] Filtered notifications for user:', filtered);
+        setNotifications(filtered);
       } catch (err) {
         setError('Failed to load notifications');
+        console.error('[DEBUG] Error loading notifications:', err);
       } finally {
         setLoading(false);
       }
     }
     loadNotifications();
-  }, [effectiveGoalId]);
+  }, [effectiveGoalId, currentUser]);
 
   // Notification Action Handlers - AI accessible functions
   const notificationActions = {
@@ -176,6 +192,12 @@ export default function MemberNotification({ goalId }) {
   // Render
   return (
     <MobileLayout title="Notifications">
+      <GoalNotifModal
+        notification={selectedNotification}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onAction={handleNotificationAction}
+      />
       <section className="pt-6 pb-6" aria-label="Notifications">
         <div className="max-w-4xl mx-auto">
           {loading ? (
@@ -193,15 +215,22 @@ export default function MemberNotification({ goalId }) {
           ) : (
             <ul className="space-y-3 sm:space-y-4" role="list">
               {notifications.map((notification) => {
+                console.log('[DEBUG] Rendering notification:', notification);
                 const config = getNotificationConfig(notification.type);
                 return (
                   <li key={notification.id || notification._id}>
-                    <article className={`relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${config.style}`}
+                    <article
+                      className={`relative p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${config.style}`}
                       aria-labelledby={`notification-title-${notification.id}`}
                       aria-describedby={`notification-content-${notification.id} notification-time-${notification.id}`}
                       data-notification-type={notification.type}
                       data-priority={config.priority}
                       data-ai-accessible={config.aiAccessible}
+                      onClick={() => {
+                        setSelectedNotification(notification);
+                        setModalOpen(true);
+                      }}
+                      style={{ cursor: 'pointer' }}
                     >
                       {/* New Badge */}
                       {notification.isNew && (
@@ -216,85 +245,83 @@ export default function MemberNotification({ goalId }) {
                             {notification.message}
                           </p>
                           <time id={`notification-time-${notification.id}`} className="text-xs text-textcolor/60" dateTime={notification.timestamp || ''}>{notification.timestamp ? new Date(notification.timestamp).toLocaleString() : ''}</time>
-
-                        {/* Action Buttons for Loan Suggestion */}
-                        {notification.hasActions && notification.actionId === 'loan_suggestion' && (
-                          <div className="mt-4 pt-4 border-t border-textcolor/10" role="group" aria-labelledby={`actions-label-${notification.id}`}>
-                            {actionNotifications[notification.actionId] ? (
-                              <div className="flex items-center gap-2 text-sm text-green" role="status" aria-live="polite">
-                                <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                                <span>
-                                  {actionNotifications[notification.actionId] === 'member' && 'Request sent to group members'}
-                                  {actionNotifications[notification.actionId] === 'bpi' && 'BPI loan application initiated'}
-                                  {actionNotifications[notification.actionId] === 'reject' && 'Suggestion dismissed'}
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                <p id={`actions-label-${notification.id}`} className="text-xs text-textcolor/70 mb-3">Choose an option:</p>
-                                <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`actions-label-${notification.id}`}>
-                                  <button
-                                    onClick={() => handleNotificationAction('requestLoanFromMembers', notification.id)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-primary text-secondary text-xs sm:text-sm font-medium rounded-lg hover:bg-shadow transition-colors"
-                                    aria-describedby={`notification-content-${notification.id}`}
-                                    data-action="requestLoanFromMembers"
-                                    data-notification-id={notification.id}
-                                  >
-                                    <Group className="w-4 h-4" aria-hidden="true" />
-                                    Ask Members
-                                  </button>
-                                  <button
-                                    onClick={() => handleNotificationAction('requestBPILoan', notification.id)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-accent text-primary text-xs sm:text-sm font-medium rounded-lg hover:bg-accent/90 transition-colors"
-                                    aria-describedby={`notification-content-${notification.id}`}
-                                    data-action="requestBPILoan"
-                                    data-notification-id={notification.id}
-                                  >
-                                    <AccountBalance className="w-4 h-4" aria-hidden="true" />
-                                    BPI Loan
-                                  </button>
-                                  <button
-                                    onClick={() => handleNotificationAction('dismissSuggestion', notification.id)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-textcolor/10 text-textcolor text-xs sm:text-sm font-medium rounded-lg hover:bg-textcolor/20 transition-colors"
-                                    aria-describedby={`notification-content-${notification.id}`}
-                                    data-action="dismissSuggestion"
-                                    data-notification-id={notification.id}
-                                  >
-                                    <Close className="w-4 h-4" aria-hidden="true" />
-                                    Not Now
-                                  </button>
+                          {/* Action Buttons for Loan Suggestion */}
+                          {notification.hasActions && notification.actionId === 'loan_suggestion' && (
+                            <div className="mt-4 pt-4 border-t border-textcolor/10" role="group" aria-labelledby={`actions-label-${notification.id}`}>
+                              {actionNotifications[notification.actionId] ? (
+                                <div className="flex items-center gap-2 text-sm text-green" role="status" aria-live="polite">
+                                  <CheckCircle className="w-4 h-4" aria-hidden="true" />
+                                  <span>
+                                    {actionNotifications[notification.actionId] === 'member' && 'Request sent to group members'}
+                                    {actionNotifications[notification.actionId] === 'bpi' && 'BPI loan application initiated'}
+                                    {actionNotifications[notification.actionId] === 'reject' && 'Suggestion dismissed'}
+                                  </span>
                                 </div>
-                              </>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Generic Action Buttons for other notification types */}
-                        {!notification.hasActions && config.aiAccessible && (
-                          <div className="mt-3 flex gap-2">
-                            <button
-                              onClick={() => handleNotificationAction('markAsRead', notification.id)}
-                              className="text-xs text-textcolor/60 hover:text-textcolor transition-colors"
-                              data-action="markAsRead"
-                              data-notification-id={notification.id}
-                            >
-                              Mark as read
-                            </button>
-                            {config.actions.includes('snoozeNotification') && (
+                              ) : (
+                                <>
+                                  <p id={`actions-label-${notification.id}`} className="text-xs text-textcolor/70 mb-3">Choose an option:</p>
+                                  <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`actions-label-${notification.id}`}>
+                                    <button
+                                      onClick={() => handleNotificationAction('requestLoanFromMembers', notification.id)}
+                                      className="flex items-center gap-2 px-3 py-2 bg-primary text-secondary text-xs sm:text-sm font-medium rounded-lg hover:bg-shadow transition-colors"
+                                      aria-describedby={`notification-content-${notification.id}`}
+                                      data-action="requestLoanFromMembers"
+                                      data-notification-id={notification.id}
+                                    >
+                                      <Group className="w-4 h-4" aria-hidden="true" />
+                                      Ask Members
+                                    </button>
+                                    <button
+                                      onClick={() => handleNotificationAction('requestBPILoan', notification.id)}
+                                      className="flex items-center gap-2 px-3 py-2 bg-accent text-primary text-xs sm:text-sm font-medium rounded-lg hover:bg-accent/90 transition-colors"
+                                      aria-describedby={`notification-content-${notification.id}`}
+                                      data-action="requestBPILoan"
+                                      data-notification-id={notification.id}
+                                    >
+                                      <AccountBalance className="w-4 h-4" aria-hidden="true" />
+                                      BPI Loan
+                                    </button>
+                                    <button
+                                      onClick={() => handleNotificationAction('dismissSuggestion', notification.id)}
+                                      className="flex items-center gap-2 px-3 py-2 bg-textcolor/10 text-textcolor text-xs sm:text-sm font-medium rounded-lg hover:bg-textcolor/20 transition-colors"
+                                      aria-describedby={`notification-content-${notification.id}`}
+                                      data-action="dismissSuggestion"
+                                      data-notification-id={notification.id}
+                                    >
+                                      <Close className="w-4 h-4" aria-hidden="true" />
+                                      Not Now
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          {/* Generic Action Buttons for other notification types */}
+                          {!notification.hasActions && config.aiAccessible && (
+                            <div className="mt-3 flex gap-2">
                               <button
-                                onClick={() => handleNotificationAction('snoozeNotification', notification.id, '1hour')}
+                                onClick={() => handleNotificationAction('markAsRead', notification.id)}
                                 className="text-xs text-textcolor/60 hover:text-textcolor transition-colors"
-                                data-action="snoozeNotification"
+                                data-action="markAsRead"
                                 data-notification-id={notification.id}
                               >
-                                Snooze
+                                Mark as read
                               </button>
-                            )}
-                          </div>
-                        )}
+                              {config.actions.includes('snoozeNotification') && (
+                                <button
+                                  onClick={() => handleNotificationAction('snoozeNotification', notification.id, '1hour')}
+                                  className="text-xs text-textcolor/60 hover:text-textcolor transition-colors"
+                                  data-action="snoozeNotification"
+                                  data-notification-id={notification.id}
+                                >
+                                  Snooze
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </article>
+                    </article>
                   </li>
                   );
                 })}
