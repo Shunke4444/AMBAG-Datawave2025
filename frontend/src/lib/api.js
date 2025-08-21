@@ -363,6 +363,20 @@ export async function contributeToGoal(goalId, { amount, contributor_name, payme
   return res.data;
 }
 
+
+// Fetch a member's assigned quota for a goal or plan
+export async function getMemberQuota({ goal_id, user_id, plan_id }) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("Not authenticated");
+  const token = await user.getIdToken();
+  let url = `/allocate/quota/${goal_id}/${user_id}`;
+  if (plan_id) url += `?plan_id=${plan_id}`;
+  const res = await api.get(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+}
+
 // Get contributors for a goal
 export async function getGoalContributors(goalId) {
   const user = getAuth().currentUser;
