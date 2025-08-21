@@ -528,14 +528,14 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
                 approved_at=current_time,
                 auto_payment_settings=goal_data.auto_payment_settings
             )
-            goal_dict = new_goal.model_dump()
-            goal_dict['creator_uid'] = user.get('uid') if user else None
-            # Ensure target_date is set from dueDate if missing
+            # Restore: copy all fields from goal_data to goal_dict, add creator_uid, ensure target_date
             goal_dict = goal_data.model_dump() if hasattr(goal_data, 'model_dump') else dict(goal_data)
+            goal_dict['goal_id'] = goal_id
+            goal_dict['created_at'] = current_time
+            goal_dict['approved_at'] = current_time
+            goal_dict['creator_uid'] = user.get('uid') if user else None
             if not goal_dict.get('target_date') and goal_dict.get('dueDate'):
                 goal_dict['target_date'] = goal_dict['dueDate']
-            if goal_data.creator_role not in ["manager", "member"]:
-                raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'member'.")
             if isinstance(goal_dict.get('target_date'), date):
                 goal_dict['target_date'] = goal_dict['target_date'].isoformat()
             await goals_collection.insert_one(goal_dict)

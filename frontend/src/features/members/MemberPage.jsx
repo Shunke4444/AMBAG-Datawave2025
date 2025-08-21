@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import BalanceCard from '../dashboard/BalanceCard';
 import MemberHeader from '../members/MemberHeader'
 import HouseBillsCard from '../dashboard/HouseBillsCard';
 import ActionButtons from '../dashboard/ActionButtons';
+import SelectGoalModal from '../payments/SelectGoalModal';
 import RecentActivity from '../dashboard/RecentActivity';
 import ResponsiveGoals from '../goals/ResponsiveGoals';
 import LoanPage from '../loan/LoanPage';
@@ -11,6 +13,8 @@ import { api, listGoals } from '../../lib/api';
 
 export default function MemberPage() {
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState('');
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
@@ -50,7 +54,10 @@ export default function MemberPage() {
   }, []);
 
   const handlePayShare = () => {
-    console.log('Pay Share clicked');
+    setIsGoalModalOpen(true);
+  };
+  const handleCloseGoalModal = () => {
+    setIsGoalModalOpen(false);
   };
 
   const handleRequest = () => {
@@ -87,6 +94,13 @@ export default function MemberPage() {
           onRequest={handleRequest}
           onDeposit={handleDeposit}
           onLoan={handleLoan}
+        />
+        <SelectGoalModal 
+          open={isGoalModalOpen} 
+          onClose={handleCloseGoalModal} 
+          onSelect={goalId => {
+            navigate(`/payment/${goalId}`);
+          }} 
         />
       </main>
       <RecentActivity />

@@ -1,5 +1,8 @@
 
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
+import { api } from "../../lib/api";
 import { useTheme, useMediaQuery } from '@mui/material';
 import { ArrowBack, CheckCircle } from '@mui/icons-material';
 import MobileLayout from './PaymentLayout';
@@ -12,11 +15,44 @@ export default function Receipt() {
 
   // Get payment data from navigation state or use default values
   const paymentStateData = location.state || {};
+  // Use MembersContext to get user's name (same as welcome message)
+  const [memberName, setMemberName] = useState("Unknown User");
+  useEffect(() => {
+    async function fetchName() {
+      try {
+        const user = getAuth().currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          const res = await api.get(`/users/profile/${user.uid}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profile = res?.data?.profile || {};
+          const firstName = profile?.first_name || "";
+          const lastName = profile?.last_name || "";
+          if (firstName || lastName) {
+            setMemberName(`${firstName} ${lastName}`.trim());
+          } else if (profile?.name) {
+            setMemberName(profile.name);
+          } else if (profile?.email) {
+            setMemberName(profile.email);
+          }
+        }
+      } catch {
+        setMemberName("Unknown User");
+      }
+    }
+    fetchName();
+  }, []);
+  // Calculate remaining balance
+  const amountSent = paymentStateData.amount || '';
+  const availableBalance = paymentStateData.availableBalance || 0;
+  const numericAmount = parseFloat(String(amountSent).replace(/[^\d.]/g, '')) || 0;
+  const remainingBalance = `P${(availableBalance - numericAmount).toLocaleString()}`;
   const receiptData = {
-    transactionId: '0237-7746-8981-9028-5626',
-    memberName: 'John Doe',
-    amountSent: paymentStateData.amount || 'P2000',
-    remainingBalance: 'P4000', // This would be calculated: original balance - amount sent
+    transactionId: paymentStateData.transactionId || '0237-7746-8981-9028-5626',
+    memberName,
+    amountSent,
+    remainingBalance,
     goalName: paymentStateData.goalName || 'House Bills',
     date: new Date().toLocaleDateString('en-US', { 
       weekday: 'short', 

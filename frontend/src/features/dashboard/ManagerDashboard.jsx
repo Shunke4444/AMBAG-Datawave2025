@@ -4,7 +4,6 @@ import { api, listGoals } from "../../lib/api";
 import ManagerBalanceCard from "../manager/components/ManagerBalanceCard";
 import useIsMobile from "../../hooks/useIsMobile";
 import { useAuthRole } from "../../contexts/AuthRoleContext";
-
 import ConsistencyStat from "./ConsistencyStat";
 import ContributionDiv from "./ContributionDiv";
 import DashboardBtns from "./DashboardBtns";
@@ -12,21 +11,24 @@ import GoalCards from "../goals/GoalCards";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import MemberHeader from "../members/MemberHeader";
 import ActionButtons from "./ActionButtons";
+import SelectGoalModal from '../payments/SelectGoalModal';
 import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import CreateGoalModal from "../goals/CreateGoalModal";
 import CreateGroupModal from "../groups/CreateGroupModal";
 import SplitBill from "../manager/SplitBill";
+import { useMembersContext } from "../manager/contexts/MembersContext.jsx";
 
 const ManagerDashboard = ({ onLoan }) => {
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const [firstName, setFirstName] = useState("");
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
   const [group, setGroup] = useState(null);
+  const { groupId, members } = useMembersContext();
   const [groupLoading, setGroupLoading] = useState(true);
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const { user } = useAuthRole();
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
@@ -35,17 +37,21 @@ const ManagerDashboard = ({ onLoan }) => {
 
   // Fetch user first name
   useEffect(() => {
-    const fetchFirstName = async () => {
+    const fetchProfile = async () => {
       const auth = getAuth();
       const currentUser = auth.currentUser;
       if (!currentUser) return;
-      const token = await currentUser.getIdToken();
-      const res = await api.get(`/users/profile/${currentUser.uid}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setFirstName(res?.data?.profile?.first_name || "Manager");
+      try {
+        const res = await api.getUserProfile(currentUser.uid);
+        setFirstName(res?.profile?.first_name || "Manager");
+    setProfileGroupId(res?.role?.group_id || "");
+    console.log("Fetched profile:", res);
+    console.log("Extracted group ID:", res?.role?.group_id);
+      } catch (err) {
+        setProfileGroupId("");
+      }
     };
-    fetchFirstName();
+    fetchProfile();
   }, []);
 
   // Fetch goals
@@ -120,13 +126,16 @@ const ManagerDashboard = ({ onLoan }) => {
   // ---------- Mobile Layout ----------
   if (isMobile) {
     return (
-      <main className="flex flex-col min-h-screen bg-white mb-16">
+      <main className="flex flex-col min-h-screen bg-white mb-16 overflow-x-hidden">
         <div className="bg-primary text-white px-4 pb-4 rounded-b-3xl">
           <div className="my-4">
             <MemberHeader userName={firstName || "Manager"} />
           </div>
           {/* Manager Balance Card - mobile style */}
           <ManagerBalanceCard />
+          <div className="flex justify-end pr-4 pt-2">
+            <span className="text-md font-semibold text-white">Current Members: {members.length}</span>
+          </div>
           {hasData ? (
             <div className="p-4">
               <GoalCarouselMobile goals={mappedGoals} loading={goalsLoading} />
@@ -147,20 +156,44 @@ const ManagerDashboard = ({ onLoan }) => {
           )}
         </div>
         <div className="p-4">
-          <ActionButtons onLoan={onLoan} />
+          <ActionButtons
+            onLoan={onLoan}
+            onPayShare={() => setIsGoalModalOpen(true)}
+            onCreateGoal={async (goalData) => {
+              const { createGoal } = await import("../../lib/api");
+              return await createGoal(goalData);
+            }}
+          />
         </div>
+        <SelectGoalModal open={isGoalModalOpen} onClose={() => setIsGoalModalOpen(false)} />
         {!hasData && (
           <div className="p-32 mx-4 mt-6 rounded-2xl outline-1 outline-gray-200 shadow-md bg-white flex flex-col items-center justify-center gap-6">
             <p className="text-textcolor text-center text-sm sm:text-base md:text-lg">
               You are not in a group yet
             </p>
             <button
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
+              className="flex items-center gap-2 bg-accent text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
               onClick={() => setIsGroupModalOpen(true)}
             >
-              <AddIcon className="text-textcolor text-sm sm:text-base" />
-              <span>Create a Group</span>
+              <AddIcon className="text font-semibold sm:text-base" />
+              <h1>Find Your AMBAG Pals!</h1>
             </button>
+          </div>
+        )}
+        {isGroupModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm flex flex-col items-center">
+              <h2 className="text-lg font-bold mb-4 ">Your Group ID</h2>
+              <div className="mb-4 p-2 bg-gray-100 rounded text-center text-lg font-mono text-primary select-all">
+                {groupId ? groupId : "No group ID found"}
+              </div>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded-xl"
+                onClick={() => setIsGroupModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
         {hasData && (
@@ -173,12 +206,6 @@ const ManagerDashboard = ({ onLoan }) => {
         <div className="p-4 bg-white rounded-2xl shadow-sm h-40 flex items-center justify-center">
           {hasData ? <ConsistencyStat /> : null}
         </div>
-        {isGroupModalOpen && (
-          <CreateGroupModal
-            isOpen={isGroupModalOpen}
-            onClose={() => setIsGroupModalOpen(false)}
-          />
-        )}
         {isGoalModalOpen && (
           <CreateGoalModal
             open={isGoalModalOpen}
@@ -201,15 +228,18 @@ const ManagerDashboard = ({ onLoan }) => {
   return (
     <main className="flex flex-col w-full h-full min-h-screen justify-center">
       <div className="bg-primary w-full max-w-6xl mx-auto rounded-4xl grid grid-cols-1 md:grid-cols-3 gap-4 p-4 auto-rows-min">
+        <div className="col-span-3 flex justify-end pr-4 pt-2">
+          {/* <span className="text-md font-semibold text-primary">Current Members: {members.length}</span> */}
+        </div>
         {/* Left Column */}
         {!hasData ? (
-          <div className="bg-shadow rounded-2xl p-4 col-span-1 flex items-center justify-center">
+          <div className="bg-gray-50 rounded-2xl p-4 col-span-1 flex items-center justify-center border border-gray-200">
             <button
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-textcolor text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
+              className="flex items-center gap-2 bg-accent text-xs sm:text-sm md:text-base px-3 py-2 rounded-xl cursor-pointer"
               onClick={() => setIsGroupModalOpen(true)}
             >
-              <AddIcon className="text-textcolor text-sm sm:text-base" />
-              <span>Create a Group</span>
+              <AddIcon className="text font-semibold sm:text-base" />
+              <h1>Find Your AMBAG Pals!</h1>
             </button>
           </div>
         ) : (
@@ -218,14 +248,16 @@ const ManagerDashboard = ({ onLoan }) => {
           </div>
         )}
         {/* Top Right Boxes - ManagerBalanceCard above GoalCards */}
-        <div className={`col-span-2 ${hasData ? "bg-secondary" : "bg-shadow"} rounded-2xl p-4 h-120 flex flex-col items-center justify-start`}>
-          <ManagerBalanceCard />
+        <div className={`col-span-2 ${hasData ? "bg-secondary" : "bg-gray-50 border border-gray-200"} rounded-2xl p-4 h-120 flex flex-col items-center justify-start`}>
+          <div className="w-full">
+            <ManagerBalanceCard />
+          </div>
           {!hasData ? (
             <button
-              className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer"
+              className="flex items-center gap-2 bg-yellow-200 hover:bg-yellow-300 text-gray-800 text-xs sm:text-sm md:text-base px-4 py-2 rounded-xl cursor-pointer mt-6"
               onClick={() => setIsGoalModalOpen(true)}
             >
-              <AddIcon className="text-white text-sm sm:text-base" />
+              <AddIcon className="text-gray-800 text-sm sm:text-base" />
               <span>Create a Goal</span>
             </button>
           ) : (
@@ -233,25 +265,44 @@ const ManagerDashboard = ({ onLoan }) => {
           )}
         </div>
        {/* Bottom Left */}
-      <div className="bg-white rounded-2xl p-4  shadow-sm flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center">
         {hasData ? <ConsistencyStat /> : null}
       </div>
         {/* Bottom Right */}
         <div className="col-span-2 row-span-3 bg-secondary rounded-2xl p-4">
-          <DashboardBtns onLoan={onLoan}  onSplitBill={handleOpenSplitBill}/>
+          <DashboardBtns onLoan={onLoan} onSplitBill={handleOpenSplitBill} onPayShare={() => setIsGoalModalOpen(true)} />
         </div>
       </div>
       {isGroupModalOpen && (
-        <CreateGroupModal
-          isOpen={isGroupModalOpen}
-          onClose={() => setIsGroupModalOpen(false)}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm flex flex-col items-center">
+            <h2 className="text-lg font-bold mb-4 ">Your Group ID</h2>
+            <div className="mb-4 p-2 bg-gray-100 rounded text-center text-lg font-semibold text-primary select-all">
+              {groupId ? groupId : "No group ID found"}
+            </div>
+            <button
+              className="px-4 py-2  text-white rounded-lg bg-primary transition-colors"
+              onClick={() => setIsGroupModalOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
       {isGoalModalOpen && (
         <CreateGoalModal
           open={isGoalModalOpen}
           onClose={() => setIsGoalModalOpen(false)}
-          onCreateGoal={() => {}}
+          onCreateGoal={async (goalData) => {
+            try {
+              const { createGoal } = await import("../../lib/api");
+              const result = await createGoal(goalData);
+              return result;
+            } catch (error) {
+              console.error("❌ Goal creation error:", error);
+              throw error;
+            }
+          }}
         />
       )}
       {/* Quota Modal */}
