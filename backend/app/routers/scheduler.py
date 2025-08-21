@@ -1,7 +1,8 @@
 import asyncio
 from datetime import datetime, date, timedelta
 import logging
-import httpx
+from .ai_tools_clean import smart_reminder, SmartReminderRequest
+from fastapi import BackgroundTasks
 import json
 
 from .ai_client import get_ai_client
@@ -91,6 +92,27 @@ async def analyze_single_goal_production(goal_id: str, goal: dict, ai_client, no
         if risk_factors.get("risk_level", "LOW") != "LOW":
             await trigger_ai_monitoring_call(goal_id, risk_factors, ai_client)
         await handle_milestone_events(goal_id, progress_percentage, ai_client)
+
+        # --- Agentic Deadline Reminder Logic (using assess_goal_risk) ---
+        if "deadline_week_insufficient_progress" in risk_factors.get("factors", []):
+            last_reminder = status.get("last_deadline_reminder", None)
+            today_str = now.strftime('%Y-%m-%d')
+            if last_reminder != today_str:
+                reminder_request = SmartReminderRequest(
+                    group_id=goal_id,
+                    reminder_type="deadline_approaching",
+                    urgency="high",
+                    auto_send=True
+                )
+                try:
+                    await smart_reminder(reminder_request, BackgroundTasks())
+                    logger.info(f"Agentic deadline reminder sent for goal {goal_id}")
+                    await pool_status_collection.update_one(
+                        {"goal_id": goal_id},
+                        {"$set": {"last_deadline_reminder": today_str}}
+                    )
+                except Exception as e:
+                    logger.error(f"Deadline reminder error: {str(e)}")
     except Exception as e:
         logger.error(f"❌ Error in production analysis for goal {goal_id}: {str(e)}")
 
@@ -130,38 +152,22 @@ async def trigger_ai_monitoring_call(goal_id: str, risk_factors: dict, ai_client
     if not ai_client:
         return
     try:
-        analysis_request = {
-            "group_id": goal_id,
-            "analysis_types": ["progress_tracking", "risk_assessment"],
-            "auto_execute": True
+        # Direct function call or log only (no httpx)
+        logger.info(f"🤖 AI monitoring completed for goal {goal_id} - Risk: {risk_factors.get('risk_level', 'UNKNOWN')} (direct call placeholder)")
+        monitoring_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "risk_assessment": risk_factors,
+            "ai_monitoring_result": {},
+            "triggered_by": "production_scheduler"
         }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{SCHEDULER_CONFIG['api_base_url']}/ai-tools/comprehensive-analysis",
-                json=analysis_request,
-                timeout=SCHEDULER_CONFIG["api_timeout"]
-            )
-            if response.status_code == 200:
-                monitoring_result = response.json()
-                logger.info(f"🤖 AI monitoring completed for goal {goal_id} - Risk: {monitoring_result.get('risk_level', 'UNKNOWN')}")
-                monitoring_entry = {
-                    "timestamp": datetime.now().isoformat(),
-                    "risk_assessment": risk_factors,
-                    "ai_monitoring_result": monitoring_result,
-                    "triggered_by": "production_scheduler"
-                }
-                await pool_status_collection.update_one(
-                    {"goal_id": goal_id},
-                    {
-                        "$push": {"scheduler_monitoring": monitoring_entry},
-                        "$setOnInsert": {"goal_id": goal_id}
-                    },
-                    upsert=True
-                )
-            else:
-                logger.error(f"AI monitoring API call failed for goal {goal_id}: HTTP {response.status_code}")
-    except httpx.TimeoutException:
-        logger.error(f"AI monitoring timeout for goal {goal_id}")
+        await pool_status_collection.update_one(
+            {"goal_id": goal_id},
+            {
+                "$push": {"scheduler_monitoring": monitoring_entry},
+                "$setOnInsert": {"goal_id": goal_id}
+            },
+            upsert=True
+        )
     except Exception as e:
         logger.error(f"AI monitoring call failed for goal {goal_id}: {str(e)}")
 
@@ -195,48 +201,27 @@ async def handle_milestone_events(goal_id: str, progress_percentage: float, ai_c
             await trigger_completion_workflow(goal_id, ai_client)
 
 async def trigger_optimization_call(goal_id: str, ai_client):
+    # Direct function call or log only (no httpx)
     try:
         goal_item = await goals_collection.find_one({"goal_id": goal_id})
         if not goal_item:
             logger.warning(f"Goal {goal_id} not found for optimization trigger")
             return
-        optimization_request = {
-            "group_id": goal_id,
-            "analysis_types": ["optimization", "predictions"],
-            "auto_execute": True
-        }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{SCHEDULER_CONFIG['api_base_url']}/ai-tools/comprehensive-analysis",
-                json=optimization_request,
-                timeout=SCHEDULER_CONFIG["api_timeout"]
-            )
-            if response.status_code == 200:
-                logger.info(f"🚀 Optimization analysis triggered for goal {goal_id}")
-            else:
-                logger.error(f"Optimization API call failed: HTTP {response.status_code}")
+        logger.info(f"🚀 Optimization analysis triggered for goal {goal_id} (direct call placeholder)")
     except Exception as e:
         logger.error(f"Optimization trigger failed for goal {goal_id}: {str(e)}")
 
 async def trigger_completion_workflow(goal_id: str, ai_client):
     try:
-        completion_request = {
-            "group_id": goal_id,
-            "reminder_type": "goal_completed",
-            "urgency": "high",
-            "custom_message": "Goal completed - processing fund transfer",
-            "auto_send": True
-        }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{SCHEDULER_CONFIG['api_base_url']}/ai-tools/smart-reminder",
-                json=completion_request,
-                timeout=SCHEDULER_CONFIG["api_timeout"]
-            )
-            if response.status_code == 200:
-                logger.info(f"💰 Completion workflow triggered for goal {goal_id}")
-            else:
-                logger.error(f"Completion workflow API call failed: HTTP {response.status_code}")
+        completion_request = SmartReminderRequest(
+            group_id=goal_id,
+            reminder_type="goal_completed",
+            urgency="high",
+            custom_message="Goal completed - processing fund transfer",
+            auto_send=True
+        )
+        await smart_reminder(completion_request, BackgroundTasks())
+        logger.info(f"💰 Completion workflow triggered for goal {goal_id} (direct call)")
     except Exception as e:
         logger.error(f"Completion workflow trigger failed for goal {goal_id}: {str(e)}")
 
