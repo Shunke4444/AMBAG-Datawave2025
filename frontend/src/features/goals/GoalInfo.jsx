@@ -92,19 +92,19 @@ const GoalInfo = () => {
     <div>
       {loading && (
         <div className="flex justify-center items-center h-32">
-          <p className="text-gray-500">Loading goals...</p>
+          <p className="text-gray-500 sm:text-sm md:text-xs">Loading goals...</p>
         </div>
       )}
 
       {error && (
         <div className="flex justify-center items-center h-32">
-          <p className="text-red-500">Error: {error}</p>
+          <p className="text-red-500 sm:text-sm md:text-xs">Error: {error}</p>
         </div>
       )}
 
       {!loading && !error && goals.length === 0 && (
         <div className="flex justify-center items-center h-32">
-          <p className="text-gray-500">No goals found</p>
+          <p className="text-gray-500 sm:text-sm md:text-xs">No goals found</p>
         </div>
       )}
 
@@ -118,7 +118,7 @@ const GoalInfo = () => {
               <CardContent className="flex flex-col relative">
                 {/* Header */}
                 <header className="flex justify-between items-start">
-                  <h1 className="font-semibold text-md text-primary">
+                  <h1 className="font-semibold text-primary text-sm sm:text-base md:text-md">
                     {goal.title}
                   </h1>
                   <IconButton
@@ -133,13 +133,13 @@ const GoalInfo = () => {
                 <p className="text-xs text-textcolor">{getDaysLeft(goal.target_date)}</p>
 
                 {/* Amount Progress */}
-                <p className="text-md text-green">
+                <p className="text-md font-light text-green">
                   ₱{(goal.current_amount || 0).toLocaleString()} / ₱
                   {goal.goal_amount.toLocaleString()}
                 </p>
 
                 {/* Details */}
-                <span className="text-xs text-tex">
+                <span className="text-xs">
                   <p>
                     Required Share:{" "}
                     <span className="text-green">

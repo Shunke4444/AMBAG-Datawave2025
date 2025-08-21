@@ -106,23 +106,21 @@ Link at least one e-wallet or card so you can withdraw or contribute without del
   }
 ];
 
-
-
-
 const HelpSupport = () => {
 
   
   const navigate = useNavigate();
 
   return (
-    <main className="border-accent border-2 m-4 p-8 flex flex-col gap-8 ">
+    <main className="border-accent border-2 m-4 p-4 sm:p-6 flex flex-col gap-8 
+                  w-full lg:max-w-5xl lg:mx-auto">
       <button onClick={() => navigate(-1)} className="flex cursor-pointer hover:bg-gray-200 w-fit p-4 rounded-4xl" >
         <BackIcon />
       </button>
-      <h1 className="text-md font-semibold text-primary">How Can We Help?</h1>
-      <div className="flex flex-col lg:flex">
+      <h1 className="text-base sm:text-lg md:text-xl font-semibold text-primary text-left lg:text-center">How Can We Help?</h1>
+      <div className="flex flex-col lg:flex lg:w-full gap-8">
         {/* How to get started with Ambag */}
-              <section className="mx-12 py-4 max-w-3xl">
+              <section className="mx-12 py-4 max-w-3xl">  
                 <Typography variant="h5" gutterBottom>
                 How To Get Started
                 </Typography>

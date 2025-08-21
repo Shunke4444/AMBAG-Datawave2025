@@ -166,7 +166,7 @@ const Layout = () => {
       >
         {/* Global Top Header */}
         {!shouldHideHeader && (
-          <div className="flex justify-between items-center py-6 px-10">
+          <div className="flex justify-between items-center pt-12 px-10">
             <h1 className="text-xl font-bold text-textcolor">
               {getPageTitle()}
             </h1>

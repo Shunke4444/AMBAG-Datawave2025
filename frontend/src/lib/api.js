@@ -181,13 +181,18 @@ export async function listPendingGoals() {
   return res.data;
 }
 // Allocate quotas to members for a goal/plan
-export async function allocateQuotas({ plan_id, members }) {
+export async function allocateQuotas({ plan_id, goal_id, members }) {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();
+  // Send both plan_id and goal_id if provided
+  const payload = {};
+  if (plan_id !== undefined) payload.plan_id = plan_id;
+  if (goal_id !== undefined) payload.goal_id = goal_id;
+  payload.members = members;
   const res = await api.post(
     "/allocate/quotas",
-    { plan_id, members },
+    payload,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;

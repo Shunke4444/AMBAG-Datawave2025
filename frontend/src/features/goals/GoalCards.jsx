@@ -1,4 +1,3 @@
-
 import { Card, CardContent, LinearProgress, Box } from '@mui/material';
 
 const formatMoney = (n) => {
@@ -13,7 +12,7 @@ export const calculateDaysLeft = (targetDate) => {
   const today = new Date();
   const diffTime = target - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 0) return "Overdue";
   if (diffDays === 0) return "Due today";
   if (diffDays === 1) return "1 day left";
@@ -39,17 +38,14 @@ const getStatus = (amount, total) => {
 const GoalCardGlassMobile = ({ goal }) => {
   if (!goal) return null;
 
-  const percent = Math.min(
-    Math.max((goal.amount / goal.total) * 100, 0),
-    100
-  );
+  const percent = Math.min(Math.max((goal.amount / goal.total) * 100, 0), 100);
   const status = getStatus(goal.amount, goal.total);
 
   return (
     <Card className="bg-white !rounded-2xl p-4 shadow-md space-y-2 h-64">
       <CardContent>
         {/* Title */}
-        <h1 className="text-md font-bold mb-4">{goal.title}</h1>
+        <h1 className="text-sm font-semibold mb-4">{goal.title}</h1>
 
         {/* Percentage + Status */}
         <div className="text-sm font-semibold text-primary">
@@ -75,28 +71,39 @@ const GoalCardGlassMobile = ({ goal }) => {
         </Box>
 
         {/* Amount */}
-        <p className="text-sm font-medium mt-4">
+        <p className="text-xs font-medium mt-4">
           {formatMoney(goal.amount)} / {formatMoney(goal.total)}
         </p>
 
         {/* Days Left */}
-        <p className="text-xs text-gray-500 mt-4">
-          {calculateDaysLeft(goal.targetDate || goal.daysLeft)}
+        <p className="text-xxs text-gray-500 mt-4">
+          {calculateDaysLeft(goal.targetDate)}
         </p>
       </CardContent>
     </Card>
   );
 };
 
-
-// New: GoalCards component to render a list of goal cards
+// ✅ Fixed GoalCards with normalization
 const GoalCards = ({ goals = [] }) => {
   console.log('GoalCards received goals:', goals);
-  if (!goals.length) return <div className="text-gray-500">No goals found.</div>;
+
+  const mappedGoals = goals.map((g) => ({
+    id: g.goal_id || g.id || g.title,
+    title: g.title,
+    amount: g.current_amount ?? g.amount ?? 0,
+    total: g.goal_amount ?? g.total ?? 0,
+    targetDate: g.target_date ?? g.targetDate ?? null,
+  }));
+
+  if (!mappedGoals.length) {
+    return <div className="text-gray-500">No goals found.</div>;
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {goals.map((goal) => (
-        <GoalCardGlassMobile key={goal.goal_id || goal.id || goal.title} goal={goal} />
+      {mappedGoals.map((goal) => (
+        <GoalCardGlassMobile key={goal.id} goal={goal} />
       ))}
     </div>
   );

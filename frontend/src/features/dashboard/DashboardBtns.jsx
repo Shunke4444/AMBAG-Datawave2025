@@ -50,7 +50,7 @@ console.log("DashboardBtns detected role:", authRole);
           key={index} 
           onClick={action}
           className="bg-primary text-white hover:bg-primary/80
-                  w-20 h-20 rounded-lg shadow cursor-pointer
+                    w-22 h-24 px-2 py-2  rounded-lg shadow cursor-pointer
                   flex flex-col items-center justify-center
                   text-sm">
             {icon}
@@ -72,5 +72,4 @@ console.log("DashboardBtns detected role:", authRole);
     </div>
   );
 };
-
 export default DashboardBtns

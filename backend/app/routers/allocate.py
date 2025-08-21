@@ -1,61 +1,81 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import List, Dict, Any
-from pydantic import BaseModel
 
-from .mongo import db, plans_collection, groups_collection, goals_collection
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from . import mongo
+from .verify_token import verify_token
 
-router = APIRouter()
-
-# Pydantic models
+router = APIRouter(prefix="/allocate", tags=["allocate"])
+# --- Pydantic models ---
 class MemberQuota(BaseModel):
-	id: int
-	name: str
+	id: str
+	name: Optional[str] = None
 	quota: float
 
-class AllocateRequest(BaseModel):
-	plan_id: str
+class AllocateQuotasRequest(BaseModel):
+	plan_id: Optional[str] = None
+	goal_id: Optional[str] = None
+	group_id: Optional[str] = None
 	members: List[MemberQuota]
 
+# --- Helper functions ---
+from .mongo import plans_collection, goals_collection
+from typing import Optional
+async def update_member_quotas(plan_id: Optional[str] = None, goal_id: Optional[str] = None, members: Optional[List[Dict[str, Any]]] = None):
+	"""
+	Update the quotas for members in the specified plan or goal document.
+	"""
+	if plan_id:
+		doc = await plans_collection.find_one({"plan_id": plan_id})
+		collection = plans_collection
+		id_field = "plan_id"
+		id_value = plan_id
+		not_found_msg = "Plan not found"
+	elif goal_id:
+		doc = await goals_collection.find_one({"goal_id": goal_id})
+		collection = goals_collection
+		id_field = "goal_id"
+		id_value = goal_id
+		not_found_msg = "Goal not found"
+	else:
+		raise HTTPException(status_code=400, detail="plan_id or goal_id is required")
+	if not doc:
+		raise HTTPException(status_code=404, detail=not_found_msg)
+	if members is None:
+		raise HTTPException(status_code=400, detail="members is required")
+	updated_members = []
+	for m in members:
+		found = False
+		for dm in doc.get("members", []):
+			if dm.get("id") == m["id"]:
+				dm["quota"] = m["quota"]
+				found = True
+				updated_members.append(dm)
+				break
+		if not found:
+			new_member = {"id": m["id"], "name": m.get("name", ""), "quota": m["quota"]}
+			doc.setdefault("members", []).append(new_member)
+			updated_members.append(new_member)
+	await collection.update_one({id_field: id_value}, {"$set": {"members": doc["members"]}})
+	return updated_members
 
-
-@router.post("/allocate/quotas")
+@router.post("/quotas")
 async def allocate_quotas(
-	data: AllocateRequest = Body(...),
+	req: AllocateQuotasRequest,
+	request: Request,
+	user=Depends(verify_token)
 ):
 	"""
-	Allocate quotas to members for a goal. Only users in the group can be assigned quotas.
+	Allocate quotas to members for a given plan or goal.
 	"""
-	plan = await plans_collection.find_one({"_id": data.plan_id})
-	if not plan:
-		raise HTTPException(status_code=404, detail="Plan not found")
-
-	# Fetch the goal info (assume plan_id is also goal_id, or you can adjust as needed)
-	goal = await goals_collection.find_one({"_id": data.plan_id})
-	if not goal:
-		raise HTTPException(status_code=404, detail="Goal not found")
-
-	# Get group_id from goal or plan
-	group_id = goal.get("group_id") or plan.get("group_id")
-	if not group_id:
-		raise HTTPException(status_code=400, detail="Group ID not found in goal or plan.")
-
-	# Fetch group members from groups collection
-	group = await groups_collection.find_one({"_id": group_id})
-	if not group:
-		raise HTTPException(status_code=404, detail="Group not found")
-	group_members = group.get("members", [])
-	group_member_ids = {str(m.get("id")) for m in group_members}
-
-	# Check that all assigned quotas are for users in the group
-	for m in data.members:
-		if str(m.id) not in group_member_ids:
-			raise HTTPException(status_code=400, detail=f"User {m.id} is not a member of this group.")
-
-	# Update the plan's member quotas
-	await plans_collection.update_one(
-		{"_id": data.plan_id},
-		{"$set": {"member_quotas": [m.dict() for m in data.members]}}
-	)
-
-	updated_plan = await plans_collection.find_one({"_id": data.plan_id})
-	return {"success": True, "plan": updated_plan}
+	# Require at least goal_id
+	if not req.plan_id and not req.goal_id:
+		raise HTTPException(status_code=400, detail="plan_id or goal_id is required")
+	try:
+		updated_members = await update_member_quotas(plan_id=req.plan_id, goal_id=req.goal_id, members=[m.dict() for m in req.members])
+	except HTTPException as e:
+		raise e
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+	return {"success": True, "updated_members": updated_members}
