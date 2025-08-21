@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Union
 from datetime import datetime, date, timedelta
 from .mongo import users_collection, goals_collection, pool_status_collection, pending_goals_collection, auto_payment_queue_collection, virtual_balances_collection, notifications_collection, request_collection
 from .verify_token import verify_token
+from .ai_tools_clean import notify_group_members_new_goal
 import uuid
 import logging
 import asyncio
@@ -547,6 +548,11 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
                 "contributors": []
             }
             await pool_status_collection.insert_one(pool_status)
+            # Notify group members about new goal
+            try:
+                await notify_group_members_new_goal(goal_dict)
+            except Exception as notif_err:
+                logger.error(f"Notification error: {notif_err}")
             return new_goal
         else:
             logger.info(f"⏳ MEMBER REQUEST: Creating pending goal for approval")
