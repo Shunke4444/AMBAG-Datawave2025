@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getUserProfile } from "../../lib/api";
 import Sidebar from "./Sidebar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -19,65 +17,31 @@ import useIsMobile from "../../hooks/useIsMobile";
 import Notifications from "../../features/notifications/Notifications";
 import { ManagerNotifs }  from "../../features/notifications/ManagerNotifs";
 import { MemberNotifs } from "../../features/notifications/MemberNotifs";
-import MobileHeader from "../../components/MobileHeader";// import { useAuthRole } from "../../contexts/AuthRoleContext";
+import MobileHeader from "../../components/MobileHeader";
+import { useAuthRole } from "../../contexts/AuthRoleContext";
 import useSidebar from "../../hooks/useSidebar";
 
 // Remove hardcoded authRole. We'll fetch it dynamically.
 
 const Layout = () => {
+  console.log("Layout component rendering");
   const { isCollapsed, setIsFullScreenPage } = useSidebar();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
-  const [authRole, setAuthRole] = useState(null);
+  const { authRole, setAuthRole } = useAuthRole();
   const [roleError, setRoleError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [loading, setLoading] = useState(true); // NEW
+  const [loading, setLoading] = useState(false); // No loading needed since we use context
   const isUseMobile = useIsMobile();
+  
+  console.log("Mobile detection debug - MUI isMobile:", isMobile, "useIsMobile:", isUseMobile, "window width:", window.innerWidth);
+  console.log("Context authRole:", authRole);
+  console.log("Context setAuthRole function:", typeof setAuthRole);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        setRoleError(null);
-        setLoading(true); // start loading
-
-        if (!user) {
-          setRoleError("Not authenticated");
-          setAuthRole(null);
-          setLoading(false);
-          return;
-        }
-
-        const profile = await getUserProfile(user.uid);
-        console.log("Fetched profile:", profile);
-
-        // Normalize role detection
-        const roleName = (
-          profile?.role?.name || // case when role is object with name
-          profile?.role ||       // case when role is just a string
-          "Member"
-        ).toString().trim().toLowerCase();
-
-        // Map normalized value to your app's roles
-        if (roleName === "manager") {
-          setAuthRole("Manager");
-        } else {
-          setAuthRole("Member");
-        }
-
-        console.log("Resolved authRole:", roleName);
-      } catch (e) {
-        console.error(e);
-        setRoleError("Failed to fetch user role");
-      } finally {
-        setLoading(false); // always stop loading
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  // Remove duplicate role detection - let DashboardPage handle it
+  // The role should be set by the AuthRoleProvider or DashboardPage
 
   const isFullScreenPage = location.pathname === '/ai-assistant' || 
     location.pathname.includes('/payment') || 
@@ -88,6 +52,8 @@ const Layout = () => {
     location.pathname.includes('member-requests') ||
     location.pathname.includes('notification');
   const shouldHideHeader = isFullScreenPage || isMobile;
+  
+  console.log("FullScreen debug - pathname:", location.pathname, "isFullScreenPage:", isFullScreenPage);
 
   // Choose notifications based on real role
   const notifs = authRole === "Manager" ? ManagerNotifs : MemberNotifs;
@@ -185,8 +151,9 @@ if (isUseMobile) {
         </>
       )}
 
-      {/* Mobile Bottom Nav */}
-      {!isFullScreenPage && authRole === "manager" && (
+             {/* Mobile Bottom Nav */}
+       {console.log("Mobile nav debug - isFullScreenPage:", isFullScreenPage, "authRole:", authRole, "isUseMobile:", isUseMobile, "condition result:", !isFullScreenPage && authRole === "Manager")}
+       {!isFullScreenPage && authRole === "Manager" && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
           <button 
             onClick={() => navigate("/dashboard")} 
