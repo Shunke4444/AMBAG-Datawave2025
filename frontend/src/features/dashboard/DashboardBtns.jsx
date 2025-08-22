@@ -4,12 +4,14 @@ import {
   Payments as PayShareIcon,
   PsychologyAlt as RequestFundsIcon,
   CreditScore as LoanIcon,
-  CallSplit as SplitBillIcon
+  CallSplit as SplitBillIcon,
+  Assignment as RequestsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useMembersContext } from "../manager/contexts/MembersContext.jsx";
 import SelectGoalModal from '../payments/SelectGoalModal';
 import { useState } from 'react';
+
 const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   const { members, currentUser } = useMembersContext();
   const authRole = currentUser?.role?.role_type || currentUser?.role || "member";
@@ -24,6 +26,7 @@ const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
     { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
     { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
+    { icon: <RequestsIcon />, label: "Member Request", action: () => navigate("/requests-approval") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
     { icon: <SplitBillIcon />, label: "Allocate Qouta" , action: () => onSplitBill?.()}
   ];
