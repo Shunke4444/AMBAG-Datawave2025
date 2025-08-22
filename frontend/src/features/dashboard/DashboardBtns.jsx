@@ -12,7 +12,7 @@ import SelectGoalModal from '../payments/SelectGoalModal';
 import { useState } from 'react';
 const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   const { members, currentUser } = useMembersContext();
-  const authRole = currentUser?.role?.role_type || currentUser?.role || "Member";
+  const authRole = currentUser?.role?.role_type || currentUser?.role || "member";
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const navigate = useNavigate();
 

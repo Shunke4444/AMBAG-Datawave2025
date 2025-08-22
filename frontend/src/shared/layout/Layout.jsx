@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getUserProfile } from "../../lib/api";
 import Sidebar from "./Sidebar";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -33,25 +33,50 @@ const Layout = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [loading, setLoading] = useState(true); // NEW
   const isUseMobile = useIsMobile();
 
-  // Fetch user role on mount
   useEffect(() => {
-    async function fetchRole() {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         setRoleError(null);
-        const user = getAuth().currentUser;
+        setLoading(true); // start loading
+
         if (!user) {
           setRoleError("Not authenticated");
+          setAuthRole(null);
+          setLoading(false);
           return;
         }
+
         const profile = await getUserProfile(user.uid);
-        setAuthRole(profile?.role?.name || "Member");
+        console.log("Fetched profile:", profile);
+
+        // Normalize role detection
+        const roleName = (
+          profile?.role?.name || // case when role is object with name
+          profile?.role ||       // case when role is just a string
+          "Member"
+        ).toString().trim().toLowerCase();
+
+        // Map normalized value to your app's roles
+        if (roleName === "manager") {
+          setAuthRole("Manager");
+        } else {
+          setAuthRole("Member");
+        }
+
+        console.log("Resolved authRole:", roleName);
       } catch (e) {
+        console.error(e);
         setRoleError("Failed to fetch user role");
+      } finally {
+        setLoading(false); // always stop loading
       }
-    }
-    fetchRole();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const isFullScreenPage = location.pathname === '/ai-assistant' || 
@@ -105,128 +130,182 @@ const Layout = () => {
     return pageTitles[key] || "Dashboard";
   };
 
-  // MOBILE LAYOUT
-  if (isUseMobile) {
-    // Wait for role to load
-    if (!authRole) return null;
+if (isUseMobile) {
+  // Loading state
+  if (loading) {
     return (
-      <>
-        {!isFullScreenPage && 
-        <MobileHeader 
-        title={getPageTitle()} 
-        onNotifClick={toggleNotifDialog} 
-        />}
-
-        <Outlet />
-        {notifDialogOpen && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 z-40"
-              onClick={closeNotifDialog}
-            />
-            <Notifications
-              notifs={notifs}
-              onApprove={handleApprove}
-              onDecline={handleDecline}
-            />
-          </>
-        )}
-
-        {/* Mobile Bottom Nav */}
-        {!isFullScreenPage && authRole === "Manager" && (
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
-            <button 
-              onClick={() => navigate("/dashboard")} 
-              className={`flex flex-col items-center text-xs ${
-                location.pathname === '/dashboard' || location.pathname === '/' 
-                  ? 'text-primary' 
-                  : 'text-gray-400'
-              }cursor-pointer`}
-            >
-              <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
-              <span>Home</span>
-            </button>
-            <button 
-              onClick={() => navigate("/requests-approval")} 
-              className={`flex flex-col items-center text-xs ${
-                location.pathname === '/requests-approval' 
-                  ? 'text-primary'
-                  : 'text-gray-400'
-              } cursor-pointer`}
-            >
-              <RequestsIcon className={location.pathname === '/requests-approval' ? "text-primary" : "text-gray-400"} />
-              <span>Requests</span>
-            </button>
-            <button 
-              onClick={() => navigate("/member-list")} 
-              className={`flex flex-col items-center text-xs ${
-                location.pathname === '/member-list' 
-                  ? 'text-primary' 
-                  : 'text-gray-400'
-              } cursor-pointer`}
-            >
-              <MembersSettingsIcon className={location.pathname === '/member-list' ? "text-primary" : "text-gray-400"} />
-              <span>Members</span>
-            </button>
-          </nav>
-        )}
-      </>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your workspace...</p>
+        </div>
+      </div>
     );
   }
 
-  // DESKTOP LAYOUT
-  if (!authRole) return null;
-  return (
-    <div className="flex min-h-screen">
-      <div className="hidden lg:block">
-        <Sidebar isMobile={false} />
+  // Error state
+  if (roleError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-red-50">
+        <div className="text-center">
+          <p className="text-red-500 font-semibold">⚠️ {roleError}</p>
+          <button
+            onClick={() => navigate("/login")}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg shadow"
+          >
+            Go to Login
+          </button>
+        </div>
       </div>
+    );
+  }
 
-      <main
-        className={`
-          flex-1 transition-all duration-300 overflow-hidden
-          ${isFullScreenPage ? "" : "px-0 lg:px-6"}
-          ${isCollapsed ? "lg:ml-24" : "lg:ml-64"}
-          ml-0
-        `}
-      >
-        {/* Global Top Header */}
-        {!shouldHideHeader && (
-          <div className="flex justify-between items-center pt-12 px-10">
-            <h1 className="text-xl font-bold text-textcolor">
-              {getPageTitle()}
-            </h1>
-            <div className="flex gap-4 items-center text-textcolor">
-              <button onClick={toggleNotifDialog} className="cursor-pointer">
-                <NotifyIcon className="hover:text-primary" />
-              </button >
-              <button className="cursor-pointer" onClick={() => navigate('/help-support')}>
-                <SupportIcon className="hover:text-primary" />
-              </button >
-              <button onClick={() => navigate("/settings")} className="cursor-pointer">
-                <SettingIcon className="hover:text-primary" />
-              </button>
-            </div>
-          </div>
-        )}
+  // Main mobile layout
+  return (
+    <>
+      {!isFullScreenPage && 
+      <MobileHeader 
+        title={getPageTitle()} 
+        onNotifClick={toggleNotifDialog} 
+      />}
 
-        <Outlet />
-        {notifDialogOpen && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 z-40"
-              onClick={closeNotifDialog}
-            />
-            <Notifications
-              notifs={notifs}
-              onApprove={handleApprove}
-              onDecline={handleDecline}
-            />
-          </>
-        )}
-      </main>
+      <Outlet />
+
+      {notifDialogOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={closeNotifDialog}
+          />
+          <Notifications
+            notifs={notifs}
+            onApprove={handleApprove}
+            onDecline={handleDecline}
+          />
+        </>
+      )}
+
+      {/* Mobile Bottom Nav */}
+      {!isFullScreenPage && authRole === "manager" && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
+          <button 
+            onClick={() => navigate("/dashboard")} 
+            className={`flex flex-col items-center text-xs ${
+              location.pathname === '/dashboard' || location.pathname === '/' 
+                ? 'text-primary' 
+                : 'text-gray-400'
+            } cursor-pointer`}
+          >
+            <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
+            <span>Home</span>
+          </button>
+          <button 
+            onClick={() => navigate("/requests-approval")} 
+            className={`flex flex-col items-center text-xs ${
+              location.pathname === '/requests-approval' 
+                ? 'text-primary'
+                : 'text-gray-400'
+            } cursor-pointer`}
+          >
+            <RequestsIcon className={location.pathname === '/requests-approval' ? "text-primary" : "text-gray-400"} />
+            <span>Requests</span>
+          </button>
+          <button 
+            onClick={() => navigate("/member-list")} 
+            className={`flex flex-col items-center text-xs ${
+              location.pathname === '/member-list' 
+                ? 'text-primary' 
+                : 'text-gray-400'
+            } cursor-pointer`}
+          >
+            <MembersSettingsIcon className={location.pathname === '/member-list' ? "text-primary" : "text-gray-400"} />
+            <span>Members</span>
+          </button>
+        </nav>
+      )}
+    </>
+  );
+}
+
+// DESKTOP LAYOUT
+if (loading) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading your workspace...</p>
+      </div>
     </div>
   );
+}
+
+if (roleError) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-red-50">
+      <div className="text-center">
+        <p className="text-red-500 font-semibold">⚠️ {roleError}</p>
+        <button
+          onClick={() => navigate("/login")}
+          className="mt-4 px-4 py-2 bg-primary text-white rounded-lg shadow"
+        >
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
+}
+
+return (
+  <div className="flex min-h-screen">
+    <div className="hidden lg:block">
+      <Sidebar isMobile={false} />
+    </div>
+
+    <main
+      className={`
+        flex-1 transition-all duration-300 overflow-hidden
+        ${isFullScreenPage ? "" : "px-0 lg:px-6"}
+        ${isCollapsed ? "lg:ml-24" : "lg:ml-64"}
+        ml-0
+      `}
+    >
+      {/* Global Top Header */}
+      {!shouldHideHeader && (
+        <div className="flex justify-between items-center pt-12 px-10">
+          <h1 className="text-xl font-bold text-textcolor">
+            {getPageTitle()}
+          </h1>
+          <div className="flex gap-4 items-center text-textcolor">
+            <button onClick={toggleNotifDialog} className="cursor-pointer">
+              <NotifyIcon className="hover:text-primary" />
+            </button >
+            <button className="cursor-pointer" onClick={() => navigate('/help-support')}>
+              <SupportIcon className="hover:text-primary" />
+            </button >
+            <button onClick={() => navigate("/settings")} className="cursor-pointer">
+              <SettingIcon className="hover:text-primary" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Outlet />
+      {notifDialogOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={closeNotifDialog}
+          />
+          <Notifications
+            notifs={notifs}
+            onApprove={handleApprove}
+            onDecline={handleDecline}
+          />
+        </>
+      )}
+    </main>
+  </div>
+);;
 };
 
 export default Layout;
