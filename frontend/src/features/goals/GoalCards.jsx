@@ -196,36 +196,51 @@ const GoalCards = ({ goals = [] }) => {
         ))}
       </div>
 
-      {/* Goal Completed Modal */}
       <GoalCompletedModal
         open={!!completedGoal}
         goal={completedGoal}
         onClose={() => setCompletedGoal(null)}
-        // Proceed triggers Paid modal
         onProceed={() => {
-          setCompletedGoal(null);
-          setPaidGoalModalOpen(true);
-        }}
-        // Cancel marks as done, does not trigger Paid modal
-        onCancel={() => {
-          setCompletedGoal(null);
+          if (!completedGoal) return;
+
+          // Step 1: mark goal as done locally
           setShownGoals(prev => new Set(prev).add(completedGoal.id));
+
+          // Step 2: open Paid modal
+          setPaidGoalModalOpen(true);
+
+          // Don't clear completedGoal yet; we need it for deletion
+        }}
+        onCancel={() => {
+          if (!completedGoal) return;
+
+          // Mark as shown but do not delete
+          setShownGoals(prev => new Set(prev).add(completedGoal.id));
+          setCompletedGoal(null);
         }}
       />
 
       <GoalPaidModal
         open={paidGoalModalOpen}
         onClose={async () => {
-          if (completedGoal) {
-            try {
-              await deleteGoal(completedGoal.id);
-              // remove the goal locally after successful deletion
-              setGoalsList(prev => prev.filter(g => g.id !== completedGoal.id));
-            } catch (err) {
-              console.error("Failed to delete goal:", err);
-            }
+          if (!completedGoal) {
+            setPaidGoalModalOpen(false);
+            return;
           }
-          setPaidGoalModalOpen(false);
+
+          try {
+            // Step 3: delete from backend
+            await deleteGoal(completedGoal.group_id, completedGoal.id);
+
+            // Step 4: remove from UI
+            setGoalsList(prev => prev.filter(g => g.id !== completedGoal.id));
+          } catch (err) {
+            console.error("Failed to delete goal:", err);
+          } finally {
+            // Step 5: clear completedGoal and close Paid modal
+            setCompletedGoal(null);
+            setPaidGoalModalOpen(false);
+          }
         }}
       />
     </div>
