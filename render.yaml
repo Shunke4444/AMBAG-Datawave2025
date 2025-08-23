@@ -1,52 +1,47 @@
+version: '3.8'
 services:
-  - type: web
-    name: ambag-backend
-    env: docker
-    plan: free
-    autoDeploy: true
-    dockerContext: ./backend
-    dockerfilePath: ./Dockerfile
-    buildFilter:
-      paths:
-        - backend/**
-        - backend/Dockerfile
-    envVars:
-      - key: PORT
-        value: 8000
-      - key: OPENROUTER_API_KEY
-        sync: false
-      - key: MONGODB_URL
-        sync: false
-      - key: FIREBASE_CRED_PATH
-        value: app/ambag-auth.json
+  ambag-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ambag-backend
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - MONGODB_URL=${MONGODB_URL}
+      - FIREBASE_CRED_PATH=app/ambag-auth.json
+    restart: always
+    expose:
+      - "8000"
+    networks:
+      - ambag-network
 
-  - type: web
-    name: ambag-frontend
-    env: docker
-    plan: free
-    autoDeploy: true
-    dockerContext: ./frontend
-    dockerfilePath: ./Dockerfile
-    buildFilter:
-      paths:
-        - frontend/**
-        - frontend/Dockerfile
-    envVars:
-      - key: PORT
-        value: 3000
-      # Add your frontend env vars here
-      - key: VITE_API_URL
-        value: https://your-backend-url.onrender.com
-      
+  ambag-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ambag-frontend
+    environment:
+      - VITE_API_URL=http://ambag-backend:8000
+    restart: always
+    expose:
+      - "3000"
+    networks:
+      - ambag-network
 
-  - type: web
-    name: ambag-nginx
-    env: docker
-    plan: free
-    autoDeploy: true
-    dockerContext: ./nginx
-    dockerfilePath: ./Dockerfile
-    buildFilter:
-      paths:
-        - nginx/**
-        - nginx/Dockerfile
+  ambag-nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: ambag-nginx
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - ambag-backend
+      - ambag-frontend
+    networks:
+      - ambag-network
+
+networks:
+  ambag-network:
+    driver: bridge
