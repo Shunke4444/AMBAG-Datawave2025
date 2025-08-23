@@ -15,5 +15,4 @@ services:
         sync: false
       - key: MONGODB_URI
         sync: false
-      - key: FIREBASE_CRED_PATH
-        sync: false
+
