@@ -1,11 +1,11 @@
 import { Card, CardContent, LinearProgress, Box } from '@mui/material';
 import { getAuth } from 'firebase/auth';
-import { getMemberQuota } from '../../lib/api';
+import { getMemberQuota , deleteGoal} from '../../lib/api';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useState, useRef, useEffect } from 'react';
 import GoalCompletedModal from './GoalCompletedModal';
 import GoalPaidModal from './GoalPaidModal';
-import { deleteGoal } from '../../lib/api';
+
 
 const formatMoney = (n) => {
   const safe = Number(n) || 0;
@@ -39,6 +39,8 @@ const getStatus = (amount, total) => {
   if (percentage < 100) return "Almost Complete";
   return "Completed";
 };
+
+
 const GoalCardGlassMobile = ({ goal }) => {
   if (!goal) return null;
 
@@ -88,6 +90,29 @@ const GoalCards = ({ goals = [] }) => {
   const prevPercentsRef = useRef({});
   const [paidGoalModalOpen, setPaidGoalModalOpen] = useState(false);
   const [goalsList, setGoalsList] = useState(goals); // live state for deletion
+
+  // Custom delete function
+  const handleDeleteGoal = async (goal) => {
+    if (!goal || !goal.goal_id) {
+      console.error("Goal or goal_id is missing!", goal);
+      return;
+    }
+
+    try {
+      console.log("Deleting goal:", goal);
+      await deleteGoal(goal.goal_id);
+
+      // Remove from UI
+      setGoalsList(prev => prev.filter(g => g.goal_id !== goal.goal_id));
+    } catch (err) {
+      console.error("Failed to delete goal:", err);
+      alert("Failed to delete goal: " + err.message);
+    } finally {
+      setPaidGoalModalOpen(false);
+      setCompletedGoal(null);
+    }
+  };
+
 
   // Load shownGoals from localStorage
   useEffect(() => {
@@ -222,26 +247,7 @@ const GoalCards = ({ goals = [] }) => {
 
       <GoalPaidModal
         open={paidGoalModalOpen}
-        onClose={async () => {
-          if (!completedGoal) {
-            setPaidGoalModalOpen(false);
-            return;
-          }
-
-          try {
-            // Step 3: delete from backend
-            await deleteGoal(completedGoal.group_id, completedGoal.id);
-
-            // Step 4: remove from UI
-            setGoalsList(prev => prev.filter(g => g.id !== completedGoal.id));
-          } catch (err) {
-            console.error("Failed to delete goal:", err);
-          } finally {
-            // Step 5: clear completedGoal and close Paid modal
-            setCompletedGoal(null);
-            setPaidGoalModalOpen(false);
-          }
-        }}
+        onClose={() => handleDeleteGoal(completedGoal)}
       />
     </div>
   );
