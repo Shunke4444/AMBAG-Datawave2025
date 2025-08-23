@@ -1,6 +1,7 @@
+
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import (
+from routers import (
     groups,
     goal,
     chatbot,
@@ -12,13 +13,10 @@ from app.routers import (
     balance,
     allocate,
 )
-from app.routers.scheduler import start_scheduler
+from routers.scheduler import start_scheduler
 from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 
