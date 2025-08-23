@@ -2,8 +2,7 @@
 FROM python:3.11-slim
 
 
-# Set working directory to /app/app to match local dev
-WORKDIR /app/app
+WORKDIR /app
 
 # Copy backend requirements and install dependencies
 COPY backend/requirements.txt .
