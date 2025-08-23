@@ -13,6 +13,6 @@ services:
     envVars:
       - key: OPENROUTER_API_KEY
         sync: false
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
 
