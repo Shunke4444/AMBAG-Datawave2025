@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ambag-frontend
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: ./frontend
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - frontend/**
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ambag-backend.onrender.com

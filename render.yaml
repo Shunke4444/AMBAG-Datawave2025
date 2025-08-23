@@ -1,47 +1,19 @@
-version: '3.8'
 services:
-  ambag-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: ambag-backend
-    environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - MONGODB_URL=${MONGODB_URI}
-      - FIREBASE_CRED_PATH=app/ambag-auth.json
-    restart: always
-    expose:
-      - "8000"
-    networks:
-      - ambag-network
-
-  ambag-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: ambag-frontend
-    environment:
-      - VITE_API_URL=http://ambag-backend:8000
-    restart: always
-    expose:
-      - "3000"
-    networks:
-      - ambag-network
-
-  ambag-nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: ambag-nginx
-    restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - ambag-backend
-      - ambag-frontend
-    networks:
-      - ambag-network
-
-networks:
-  ambag-network:
-    driver: bridge
+  - type: web
+    name: ambag-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - backend/**
+        - Dockerfile
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MONGODB_URL
+        sync: false
+      - key: FIREBASE_CRED_PATH
+        sync: false

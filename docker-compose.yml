@@ -1,6 +1,16 @@
-version: '3.8'
 services:
-  ambag-backend:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ambag-frontend
+    restart: always
+    expose:
+      - "3000"
+    networks:
+      - rulebox-network
+
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -15,28 +25,17 @@ services:
     networks:
       - ambag-network
 
-  ambag-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: ambag-frontend
-    restart: always
-    expose:
-      - "3000"
-    networks:
-      - ambag-network
-
-  ambag-nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+  nginx:
+    image: nginx:alpine
     container_name: ambag-nginx
     restart: always
     ports:
       - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - ambag-backend
-      - ambag-frontend
+      - frontend
+      - backend
     networks:
       - ambag-network
 
