@@ -2,9 +2,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
-MONGO_URI = os.getenv("MONGO_URI")
+# Use the correct environment variable for MongoDB URI
+MONGO_URI = os.getenv("MONGODB_URI")
+if not MONGO_URI:
+	raise RuntimeError("MONGODB_URI environment variable is not set. Please set it in your environment.")
 client = AsyncIOMotorClient(MONGO_URI)
 db = client["ambag_database"]
 
