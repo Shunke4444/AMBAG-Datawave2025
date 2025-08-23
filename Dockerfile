@@ -10,6 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY backend/ .
 
+# Ensure ambag-auth.json is at /app/ambag-auth.json
+COPY backend/app/ambag-auth.json ./ambag-auth.json
+
 # Expose port
 EXPOSE 8000
 
