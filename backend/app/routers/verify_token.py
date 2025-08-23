@@ -9,13 +9,7 @@ load_dotenv()
 
 cred_path = os.getenv("FIREBASE_CRED_PATH")
 if cred_path:
-    # Convert relative path to absolute path based on the current file's directory
-    if not os.path.isabs(cred_path):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        app_dir = os.path.dirname(current_dir)  # Go up one level from routers to app
-        cred_path = os.path.join(app_dir, cred_path)
-    
-    # Check if Firebase admin is already initialized to prevent duplicate initialization
+    # Use the path as-is; Docker working directory is /app
     if not firebase_admin._apps:
         cred = credentials.Certificate(cred_path)
         initialize_app(cred)

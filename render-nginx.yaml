@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ambag-nginx
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: .
+    dockerfilePath: ./Dockerfile.nginx
+    buildFilter:
+      paths:
+        - frontend/**
+        - nginx/**
+        - Dockerfile.nginx

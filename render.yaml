@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ambag-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - backend/**
+        - Dockerfile
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: FIREBASE_CRED_PATH
+        sync: false
