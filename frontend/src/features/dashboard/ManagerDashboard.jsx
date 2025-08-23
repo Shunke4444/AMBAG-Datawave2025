@@ -9,6 +9,7 @@ import DashboardBtns from "./DashboardBtns";
 import GoalCards from "../goals/GoalCards";
 import GoalCarouselMobile from "../goals/GoalCarouselMobile";
 import MemberHeader from "../members/MemberHeader";
+import ActionButtons from './ActionButtons';
 import {
   Add as AddIcon,
 } from '@mui/icons-material';
@@ -219,6 +220,13 @@ const ManagerDashboard = ({ onLoan }) => {
             )}
           </div>
 
+          {/* Action Buttons */}
+          <div className="px-4"> 
+            <ActionButtons 
+                onLoan={onLoan} 
+              />
+          </div>
+            
           {/* Contribution Div */}
           {showGroup && (
             <div className="p-4">

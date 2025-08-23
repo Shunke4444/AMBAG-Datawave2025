@@ -210,7 +210,7 @@ export default function Request() {
                               }
                             }}
                             InputProps={{
-                              startAdornment: <span style={{ marginRight: '8px' }}>$</span>,
+                              startAdornment: <span style={{ marginRight: '8px' }}>₱</span>,
                             }}
                           />
                         </Box>

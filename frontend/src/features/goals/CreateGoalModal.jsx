@@ -224,13 +224,13 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors cursor-pointer"
                   disabled={!state.goalName || !state.targetAmount || !state.deadline}
                 >
                   Create

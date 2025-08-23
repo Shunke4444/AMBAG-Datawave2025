@@ -76,12 +76,6 @@ export default function MemberPage() {
     setIsLoanModalOpen(false);
   };
 
-  const mockBills = [
-    { label: 'Your Share', amount: 4000 },
-    { label: "You've Paid", amount: 2000 },
-    { label: 'Remaining', amount: 2000 }
-  ];
-
 
   return (
     <div className="min-h-screen bg-secondary">

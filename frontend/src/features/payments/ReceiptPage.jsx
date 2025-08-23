@@ -71,7 +71,7 @@ export default function Receipt() {
   
   const handleGoHome = () => {
     if (isMobile) {
-      navigate("/member"); // mobile route
+      navigate("/dashboard"); // mobile route
     } else {
       navigate("/dashboard"); // desktop route
     }

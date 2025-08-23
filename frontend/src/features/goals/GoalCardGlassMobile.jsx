@@ -13,7 +13,7 @@ import { deleteGoal } from "../../lib/api"; // your API delete function
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const formatMoney = (n) =>
-  "₱" + n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ".00";
+  "₱" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ".00";
 
 const getStatus = (amount, total) => {
   if (total <= 0) return "Unknown";
@@ -52,26 +52,35 @@ const GoalCardGlassMobile = ({ goal, onGoalDeleted }) => {
     },
   };
 
-  // Detect completion
+  // Trigger completed modal if goal hits 100% and hasn't been completed
   useEffect(() => {
     if (percent >= 100 && !goal.completedFlag) {
       setCompletedModalOpen(true);
     }
   }, [percent, goal.completedFlag]);
 
+  // Handle closing Paid modal and deleting goal
   const handlePaidClose = async () => {
+    if (!goal?.goal_id) {
+      console.error("Goal missing goal_id", goal);
+      setPaidModalOpen(false);
+      return;
+    }
+
     try {
-      await deleteGoal(goal.id); // delete from backend
-      onGoalDeleted(goal.id);     // remove from UI parent
+      await deleteGoal(goal.goal_id); // delete from backend
+      if (onGoalDeleted) onGoalDeleted(goal.goal_id); // remove from parent UI
     } catch (err) {
       console.error("Failed to delete goal:", err);
+      alert("Failed to delete goal: " + err.message);
     } finally {
       setPaidModalOpen(false);
     }
   };
 
+  // Cancel completed modal without deletion
   const handleCancelCompleted = () => {
-    goal.completedFlag = true; // flag so modal doesn't trigger again
+    goal.completedFlag = true; // prevent modal from reopening
     setCompletedModalOpen(false);
   };
 
@@ -116,9 +125,7 @@ const GoalCardGlassMobile = ({ goal, onGoalDeleted }) => {
             </div>
             <div className="flex justify-between">
               <dt className="opacity-80">Remaining:</dt>
-              <dd className="font-medium">
-                {formatMoney(remaining > 0 ? remaining : 0)}
-              </dd>
+              <dd className="font-medium">{formatMoney(remaining > 0 ? remaining : 0)}</dd>
             </div>
           </article>
         </section>
