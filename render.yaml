@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: ambag-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - backend/**
+        - backend/Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MONGODB_URL
+        sync: false
+      - key: FIREBASE_CRED_PATH
+        value: app/ambag-auth.json
+
+  - type: web
+    name: ambag-frontend
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: ./frontend
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - frontend/**
+        - frontend/Dockerfile
+    envVars:
+      - key: PORT
+        value: 3000
+      # Add your frontend env vars here
+      - key: VITE_API_URL
+        value: https://your-backend-url.onrender.com
+      
+
+  - type: web
+    name: ambag-nginx
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: ./nginx
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - nginx/**
+        - nginx/Dockerfile
