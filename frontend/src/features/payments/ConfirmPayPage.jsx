@@ -44,7 +44,7 @@ export default function ConfirmPay() {
         reference_number: ''
       });
       // Navigate to receipt page with payment data
-      navigate('/receipt', {
+  navigate('/app/receipt', {
         state: {
           amount: paymentData.amountToSend,
           goalName: paymentData.goalName,

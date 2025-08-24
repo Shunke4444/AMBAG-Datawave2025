@@ -24,15 +24,15 @@ const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   // Role-specific buttons
   const managerButtons = [
     { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
-    { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
-    { icon: <RequestsIcon />, label: "Member Request", action: () => navigate("/requests-approval") },
+  { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/app/member-list") },
+    { icon: <RequestsIcon />, label: "Member Request", action: () => navigate("/app/requests-approval") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
     { icon: <SplitBillIcon />, label: "Allocate Qouta" , action: () => onSplitBill?.()}
   ];
 
   const memberButtons = [
   { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
-    { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests")},
+    { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/app/requests")},
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
   ];
 

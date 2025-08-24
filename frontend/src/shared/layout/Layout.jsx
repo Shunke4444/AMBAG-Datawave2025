@@ -178,7 +178,7 @@ if (isUseMobile) {
             <span>Requests</span>
           </button>
           <button 
-            onClick={() => navigate("/member-list")} 
+            onClick={() => navigate("/app/member-list")} 
             className={`flex flex-col items-center text-xs ${
               location.pathname === '/member-list' 
                 ? 'text-primary' 
