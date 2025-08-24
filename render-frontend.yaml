@@ -5,10 +5,10 @@ services:
     plan: free
     autoDeploy: true
     dockerContext: ./frontend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.frontend
     buildFilter:
       paths:
         - frontend/**
     envVars:
-      - key: NEXT_PUBLIC_API_URL
+      - key: VITE_API_URL
         value: https://ambag-backend.onrender.com
