@@ -23,8 +23,7 @@ const DashboardBtns = ({onLoan, onSplitBill, onPayShare}) => {
   };
   // Role-specific buttons
   const managerButtons = [
-  { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
-    { icon: <RequestFundsIcon />, label: "Request Funds", action: () => navigate("/requests") },
+    { icon: <PayShareIcon />, label: "Pay Share", action: () => setIsGoalModalOpen(true)},
     { icon: <MemberSettingsIcon />, label: "Member Settings", action: () => navigate("/member-list") },
     { icon: <RequestsIcon />, label: "Member Request", action: () => navigate("/requests-approval") },
     { icon: <LoanIcon />, label: "Loan", action: handleLoan },
