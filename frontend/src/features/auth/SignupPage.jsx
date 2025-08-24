@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
 import { signupWithFirebase } from '../../lib/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -88,7 +89,7 @@ export default function Signup() {
           group_id: null
         }
       };
-      const res = await fetch('http://localhost:8000/users/register', {
+      const res = await fetch(`${baseURL}/users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
