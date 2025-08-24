@@ -116,7 +116,7 @@ export default function Signup() {
     try {
       // Simulate Google OAuth
       await new Promise(resolve => setTimeout(resolve, 1500));
-      navigate('/dashboard');
+  navigate('/app/dashboard');
     } catch (error) {
       setErrors({ submit: 'Google authentication failed. Please try again.' });
     } finally {

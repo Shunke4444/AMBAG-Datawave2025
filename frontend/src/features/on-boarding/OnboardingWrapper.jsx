@@ -29,7 +29,7 @@ export default function OnboardingWrapper() {
         const role_type = res?.data?.role?.role_type;
         if (group_id) {
           if (role_type === 'manager') {
-            navigate('/dashboard'); // ManagerDashboard UI
+            navigate('/app/dashboard'); // ManagerDashboard UI
           } else {
             navigate('/member'); // MemberPage UI
           }

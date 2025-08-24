@@ -141,7 +141,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
           const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
           const role_type = res?.data?.role?.role_type;
           if (role_type === 'manager') {
-            navigate('/dashboard');
+            navigate('/app/dashboard');
           } else {
             navigate('/member');
           }
@@ -182,7 +182,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               sx={{ bgcolor: COLORS.buttonBg, color: COLORS.buttonText, fontWeight: "bold", borderRadius: 2, mb: 2, '&:hover': { bgcolor: COLORS.accent } }}
               onClick={() => {
                 setCreatedGroup(null);
-                navigate("/dashboard");
+                navigate("/app/dashboard");
               }}
             >
               Start your Ambag journey!

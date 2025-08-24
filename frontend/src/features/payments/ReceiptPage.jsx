@@ -71,9 +71,9 @@ export default function Receipt() {
   
   const handleGoHome = () => {
     if (isMobile) {
-      navigate("/dashboard"); // mobile route
+  navigate("/app/dashboard"); // mobile route
     } else {
-      navigate("/dashboard"); // desktop route
+  navigate("/app/dashboard"); // desktop route
     }
   };
   const desktopLayout = (
