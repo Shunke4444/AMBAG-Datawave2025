@@ -18,7 +18,7 @@ services:
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - MONGODB_URI=${MONGODB_URI}
-      - FIREBASE_CRED_PATH=app/ambag-auth.json
+      - FIREBASE_CRED_PATH=${FIREBASE_CRED_PATH}
     restart: always
     expose:
       - "8000"

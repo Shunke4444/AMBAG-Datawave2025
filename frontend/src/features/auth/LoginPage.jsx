@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+const baseURL = import.meta?.env?.VITE_API_URL || "https://ambag-backend.onrender.com";
 import { loginWithFirebase } from '../../lib/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -55,7 +56,7 @@ export default function Login() {
       // 1. Authenticate with Firebase and get token
       const { token, user } = await loginWithFirebase(formData.email, formData.password);
       // 2. Send token and user info to backend
-      const res = await fetch('http://localhost:8000/users/login', {
+      const res = await fetch(`${baseURL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +72,7 @@ export default function Login() {
       }
       // After login, check user profile and route accordingly
       try {
-        const userProfileRes = await fetch(`http://localhost:8000/users/profile/${user.uid}`, {
+        const userProfileRes = await fetch(`${baseURL}/users/profile/${user.uid}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const userProfile = await userProfileRes.json();

@@ -30,7 +30,7 @@ export const MembersProvider = ({ children }) => {
       }
       const token = await user.getIdToken();
       const firebase_uid = user.uid;
-      const baseURL = import.meta?.env?.VITE_API_URL || "http://localhost:8000";
+      const baseURL = import.meta?.env?.VITE_API_URL || "https://ambag-backend.onrender.com";
       // Fetch user profile
       const userRes = await fetch(`${baseURL}/users/profile/${firebase_uid}`, {
         headers: { Authorization: `Bearer ${token}` }

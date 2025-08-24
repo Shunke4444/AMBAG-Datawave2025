@@ -74,9 +74,13 @@ const router = createBrowserRouter([
   // Protected app routes (with sidebar/layout)
   {
     path: "/",
+    element: <Login />,
+  },
+  {
+    path: "/app",
     element: <Layout />,
     children: [
-      { index: true, element: <Dashboard /> }, // default inside layout
+      { index: true, element: <Dashboard /> },
       { path: "dashboard", element: <Dashboard /> },
       { path: "goals", element: <Goals /> },
       { path: "ai-assistant", element: <AIAssistant /> },
