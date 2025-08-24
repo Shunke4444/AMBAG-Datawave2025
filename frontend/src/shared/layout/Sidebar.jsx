@@ -18,9 +18,9 @@ import useSidebar from "../../hooks/useSidebar";
 import useIsMobile from "../../hooks/useIsMobile";
 
 const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { to: '/goals', label: 'Goals', icon: <GoalsIcon /> },
-    { to: '/ai-assistant', label: 'AI Assistant', icon: <AssistantIcon /> },
+    { to: '/app/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+    { to: '/app/goals', label: 'Goals', icon: <GoalsIcon /> },
+    { to: '/app/ai-assistant', label: 'AI Assistant', icon: <AssistantIcon /> },
     { to: '/login', label: 'Logout', icon: <LogoutIcon /> },
   ];
 
@@ -125,11 +125,11 @@ const Sidebar = () => {
             <Collapse in={openTransactionMenu} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
                 {[
-                  { to: "/transactions/withdrawal", label: "Withdrawal" },
-                  { to: "/transactions/deposit", label: "Deposit" },
-                  { to: "/transactions/history", label: "Transaction History" },
-                  { to: "/transactions/audit", label: "Audit Logs" },
-                  { to: "/transactions/Balance", label: "Add Balance" },
+                  { to: "/app/transactions/withdrawal", label: "Withdrawal" },
+                  { to: "/app/transactions/deposit", label: "Deposit" },
+                  { to: "/app/transactions/history", label: "Transaction History" },
+                  { to: "/app/transactions/audit", label: "Audit Logs" },
+                  { to: "/app/transactions/balance", label: "Add Balance" },
                 ].map(({ to, label }) => (
                   <ListItemButton
                     key={to}
