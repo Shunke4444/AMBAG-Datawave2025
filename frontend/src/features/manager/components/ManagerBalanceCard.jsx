@@ -67,7 +67,7 @@ const ManagerBalanceCard = ({ userUid }) => {
 
           {/* Right: Button to Add Virtual Balance */}
           <button
-            onClick={() => navigate("/transactions/balance")}
+            onClick={() => navigate("/app/transactions/balance")}
             className="mr-8 bg-accent hover:bg-accent/90 text-white text-xs px-3 py-1.5 rounded-lg shadow-md cursor-pointer"
           >
             + Add

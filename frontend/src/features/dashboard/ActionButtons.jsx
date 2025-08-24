@@ -31,9 +31,9 @@ const ActionButtons = ({ onLoan, onPayShare }) => {
     setIsCreateGoalOpen(true);
   };
 
-  const handleRequestFunds = () => navigate("/requests");
+  const handleRequestFunds = () => navigate("/app/requests");
 
-  const handleDeposit = () => navigate("/transactions/deposit");
+  const handleDeposit = () => navigate("/app/transactions/deposit");
 
   // ---------- Action Buttons List ----------
  const ICON_SIZE = "w-12 h-12"; // standard size for all icons

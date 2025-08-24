@@ -167,7 +167,7 @@ if (isUseMobile) {
             <span>Home</span>
           </button>
           <button 
-            onClick={() => navigate("/requests-approval")} 
+            onClick={() => navigate("/app/requests-approval")} 
             className={`flex flex-col items-center text-xs ${
               location.pathname === '/requests-approval' 
                 ? 'text-primary'
