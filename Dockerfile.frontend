@@ -8,8 +8,7 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 # Copy source code
-COPY frontend/ ./
-
+COPY . ./
 # Build the Vite app
 RUN npm run build
 
