@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { useTheme, useMediaQuery,InputAdornment } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import {
   TextField,
@@ -210,7 +210,11 @@ export default function Request() {
                               }
                             }}
                             InputProps={{
-                              startAdornment: <span style={{ marginRight: '8px' }}>₱</span>,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  ₱
+                                </InputAdornment>
+                              ),
                             }}
                           />
                         </Box>
