@@ -9,15 +9,15 @@ import {
 const MemberHeader = ({ userName = "User" }) => {
   const navigate = useNavigate();
     const handleChatClick = () => {
-        navigate('/ai-assistant'); 
+        navigate('/app/ai-assistant'); 
     };
 
     const handleNotificationClick = () => {
-        navigate('/member-notification'); 
+        navigate('/app/member-notification'); 
     };
 
     const handleSettingsClick = () => {
-        navigate('/settings')
+        navigate('/app/settings')
     }
 
   return (

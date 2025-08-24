@@ -13,7 +13,7 @@ const LoanRequestModal = ({ isOpen, onClose }) => {
 
   const handleGroupLoan = () => {
     // Navigate to requests page with loan parameter
-    navigate('/requests?type=loan');
+    navigate('/app/requests?type=loan');
     onClose();
   };
 

@@ -112,7 +112,7 @@ const DepositForm = () => {
         <button
           type="submit"
           className="bg-primary p-4 font-medium text-base rounded-lg text-white w-full cursor-pointer"
-          onClick={()=>navigate('receipt')}
+          onClick={()=>navigate('/app/receipt')}
         >
           Continue
         </button>
@@ -192,7 +192,7 @@ const DepositForm = () => {
           <button type='submit'
             className='bg-primary p-4 font-medium text-xs rounded-md text-secondary cursor-pointer'
             fullWidth
-            onClick={()=>navigate('receipt')}
+            onClick={()=>navigate('/app/receipt')}
           >
             Continue
           </button>

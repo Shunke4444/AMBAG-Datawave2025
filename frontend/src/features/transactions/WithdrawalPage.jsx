@@ -31,7 +31,7 @@ const Withdrawal = () => {
         <div className="flex flex-wrap justify-evenly gap-4">
           {savedMethods.map((saved, index) => (
             <Card key={index} className="rounded-2xl shadow-md p-6 w-full sm:w-80 md:w-96 lg:w-[500px] xl:w-[600px]">
-              <CardActionArea onClick={() => navigate('/transactions/withdrawalProcess')}>
+              <CardActionArea onClick={() => navigate('/app/transactions/withdrawalProcess')}>
                 <CardContent>
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ const Withdrawal = () => {
         <div className="flex flex-wrap justify-evenly p-8 gap-4">
           {otherMethods.map((method, index) => (
             <Card key={index} className="rounded-2xl shadow-md w-2xl">
-              <CardActionArea onClick={() => navigate('/transactions/withdrawalProcess')}>
+              <CardActionArea onClick={() => navigate('/app/transactions/withdrawalProcess')}>
                 <CardContent>
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">

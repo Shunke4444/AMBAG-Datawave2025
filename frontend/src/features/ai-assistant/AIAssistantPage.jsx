@@ -130,7 +130,7 @@ export default function AIAssitant() {
     if (action === "deep-research") {
       setDeepResearchActive(true);
     } else if (action === "what-if") {
-      navigate("/what-if");
+      navigate("/app/what-if");
     }
   };
 
