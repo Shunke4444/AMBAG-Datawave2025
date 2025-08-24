@@ -58,6 +58,11 @@ const router = createBrowserRouter([
     path: "/payment",
     element: <Payment />,
   },
+  // Direct dashboard route
+  {
+    path: "/dashboard",
+    element: <Dashboard />,
+  },
   {
     path: "/payment/:goalId",
     element: <Payment />,
