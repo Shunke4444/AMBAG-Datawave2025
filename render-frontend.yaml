@@ -12,3 +12,7 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://ambag-backend.onrender.com
+      - key: FIREBASE_EMAIL
+        value: <your-firebase-email-here>
+      - key: FIREBASE_PASSWORD
+        value: <your-firebase-password-here>
