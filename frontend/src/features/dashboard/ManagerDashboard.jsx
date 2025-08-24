@@ -80,11 +80,16 @@ const ManagerDashboard = ({ onLoan }) => {
   // Fetch group
   useEffect(() => {
     const fetchGroup = async () => {
+      if (!groupId) {
+        setGroup(null);
+        setGroupLoading(false);
+        return;
+      }
       try {
-        console.log("🔍 Fetching group...");
+        console.log("🔍 Fetching group for groupId:", groupId);
         setGroupLoading(true);
         const token = await getAuth().currentUser.getIdToken();
-        const res = await api.get(`/groups/my-group`, {
+        const res = await api.get(`/groups/${groupId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log("✅ Group fetched:", res?.data);
@@ -97,7 +102,7 @@ const ManagerDashboard = ({ onLoan }) => {
       }
     };
     fetchGroup();
-  }, []);
+  }, [groupId]);
 
   // Map goals
   const mappedGoals = goals
