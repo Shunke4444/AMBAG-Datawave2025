@@ -36,6 +36,8 @@ import { SidebarProvider } from "./contexts/SideBarProvider";
 import { MembersProvider } from "./features/manager/contexts/MembersContext.jsx";
 import ApprovalsPage from "./features/approvals/ApprovalsPage";
 import SplitBills from "./features/manager/SplitBill.jsx";
+import RequestFormMember from "./features/approvals/RequestFormMember.jsx";
+import LoanPage from "./features/loan/LoanPage.jsx";
 
 // ------------------ ROUTES ------------------
 const router = createBrowserRouter([
@@ -85,6 +87,13 @@ const router = createBrowserRouter([
       { path: "goals", element: <Goals /> },
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "what-if", element: <WhatIf /> },
+
+  // Custom feature routes for dashboard buttons
+  { path: "pay-share", element: <RequestFormMember /> },
+  { path: "request-funds", element: <RequestFormMember /> },
+  { path: "member-settings", element: <Settings /> },
+  { path: "member-request", element: <Request /> },
+  { path: "loan", element: <LoanPage /> },
 
       // Transactions
       { path: "transactions/withdrawal", element: <Withdrawal /> },
