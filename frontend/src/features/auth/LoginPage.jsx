@@ -80,11 +80,11 @@ export default function Login() {
         const role_type = userProfile?.role?.role_type;
         if (group_id) {
           if (role_type === 'manager') {
-            navigate('/dashboard');
+            navigate('/app/dashboard');
           } else if (role_type === 'member') {
             navigate('/member');
           } else {
-            navigate('/dashboard'); // fallback
+            navigate('/app/dashboard'); // fallback
           }
         } else {
           navigate('/onboarding');

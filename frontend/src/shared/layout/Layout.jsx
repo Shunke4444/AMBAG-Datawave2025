@@ -152,8 +152,8 @@ if (isUseMobile) {
       )}
 
              {/* Mobile Bottom Nav */}
-       {console.log("Mobile nav debug - isFullScreenPage:", isFullScreenPage, "authRole:", authRole, "isUseMobile:", isUseMobile, "condition result:", !isFullScreenPage && authRole === "Manager")}
-       {!isFullScreenPage && authRole === "Manager" && (
+        {console.log("Mobile nav debug - isFullScreenPage:", isFullScreenPage, "authRole:", authRole, "isUseMobile:", isUseMobile, "condition result:", !isFullScreenPage && authRole === "Manager")}
+        {!isFullScreenPage && authRole === "Manager" && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-t-gray-300 rounded-tl-3xl rounded-tr-3xl shadow-md flex justify-around py-2 z-50">
           <button 
             onClick={() => navigate("/dashboard")} 
