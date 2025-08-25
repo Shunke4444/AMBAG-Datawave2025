@@ -26,7 +26,7 @@ export default function MemberRequestApproval() {
         const mapped = data.map((req) => ({
           id: req._id || req.id || req.request_id || Math.random().toString(36).slice(2),
           subject: req.subject || req.metadata?.subject || 'No Subject',
-          submittedBy: req.metadata?.submittedBy || req.user_name || req.user_id || 'Unknown',
+          submittedBy: req.user_name || req.metadata?.submittedBy || req.user_id || 'Unknown',
           submittedDate: req.created_at ? new Date(req.created_at) : new Date(),
           status: req.status || 'pending',
           priority: req.priority || 'medium',
