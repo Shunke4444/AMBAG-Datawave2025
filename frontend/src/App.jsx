@@ -41,6 +41,23 @@ import LoanPage from "./features/loan/LoanPage.jsx";
 
 // ------------------ ROUTES ------------------
 const router = createBrowserRouter([
+  {
+    path: "/receipt",
+    element: <Navigate to="/app/receipt" replace />,
+  },
+    // Redirect legacy or direct links without /app/ to correct /app/ routes
+    {
+      path: "/requests-approval",
+      element: <Navigate to="/app/requests-approval" replace />,
+    },
+    {
+      path: "/transactions/balance",
+      element: <Navigate to="/app/transactions/balance" replace />,
+    },
+    {
+      path: "/transactions/deposit",
+      element: <Navigate to="/app/transactions/deposit" replace />,
+    },
   // Public routes
   {
     path: "/login",
