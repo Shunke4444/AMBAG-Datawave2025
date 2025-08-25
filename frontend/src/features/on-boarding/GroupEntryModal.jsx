@@ -143,7 +143,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
           if (role_type === 'manager') {
             navigate('/app/dashboard');
           } else {
-            navigate('/member');
+            navigate('/app/member');
           }
         }}
       />

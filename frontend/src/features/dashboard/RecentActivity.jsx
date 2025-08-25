@@ -59,7 +59,7 @@ const RecentActivity = ({
 
   const navigate = useNavigate();
   const handleRecentActivityClick = (activity) => {
-    navigate(`/transactions/history`);
+  navigate(`/app/transactions/history`);
   };
 
 

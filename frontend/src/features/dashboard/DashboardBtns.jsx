@@ -67,7 +67,7 @@ console.log("DashboardBtns detected role:", authRole);
           onClose={() => setIsGoalModalOpen(false)} 
           onSelect={goalId => {
             setIsGoalModalOpen(false);
-            navigate(`/payment/${goalId}`);
+            navigate(`/app/payment/${goalId}`);
           }} 
         />
       )}

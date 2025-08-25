@@ -93,7 +93,7 @@ export default function MemberPage() {
           open={isGoalModalOpen} 
           onClose={handleCloseGoalModal} 
           onSelect={goalId => {
-            navigate(`/payment/${goalId}`);
+            navigate(`/app/payment/${goalId}`);
           }} 
         />
       </main>

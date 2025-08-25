@@ -27,7 +27,7 @@ export default function PaymentButton({
     }
     if (!isButtonDisabled && numericAmount >= 1) {
       // Navigate to confirm payment page with the payment data
-      navigate('/payment/confirm', { 
+  navigate('/app/payment/confirm', { 
         state: { 
           amount: amount,
           goalName: goalName,
