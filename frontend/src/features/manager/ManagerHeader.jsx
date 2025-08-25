@@ -10,10 +10,10 @@ const ManagerHeader = ({ userName = "Manager" }) => {
     navigate('/ai-assistant');
   };
   const handleNotificationClick = () => {
-    navigate('/manager-notifications');
+  navigate('/app/manager-notifications');
   };
   const handleSettingsClick = () => {
-    navigate('/settings');
+  navigate('/app/settings');
   };
   return (
     <main className="flex items-center justify-between pt-8 px-5 bg-primary text-secondary">

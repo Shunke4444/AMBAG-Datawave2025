@@ -97,7 +97,7 @@ function PaymentPage() {
     // Only allow navigation if amount is valid
     const numericAmount = parseFloat(amount.replace(/,/g, '')) || 0;
     if (numericAmount < 1) return;
-    navigate('/payment/confirm', {
+  navigate('/payment/confirm', {
       state: {
         amount: amount,
         goalName: goalName,

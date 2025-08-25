@@ -70,26 +70,62 @@ export default function Login() {
       if (!res.ok) {
         throw new Error('Backend login failed');
       }
-      // After login, check user profile and route accordingly
+
+      // Try to fetch user profile
+      let userProfile, userProfileRes;
+      let didRegister = false;
       try {
-        const userProfileRes = await fetch(`${baseURL}/users/profile/${user.uid}`, {
+        userProfileRes = await fetch(`${baseURL}/users/profile/${user.uid}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        const userProfile = await userProfileRes.json();
-        const group_id = userProfile?.role?.group_id;
-        const role_type = userProfile?.role?.role_type;
-        if (group_id) {
-          if (role_type === 'manager') {
-            navigate('/app/dashboard');
-          } else if (role_type === 'member') {
-            navigate('/app/dashboard');
-          } else {
-            navigate('/app/dashboard'); // fallback
+        if (userProfileRes.status === 404) {
+          // Not found, register user
+          const registerPayload = {
+            profile: {
+              first_name: user.displayName ? user.displayName.split(' ')[0] : 'First',
+              last_name: user.displayName ? user.displayName.split(' ').slice(1).join(' ') || 'Last' : 'Last'
+            },
+            role: {
+              role_type: null,
+              permissions: [],
+              group_id: null
+            }
+          };
+          const regRes = await fetch(`${baseURL}/users/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(registerPayload)
+          });
+          if (!regRes.ok) {
+            throw new Error('Registration failed');
           }
+          didRegister = true;
+          const regData = await regRes.json();
+          userProfile = regData;
         } else {
-          navigate('/onboarding');
+          userProfile = await userProfileRes.json();
         }
       } catch (err) {
+        setErrors({ submit: 'Failed to fetch or register user profile.' });
+        setIsLoading(false);
+        return;
+      }
+
+      // After registration or successful profile fetch, route accordingly
+      const group_id = userProfile?.role?.group_id;
+      const role_type = userProfile?.role?.role_type;
+      if (group_id) {
+        if (role_type === 'manager') {
+          navigate('/app/dashboard');
+        } else if (role_type === 'member') {
+          navigate('/app/member');
+        } else {
+          navigate('/app/dashboard'); // fallback
+        }
+      } else {
         navigate('/onboarding');
       }
     } catch (error) {

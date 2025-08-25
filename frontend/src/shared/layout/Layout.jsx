@@ -257,10 +257,10 @@ return (
             <button onClick={toggleNotifDialog} className="cursor-pointer">
               <NotifyIcon className="hover:text-primary" />
             </button >
-            <button className="cursor-pointer" onClick={() => navigate('/help-support')}>
+            <button className="cursor-pointer" onClick={() => navigate('/app/help-support')}>
               <SupportIcon className="hover:text-primary" />
             </button >
-            <button onClick={() => navigate("/settings")} className="cursor-pointer">
+            <button onClick={() => navigate("/app/settings")} className="cursor-pointer">
               <SettingIcon className="hover:text-primary" />
             </button>
           </div>
