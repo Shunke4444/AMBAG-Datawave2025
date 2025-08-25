@@ -99,9 +99,17 @@ const actions = [
         <CreateGoalModal
           open={isCreateGoalOpen}
           onClose={() => setIsCreateGoalOpen(false)}
-          onCreateGoal={(newGoal) => {
-            console.log("✅ New goal created:", newGoal);
-            setIsCreateGoalOpen(false);
+          onCreateGoal={async (goalData) => {
+            try {
+              const { createGoal } = await import('../../lib/api');
+              const result = await createGoal(goalData);
+              console.log("✅ New goal created:", result);
+              setIsCreateGoalOpen(false);
+              return result;
+            } catch (err) {
+              console.error("❌ Error creating goal:", err);
+              return { status: 'error', message: err?.message || 'Failed to create goal' };
+            }
           }}
         />
       )}

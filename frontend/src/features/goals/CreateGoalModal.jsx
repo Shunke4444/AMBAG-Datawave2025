@@ -47,6 +47,7 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
         throw new Error("Please fill in all required fields");
       }
 
+
       const goalData = {
         firebase_uid: user?.firebase_uid ?? "",
         title: state.goalName ?? "",
@@ -62,27 +63,29 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
           (typeof user?.email === "string" && user.email.trim() !== "") ? user.email :
           ""
       };
-      
-      // Log all required fields to verify they are valid strings
-      console.log("📝 CreateGoalModal: Calling onCreateGoal with:", goalData);
-      console.log("Field check:", {
-        title: typeof goalData.title,
-        group_id: typeof goalData.group_id,
-        goal_type: typeof goalData.goal_type,
-        creator_role: typeof goalData.creator_role,
-        creator_name: typeof goalData.creator_name,
-        target_date: typeof goalData.target_date,
-        description: typeof goalData.description
-      });
-      console.log("🔗 onCreateGoal function:", typeof onCreateGoal);
-      
+
+      // Extra guard: group_id must not be empty
+      if (!goalData.group_id) {
+        setError("No group ID found. Please join or create a group first.");
+        console.error("❌ No group_id in goalData:", goalData);
+        return;
+      }
+
+      // Log outgoing payload
+      console.log("� [CreateGoalModal] Sending goalData to backend:", goalData);
       if (typeof onCreateGoal !== 'function') {
         console.error("❌ onCreateGoal is not a function:", onCreateGoal);
         throw new Error("Goal creation function not available");
       }
-      
-      const result = await onCreateGoal(goalData);
-      console.log("✅ CreateGoalModal: Got result:", result);
+      let result;
+      try {
+        result = await onCreateGoal(goalData);
+        console.log("✅ [CreateGoalModal] Backend response:", result);
+      } catch (err) {
+        console.error("❌ [CreateGoalModal] Backend error:", err);
+        setError(err?.message || 'Failed to create goal (network or server error)');
+        return;
+      }
 
       // Handle both direct goal creation and pending approval cases
       if (result.status === "pending_approval" || result.status === "pending") {
@@ -104,7 +107,7 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
           goal_type: result.goal_type || state.goalType
         });
       }
-      
+
       setIsSuccessOpen(true);
     } catch (err) {
       console.error("❌ CreateGoalModal: Error occurred:", err);
