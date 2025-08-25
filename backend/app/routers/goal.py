@@ -569,7 +569,10 @@ async def create_goal(goal_data: goalCreate, user=Depends(verify_token)):
                 status="pending",
                 created_at=current_time
             )
-            await pending_goals_collection.insert_one(pending_goal_obj.model_dump())
+            goal_dict = pending_goal_obj.model_dump()
+            if isinstance(goal_dict.get('target_date'), date):
+                goal_dict['target_date'] = goal_dict['target_date'].isoformat()
+            await pending_goals_collection.insert_one(goal_dict)
             return pendingGoalResponse(
                 message="Goal submitted for approval",
                 goal_id=goal_id,
