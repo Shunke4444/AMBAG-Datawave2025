@@ -123,7 +123,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
             const token = await user.getIdToken();
             const firebase_uid = user.uid;
             let role_type = null;
-            for (let i = 0; i < 2; i++) {
+            for (let i = 0; i < 5; i++) {
               const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
               role_type = res?.data?.role?.role_type;
               if (role_type === 'manager') break;
