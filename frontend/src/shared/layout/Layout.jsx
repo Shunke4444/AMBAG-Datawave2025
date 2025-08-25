@@ -158,12 +158,12 @@ if (isUseMobile) {
           <button 
             onClick={() => navigate("/app/dashboard")} 
             className={`flex flex-col items-center text-xs ${
-              location.pathname === '/dashboard' || location.pathname === '/' 
+              location.pathname === '/app/dashboard' || location.pathname === '/app' 
                 ? 'text-primary' 
                 : 'text-gray-400'
             } cursor-pointer`}
           >
-            <HomeIcon className={location.pathname === '/dashboard' || location.pathname === '/' ? "text-primary" : "text-gray-400"} />
+            <HomeIcon className={location.pathname === '/app/dashboard' || location.pathname === '/app' ? "text-primary" : "text-gray-400"} />
             <span>Home</span>
           </button>
           <button 
@@ -191,12 +191,12 @@ if (isUseMobile) {
           <button 
             onClick={() => navigate("/app/member-list")} 
             className={`flex flex-col items-center text-xs ${
-              location.pathname === '/member-list' 
+              location.pathname === '/app/member-list' 
                 ? 'text-primary' 
                 : 'text-gray-400'
             } cursor-pointer`}
           >
-            <MembersSettingsIcon className={location.pathname === '/member-list' ? "text-primary" : "text-gray-400"} />
+            <MembersSettingsIcon className={location.pathname === '/app/member-list' ? "text-primary" : "text-gray-400"} />
             <span>Members</span>
           </button>
         </nav>
