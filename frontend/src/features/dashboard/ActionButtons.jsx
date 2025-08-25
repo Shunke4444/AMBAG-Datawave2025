@@ -89,7 +89,7 @@ const actions = [
           onClose={() => setIsGoalModalOpen(false)}
           onSelect={(goalId) => {
             setIsGoalModalOpen(false);
-            navigate(`/app/payment/${goalId}`);
+            navigate(`/payment/${goalId}`);
           }}
         />
       )}

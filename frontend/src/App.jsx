@@ -41,26 +41,57 @@ import LoanPage from "./features/loan/LoanPage.jsx";
 
 // ------------------ ROUTES ------------------
 const router = createBrowserRouter([
-  // Redirects for legacy paths
-  { path: "/member", element: <Navigate to="/app/member" replace /> },
-  { path: "/requests-approval", element: <Navigate to="/app/requests-approval" replace /> },
-  { path: "/transactions/balance", element: <Navigate to="/app/transactions/balance" replace /> },
-  { path: "/transactions/deposit", element: <Navigate to="/app/transactions/deposit" replace /> },
-
+  {
+    path: "/receipt",
+    element: <Navigate to="/app/receipt" replace />,
+  },
+    // Redirect legacy or direct links without /app/ to correct /app/ routes
+    {
+      path: "/requests-approval",
+      element: <Navigate to="/app/requests-approval" replace />,
+    },
+    {
+      path: "/transactions/balance",
+      element: <Navigate to="/app/transactions/balance" replace />,
+    },
+    {
+      path: "/transactions/deposit",
+      element: <Navigate to="/app/transactions/deposit" replace />,
+    },
   // Public routes
-  { path: "/login", element: <Login /> },
-  { path: "/signup", element: <Signup /> },
-  { path: "/onboarding", element: <OnboardingWrapper /> },
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/signup",
+    element: <Signup />,
+  },
+  {
+    path: "/onboarding",
+    element: <OnboardingWrapper />,
+  },
 
-  // Payment routes (accessible without layout)
-  { path: "/payment", element: <Payment /> },
-  { path: "/payment/:goalId", element: <Payment /> },
-  { path: "/payment/confirm", element: <ConfirmPay /> },
+  // Payment can be accessed without layout (optional, move if you want protected)
+  {
+    path: "/payment",
+    element: <Payment />,
+  },
+  {
+    path: "/payment/:goalId",
+    element: <Payment />,
+  },
+  {
+    path: "/payment/confirm",
+    element: <ConfirmPay />,
+  },
+  // Removed top-level /receipt route. Now under /app/receipt below.
 
-  // Root redirect to login
-  { path: "/", element: <Login /> },
-
-  // Protected app routes with layout
+  // Protected app routes (with sidebar/layout)
+  {
+    path: "/",
+    element: <Login />,
+  },
   {
     path: "/app",
     element: <Layout />,
@@ -71,13 +102,12 @@ const router = createBrowserRouter([
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "what-if", element: <WhatIf /> },
 
-      // Custom feature routes
-      { path: "pay-share", element: <RequestFormMember /> },
-      { path: "request-funds", element: <RequestFormMember /> },
-      { path: "member-settings", element: <Settings /> },
-      { path: "member-request", element: <Request /> },
-      { path: "member", element: <MemberPage /> },
-      { path: "loan", element: <LoanPage /> },
+  // Custom feature routes for dashboard buttons
+  { path: "pay-share", element: <RequestFormMember /> },
+  { path: "request-funds", element: <RequestFormMember /> },
+  { path: "member-settings", element: <Settings /> },
+  { path: "member-request", element: <Request /> },
+  { path: "loan", element: <LoanPage /> },
 
       // Transactions
       { path: "transactions/withdrawal", element: <Withdrawal /> },
@@ -88,7 +118,7 @@ const router = createBrowserRouter([
       { path: "transactions/withdrawalProcess", element: <WithdrawForm /> },
       { path: "transactions/depositProcess", element: <DepositForm /> },
 
-      // Manager/Member
+      // Manager/Member stuff
       { path: "transaction-history", element: <TransactionHistory /> },
       { path: "manager-notifications", element: <ManagerNotifications /> },
       { path: "member-requests", element: <Request /> },
@@ -112,10 +142,9 @@ const router = createBrowserRouter([
         ],
       },
 
-      // Receipt page
+      // Receipt page as child of /app
       { path: "receipt", element: <Receipt /> },
 
-      // Help & Support
       { path: "help-support", element: <HelpSupport /> },
     ],
   },

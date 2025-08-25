@@ -255,7 +255,7 @@ export default function ManagerNotifications({ goalId }) {
                             onPayShare={(goalId) => {
                               const goalName = reminder?.goal_name || reminder?.ai_reminder?.goal_name || reminder?.context?.goal_name || '';
                               const goalAmount = reminder?.goal_amount || reminder?.ai_reminder?.goal_amount || reminder?.context?.goal_amount || 0;
-                              navigate(`/app/payment/${goalId}`, {
+                              navigate(`/payment/${goalId}`, {
                                 state: {
                                   goalName,
                                   goalAmount,

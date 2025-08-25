@@ -31,7 +31,7 @@ export default function OnboardingWrapper() {
           if (role_type === 'manager') {
             navigate('/app/dashboard'); // ManagerDashboard UI
           } else {
-            navigate('/app/member'); // MemberPage UI
+            navigate('/member'); // MemberPage UI
           }
         } else {
           setLoading(false);
