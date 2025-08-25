@@ -13,7 +13,6 @@ import Withdrawal from "./features/transactions/WithdrawalPage";
 import Deposit from "./features/transactions/DepositPage";
 import TransactionHistory from "./features/transactions/TransactionHistoryPage";
 import Balance from "./features/transactions/Balance.jsx";
-import MemberPage from "./features/members/MemberPage";
 import ManagerNotifications from "./features/notifications/ManagerNotificationPage";
 import AuditLogs from "./features/transactions/AuditLogsPage";
 import WithdrawForm from "./features/transactions/WithdrawForm";
@@ -88,9 +87,9 @@ const router = createBrowserRouter([
   // Removed top-level /receipt route. Now under /app/receipt below.
 
   // Protected app routes (with sidebar/layout)
-  {
-    path: "/",
-    element: <Login />,
+  { path: "/", 
+    element: <Navigate 
+    to="/login" replace /> 
   },
   {
     path: "/app",
@@ -102,12 +101,12 @@ const router = createBrowserRouter([
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "what-if", element: <WhatIf /> },
 
-  // Custom feature routes for dashboard buttons
-  { path: "pay-share", element: <RequestFormMember /> },
-  { path: "request-funds", element: <RequestFormMember /> },
-  { path: "member-settings", element: <Settings /> },
-  { path: "member-request", element: <Request /> },
-  { path: "loan", element: <LoanPage /> },
+      // Custom feature routes for dashboard buttons
+      { path: "pay-share", element: <RequestFormMember /> },
+      { path: "request-funds", element: <RequestFormMember /> },
+      { path: "member-settings", element: <Settings /> },
+      { path: "member-request", element: <Request /> },
+      { path: "loan", element: <LoanPage /> },
 
       // Transactions
       { path: "transactions/withdrawal", element: <Withdrawal /> },
@@ -144,8 +143,8 @@ const router = createBrowserRouter([
 
       // Receipt page as child of /app
       { path: "receipt", element: <Receipt /> },
-
       { path: "help-support", element: <HelpSupport /> },
+
     ],
   },
 ]);

@@ -82,7 +82,7 @@ export default function Login() {
           if (role_type === 'manager') {
             navigate('/app/dashboard');
           } else if (role_type === 'member') {
-            navigate('/member');
+            navigate('/app/dashboard');
           } else {
             navigate('/app/dashboard'); // fallback
           }

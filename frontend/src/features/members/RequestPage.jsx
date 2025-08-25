@@ -19,7 +19,7 @@ import {
 import MobileLayout from '../payments/PaymentLayout';
 import MobileHeader from '../../components/MobileHeader';
 import RequestSubmittedModal from './RequestSubmittedModal';
-import { createGoal, createMemberRequest, getUserProfile } from '../../lib/api';
+import {  createMemberRequest, getUserProfile } from '../../lib/api';
 export default function Request() {
   const [groupId, setGroupId] = useState(null);
   const theme = useTheme();

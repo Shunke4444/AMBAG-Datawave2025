@@ -61,15 +61,16 @@ const GoalCardGlassMobile = ({ goal, onGoalDeleted }) => {
 
   // Handle closing Paid modal and deleting goal
   const handlePaidClose = async () => {
-    if (!goal?.goal_id) {
-      console.error("Goal missing goal_id", goal);
+    const goalId = goal.goal_id || goal.id;
+    if (!goalId) {
+      console.error("Goal missing id/goal_id", goal);
       setPaidModalOpen(false);
       return;
     }
 
     try {
-      await deleteGoal(goal.goal_id); // delete from backend
-      if (onGoalDeleted) onGoalDeleted(goal.goal_id); // remove from parent UI
+      await deleteGoal(goalId); // correct ID
+      if (onGoalDeleted) onGoalDeleted(goalId); // update UI
     } catch (err) {
       console.error("Failed to delete goal:", err);
       alert("Failed to delete goal: " + err.message);
@@ -77,6 +78,7 @@ const GoalCardGlassMobile = ({ goal, onGoalDeleted }) => {
       setPaidModalOpen(false);
     }
   };
+
 
   // Cancel completed modal without deletion
   const handleCancelCompleted = () => {
