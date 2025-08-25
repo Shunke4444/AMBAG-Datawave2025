@@ -158,18 +158,14 @@ const GoalCards = ({ goals = [] }) => {
     yourShare: userShareMap[g.goal_id || g.id] ?? 0,
   }));
 
-  // Detect newly completed goals
+  // Show modal for any completed goal not in shownGoals, or any completed goal on initial load
   useEffect(() => {
     mappedGoals.forEach((g) => {
       const percent = (g.amount / g.total) * 100;
       const prevPercent = prevPercentsRef.current[g.id];
 
-      if (prevPercent === undefined) {
-        prevPercentsRef.current[g.id] = percent; // baseline
-        return;
-      }
-
-      if (prevPercent < 100 && percent >= 100 && !shownGoals.has(g.id)) {
+      // Show modal if goal is completed and not in shownGoals
+      if (percent >= 100 && !shownGoals.has(g.id)) {
         setCompletedGoal(g);
         setShownGoals((prev) => new Set(prev).add(g.id));
       }
