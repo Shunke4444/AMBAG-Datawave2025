@@ -107,6 +107,7 @@ const router = createBrowserRouter([
   { path: "request-funds", element: <RequestFormMember /> },
   { path: "member-settings", element: <Settings /> },
   { path: "member-request", element: <Request /> },
+  { path: "member", element: <MemberPage /> },
   { path: "loan", element: <LoanPage /> },
 
       // Transactions
