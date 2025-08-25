@@ -119,6 +119,16 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               manager_id: user.uid,
             });
             setCreatedGroup(group);
+            // Re-fetch user profile and route based on updated role
+            const token = await user.getIdToken();
+            const firebase_uid = user.uid;
+            const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
+            const role_type = res?.data?.role?.role_type;
+            if (role_type === 'manager') {
+              navigate('/app/dashboard');
+            } else {
+              navigate('/member');
+            }
           } catch (err) {
             alert("Error creating group: " + err.message);
           }

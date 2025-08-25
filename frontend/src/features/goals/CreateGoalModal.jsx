@@ -55,7 +55,7 @@ const CreateGoalModal = ({ open, onClose, onCreateGoal }) => {
         description: state.description ?? "",
         goal_type: state.goalType ?? "",
         group_id: (groupId ?? user?.group_id ?? ""),
-        creator_role: user?.role ?? "",
+        creator_role: (user?.role === 'manager' ? 'manager' : 'member'),
         creator_name:
           (user?.name && typeof user.name === "string" && user.name.trim() !== "") ? user.name :
           (user?.first_name || user?.last_name) ? `${user.first_name || ""} ${user.last_name || ""}`.trim() :
