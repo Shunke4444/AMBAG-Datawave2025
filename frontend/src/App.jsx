@@ -72,6 +72,12 @@ const router = createBrowserRouter([
     element: <OnboardingWrapper />,
   },
 
+    // Member landing route for onboarding/join flows
+    {
+      path: "/member",
+      element: <MemberPage />,
+    },
+
   // Payment can be accessed without layout (optional, move if you want protected)
   {
     path: "/payment",

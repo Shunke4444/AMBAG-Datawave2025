@@ -132,7 +132,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
             if (role_type === 'manager') {
               navigate('/app/dashboard');
             } else {
-              navigate('/member');
+              navigate('/app/member');
             }
           } catch (err) {
             alert("Error creating group: " + err.message);
@@ -158,7 +158,7 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
           if (role_type === 'manager') {
             navigate('/app/dashboard');
           } else {
-            navigate('/member');
+            navigate('/app/member');
           }
         }}
       />
