@@ -119,11 +119,16 @@ export default function GroupEntryModal({ open, onClose, onCreate, onJoin }) {
               manager_id: user.uid,
             });
             setCreatedGroup(group);
-            // Re-fetch user profile and route based on updated role
+            // Retry profile fetch up to 5 times, 500ms apart, until role is manager
             const token = await user.getIdToken();
             const firebase_uid = user.uid;
-            const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
-            const role_type = res?.data?.role?.role_type;
+            let role_type = null;
+            for (let i = 0; i < 2; i++) {
+              const res = await import('../../lib/api').then(m => m.api.get(`/users/profile/${firebase_uid}`, { headers: { Authorization: `Bearer ${token}` } }));
+              role_type = res?.data?.role?.role_type;
+              if (role_type === 'manager') break;
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
             if (role_type === 'manager') {
               navigate('/app/dashboard');
             } else {
