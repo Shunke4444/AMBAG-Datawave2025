@@ -102,11 +102,12 @@ const router = createBrowserRouter([
     path: "/app",
     element: <Layout />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: "dashboard", element: <Dashboard /> },
-      { path: "goals", element: <Goals /> },
-      { path: "ai-assistant", element: <AIAssistant /> },
-      { path: "what-if", element: <WhatIf /> },
+  { index: true, element: <Dashboard /> },
+  { path: "dashboard", element: <Dashboard /> },
+  { path: "member", element: <MemberPage /> },
+  { path: "goals", element: <Goals /> },
+  { path: "ai-assistant", element: <AIAssistant /> },
+  { path: "what-if", element: <WhatIf /> },
 
   // Custom feature routes for dashboard buttons
   { path: "pay-share", element: <RequestFormMember /> },
