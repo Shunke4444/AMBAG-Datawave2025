@@ -167,14 +167,25 @@ if (isUseMobile) {
             <span>Home</span>
           </button>
           <button 
-            onClick={() => navigate("/app/requests-approval")} 
+            onClick={() => navigate("/app/transactions/deposit")} 
             className={`flex flex-col items-center text-xs ${
-              location.pathname === '/requests-approval' 
+              location.pathname === '/app/transactions/deposit' 
                 ? 'text-primary'
                 : 'text-gray-400'
             } cursor-pointer`}
           >
-            <RequestsIcon className={location.pathname === '/requests-approval' ? "text-primary" : "text-gray-400"} />
+            <AddGoalcon className={location.pathname === '/app/transactions/deposit' ? "text-primary" : "text-gray-400"} />
+            <span>Deposit</span>
+          </button>
+          <button 
+            onClick={() => navigate("/app/requests-approval")} 
+            className={`flex flex-col items-center text-xs ${
+              location.pathname === '/app/requests-approval' 
+                ? 'text-primary'
+                : 'text-gray-400'
+            } cursor-pointer`}
+          >
+            <RequestsIcon className={location.pathname === '/app/requests-approval' ? "text-primary" : "text-gray-400"} />
             <span>Requests</span>
           </button>
           <button 

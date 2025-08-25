@@ -68,10 +68,7 @@ const router = createBrowserRouter([
     path: "/payment/confirm",
     element: <ConfirmPay />,
   },
-  {
-    path: "/receipt",
-    element: <Receipt />,
-  },
+  // Removed top-level /receipt route. Now under /app/receipt below.
 
   // Protected app routes (with sidebar/layout)
   {
@@ -127,6 +124,9 @@ const router = createBrowserRouter([
           { path: "privacy-legal", element: <PrivacyLegalTab /> },
         ],
       },
+
+      // Receipt page as child of /app
+      { path: "receipt", element: <Receipt /> },
 
       { path: "help-support", element: <HelpSupport /> },
     ],
