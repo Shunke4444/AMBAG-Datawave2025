@@ -28,6 +28,7 @@ export default function MemberNotification({ goalId }) {
 
   useEffect(() => {
     async function loadNotifications() {
+      console.log('[AgenticNotif DEBUG] effectiveGoalId:', effectiveGoalId);
       if (!currentUser) {
         setLoading(true);
         return;
@@ -52,8 +53,10 @@ export default function MemberNotification({ goalId }) {
         // Agentic notifications (smart reminders)
   console.log('Fetching agentic reminders with ID:', effectiveGoalId);
   const agenticRes = await fetchSmartReminders(effectiveGoalId);
+  console.log('[AgenticNotif DEBUG] Raw agentic reminders:', agenticRes.reminders);
         // Filter for current group and auto_send true
-        const agenticFiltered = (agenticRes.reminders || []).filter(r => r.group_id === effectiveGoalId && r.auto_send);
+  const agenticFiltered = (agenticRes.reminders || []).filter(r => r.group_id === effectiveGoalId && r.auto_send);
+  console.log('[AgenticNotif DEBUG] Filtered agentic reminders:', agenticFiltered);
         // Sort by timestamp
         const agenticSorted = [...agenticFiltered].sort((a, b) => {
           const ta = new Date(a.timestamp || 0).getTime();
