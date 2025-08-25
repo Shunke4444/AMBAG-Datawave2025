@@ -22,6 +22,7 @@ import AccountSecurityTab from "./features/settings/AccountSecurityTab";
 import PreferencesTab from "./features/settings/PreferencesTab";
 import PrivacyLegalTab from "./features/settings/PrivacyLegalTab";
 import NotificationsTab from "./features/notifications/NotificationsTab";
+import MemberPage from "./features/members/MemberPage.jsx";
 import Payment from "./features/payments/PaymentPage";
 import Request from "./features/members/RequestPage";
 import ConfirmPay from "./features/payments/ConfirmPayPage";

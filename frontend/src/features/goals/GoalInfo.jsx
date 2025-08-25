@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { MoreVert as MoreIcon } from "@mui/icons-material";
-import { Card, CardContent, IconButton, Menu, MenuItem } from "@mui/material";
+import { Card, CardContent, IconButton, Menu, MenuItem, Button } from "@mui/material";
 import { useMembersContext } from "../../features/manager/contexts/MembersContext.jsx";
 import { listGoals } from "../../lib/api";
 
@@ -8,15 +8,20 @@ const GoalInfo = () => {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { groupId } = useMembersContext();
+
+  // ✅ bring in currentUser
+  const { groupId, currentUser } = useMembersContext();
+  const isManager = currentUser?.role?.role_type?.toLowerCase() === "manager";
+  console.log("[GoalInfo] currentUser:", currentUser);
+  console.log("[GoalInfo] role:", currentUser?.role);
 
   useEffect(() => {
     const fetchGoals = async () => {
       try {
         setLoading(true);
-        console.log('[GoalInfo] Fetching goals for groupId:', groupId);
+        console.log("[GoalInfo] Fetching goals for groupId:", groupId);
         const goalsData = await listGoals(groupId);
-        console.log('[GoalInfo] Fetched goals:', goalsData);
+        console.log("[GoalInfo] Fetched goals:", goalsData);
         setGoals(goalsData || []);
         setError(null);
       } catch (err) {
@@ -26,7 +31,7 @@ const GoalInfo = () => {
       }
     };
     if (groupId) fetchGoals();
-    else console.log('[GoalInfo] No groupId available, cannot fetch goals');
+    else console.log("[GoalInfo] No groupId available, cannot fetch goals");
   }, [groupId]);
 
   // Menu state
@@ -103,7 +108,7 @@ const GoalInfo = () => {
       )}
 
       {!loading && !error && goals.length === 0 && (
-        <div className="flex justify-center items-center h-32">
+        <div className="flex flex-col justify-center items-center h-32 gap-2">
           <p className="text-gray-500 sm:text-sm md:text-xs">No goals found</p>
         </div>
       )}
@@ -121,16 +126,21 @@ const GoalInfo = () => {
                   <h1 className="font-semibold text-primary text-sm sm:text-base md:text-md">
                     {goal.title}
                   </h1>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleMenuOpen(e, index)}
-                  >
-                    <MoreIcon />
-                  </IconButton>
+                  {/* 👇 Only managers see More menu */}
+                  {isManager && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, index)}
+                    >
+                      <MoreIcon />
+                    </IconButton>
+                  )}
                 </header>
 
                 {/* Days Left */}
-                <p className="text-xs text-textcolor">{getDaysLeft(goal.target_date)}</p>
+                <p className="text-xs text-textcolor">
+                  {getDaysLeft(goal.target_date)}
+                </p>
 
                 {/* Amount Progress */}
                 <p className="text-md font-light text-green">
@@ -172,16 +182,14 @@ const GoalInfo = () => {
         </div>
       )}
 
-      {/* Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleDelete}>Delete</MenuItem>
-        <MenuItem onClick={handleMarkDone}>Mark as Done</MenuItem>
-      </Menu>
+      {/* Menu (manager only) */}
+      {isManager && (
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+          <MenuItem onClick={handleEdit}>Edit</MenuItem>
+          <MenuItem onClick={handleDelete}>Delete</MenuItem>
+          <MenuItem onClick={handleMarkDone}>Mark as Done</MenuItem>
+        </Menu>
+      )}
     </div>
   );
 };
